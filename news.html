@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Pool News</title>
+    <style>
+    /* CSS styles */
+    body {
+        margin: 0;
+        font-family: 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh; /* Ensure full height of viewport */
+        position: relative; /* Needed for absolute positioning of images */
+    }
+    h1 {
+        font-weight: 300;
+        letter-spacing: 2px;
+        font-size: 48px;
+        margin: 0;
+        padding: 20px 0;
+    }
+    p {
+        letter-spacing: 1px;
+        font-size: 14px;
+        color: #ccc;
+    }
+    .header {
+        text-align: center;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: white;
+        padding: 20px;
+        margin-bottom: 20px; /* Add margin to create space for content */
+    }
+    .navbar {
+        background-color: #222;
+        overflow: hidden;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        position: sticky;
+        top: 0;
+        z-index: 1000; /* Ensure navigation bar stays on top */
+    }
+    .navbar a {
+        color: #ccc;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-size: 17px;
+        transition: color 0.3s ease;
+    }
+    .navbar a:hover {
+        color: #8db600; /* Olive color */
+    }
+    .content {
+        flex: 1; /* Take remaining vertical space */
+        position: relative;
+        min-height: 300px;
+        background-color: #666; /* Cooler background color */
+        padding: 20px;
+    }
+    footer {
+        background-color: #222;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        width: 100%;
+    }
+    .article {
+        background-color: #444; /* Darker background color */
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .article h2 {
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    .article p {
+        font-size: 16px;
+        color: #ccc;
+    }
+    .article a {
+        color: #8db600; /* Olive color */
+        text-decoration: none;
+    }
+    .article a:hover {
+        text-decoration: underline;
+    }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+    </div>
+
+    <!-- Header Section -->
+    <div class="header">
+        <h1>Wave Pool News</h1>
+    </div>
+    <!-- Header Section ends -->
+
+    <!-- Main Content -->
+    <div class="content">
+        <div class="article">
+            <h2>Latest Trends in Wave Pool Technology</h2>
+            <p>Discover the most recent advancements in wave pool technology, from new wave generation techniques to enhanced safety measures.</p>
+            <a href="https://wavepoolmag.com/" target="_blank">Read More</a>
+ 
+	</div>
+
+        <div class="article">
+            <h2>Top 10 Wave Pools to Visit in 2024</h2>
+            <p>Check out my list of the top wave pools around the world that you should visit as of 2024.</p>
+            <a href="#link-to-full-article.html">Read More</a>
+        </div>
+
+        <div class="article">
+            <h2>The Impact of Weather on Wave Pool Conditions</h2>
+            <p>Learn how various weather conditions affect wave pool operations and how you can prepare for different scenarios.</p>
+            <a href="#link-to-full-article.html">Read More</a>
+        </div>
+    </div>
+    <!-- Main Content ends -->
+
+    <!-- Footer -->
+    <footer>
+        <p>2024 Freshwater Forecast. All rights reserved.</p>
+    </footer>
+    <!-- Footer ends -->
+</body>
+</html>
+

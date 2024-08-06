@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waco Water Temperature</title>
+    <style>
+    /* CSS styles */
+    body {
+        margin: 0;
+        font-family: 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh; /* Ensure full height of viewport */
+    }
+    h1 {
+        font-weight: 300;
+        letter-spacing: 2px;
+        font-size: 48px;
+        margin: 0;
+        padding: 20px 0;
+    }
+    p {
+        letter-spacing: 1px;
+        font-size: 14px;
+        color: #ccc;
+    }
+    .header {
+        position: relative;
+        text-align: center;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: white;
+        padding: 20px;
+        margin-bottom: 20px; /* Add margin to create space for days container */
+        height: 5vh;
+	overflow: hidden;
+    }
+    .logo {
+        width: 50px;
+        fill: white;
+        padding-right: 15px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .inner-header {
+        height: 65vh;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+    .content {
+        flex: 1; /* Take remaining vertical space */
+        position: relative;
+        min-height: 300px;
+        background-color: #666; /* Cooler background color */
+        padding: 20px;
+    }
+    /* Navigation Bar Styles */
+    .navbar {
+        background-color: #222;
+        overflow: hidden;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        position: sticky;
+        top: 0;
+        z-index: 1000; /* Ensure navigation bar stays on top */
+    }
+    .navbar a {
+        color: #ccc;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-size: 17px;
+        transition: color 0.3s ease;
+    }
+    .navbar a:hover {
+        color: #8db600; /* Olive color */
+    }
+        
+
+    /* Updated CSS for .days-container */
+    .days-container {
+        display: flex;
+        justify-content: space-around;
+        padding: 20px;
+        flex-wrap: wrap; /* Allow columns to wrap to the next line */
+        gap: 20px; /* Adjust the gap between columns */
+        max-width: 90%; /* Adjust as needed */
+        margin: auto; /* Center horizontally */
+    }
+
+    /* Adjust .day-column width as needed */
+    .day-column {
+        flex: 1 1 calc(15% - 20px); /* Adjust width calculation */
+        text-align: center;
+        padding: 20px;
+        background-color: #444; /* Darker background color */
+        border-radius: 8px;
+        max-width: 200px; /* Limit maximum width of each column */
+    }
+    .day-column h2 {
+        font-size: 24px;
+        margin-bottom: 5px;
+    }
+    .day-column h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #ccc;
+    }
+    .day-column p {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    /* Footer styles */
+    footer {
+        background-color: #222;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+    }
+    </style> 
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+    fetch('forecasted_pool_temps.txt')
+        .then(response => response.text())
+        .then(data => {
+            const lines = data.trim().split('\n');
+            lines.forEach((line, index) => {
+                const [date, temp] = line.split(',');
+                if (date && temp) {
+                    const column = document.getElementById(`day${index + 1}`);
+                    if (column) {
+                        let dayLabel = '';
+                        if (index === 0) {
+                            dayLabel = 'Today';
+                        } else if (index === 1) {
+                            dayLabel = 'Tomorrow';
+                        } else {
+                            const today = new Date();
+                            const nextDay = new Date(today);
+                            nextDay.setDate(today.getDate() + index);
+                            dayLabel = nextDay.toLocaleDateString('en-US', { weekday: 'long' });
+                        }
+
+                        let suitRecommendation = '';
+                        const temperature = parseFloat(temp);
+                        
+                        if (temperature > 75) {
+                            suitRecommendation = 'Boardshorts';
+                        } else if (temperature >= 69 && temperature <= 74) {
+                            suitRecommendation = 'Top / Shorty';
+                        } else if (temperature >= 63 && temperature <= 68) {
+                            suitRecommendation = '2 mm Springsuit / 3/2 mm Full Suit';
+                        } else if (temperature >= 58 && temperature <= 62) {
+                            suitRecommendation = '4/3 Full Suit';
+                        } else if (temperature >= 52 && temperature <= 57) {
+                            suitRecommendation = '4/3 Full Suit + Booties';
+                        } else if (temperature < 52) {
+                            suitRecommendation = '5/4 Full Suit + Hood + Booties';
+                        }
+
+                        column.innerHTML = `
+                            <h2>${dayLabel}</h2>
+                            <h3>${date}</h3>
+                            <p>${temp} °F</p>
+                            <p>Recommended Suit: ${suitRecommendation}</p>
+                        `;
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error fetching temperature:', error));
+    });
+
+    
+    </script>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+    </div>
+
+    <!-- Waco Water Temperature Section -->
+    <div class="header">
+        <div class="inner-header flex">
+        </div>
+    </div>
+    <!-- Waco Water Temperature Section ends -->
+
+    <!-- Days Container -->
+    <div class="content">
+        <h2 style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas</h2>
+        <div class="days-container">
+            <div id="day1" class="day-column"></div>
+            <div id="day2" class="day-column"></div>
+            <div id="day3" class="day-column"></div>
+            <div id="day4" class="day-column"></div>
+            <div id="day5" class="day-column"></div>
+            <div id="day6" class="day-column"></div>
+            <!-- <div id="day7" class="day-column"></div> -->
+        </div>
+    </div>
+    <!-- Days Container ends -->
+
+    <!-- Footer -->
+    <footer>
+        <p>2024 Freshwater Forecast. All rights reserved.</p>
+    </footer>
+    <!-- Footer ends -->
+</body>
+</html>
+

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Me/Contact - Waco Water Temperature</title>
+    <style>
+    /* CSS styles */
+/* CSS styles */
+body {
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+    background-color: #333;
+    color: #fff;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ensure full height of viewport */
+}
+
+h1 {
+    font-weight: 300;
+    letter-spacing: 2px;
+    font-size: 48px;
+    margin: 0;
+    padding: 20px 0;
+    text-align: center;
+}
+
+p {
+    letter-spacing: 1px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #ccc;
+    padding: 0 20px;
+}
+
+.header {
+    position: relative;
+    text-align: center;
+    background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+    color: white;
+    padding: 20px;
+    margin-bottom: 20px; /* Add margin to create space for content */
+}
+
+.inner-header {
+    height: 65vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.content {
+    flex: 1; /* Take remaining vertical space */
+    position: relative;
+    min-height: 300px;
+    background-color: #666; /* Cooler background color */
+    padding: 20px;
+    padding-bottom: 150px; /* Add padding at the bottom for the images */
+    box-sizing: border-box; /* Ensure padding is included in height calculation */
+}
+
+/* Navigation Bar Styles */
+.navbar {
+    background-color: #222;
+    overflow: hidden;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000; /* Ensure navigation bar stays on top */
+}
+
+.navbar a {
+    color: #ccc;
+    text-align: center;
+    padding: 14px 20px;
+    text-decoration: none;
+    font-size: 17px;
+    transition: color 0.3s ease;
+}
+
+.navbar a:hover {
+    color: #8db600; /* Olive color */
+}
+
+/* Footer styles */
+footer {
+    background-color: #222;
+    color: #ccc;
+    text-align: center;
+    padding: 10px;
+    position: relative;
+    width: 100%;
+    z-index: 100; /* Ensure footer stays above other content */
+}
+
+/* Bottom Center Images */
+.bottom-center-images {
+    position: absolute;
+    bottom: 0; /* Align images at the bottom of the content */
+    left: 50%; /* Center horizontally */
+    transform: translateX(-50%); /* Adjust for centering */
+    display: flex;
+    flex-direction: column; /* Stack images vertically */
+    align-items: center; /* Center images horizontally */
+    gap: 10px; /* Space between images */
+}
+
+.bottom-center-images img {
+    display: block;
+    width: 200px; /* Default size */
+    height: auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .bottom-center-images {
+        bottom: 10px; /* Reduce distance from bottom on small screens */
+    }
+    .bottom-center-images img {
+        width: 150px; /* Reduce image size on small screens */
+    }
+}
+
+@media (max-width: 480px) {
+    .bottom-center-images img {
+        width: 120px; /* Further reduce image size on extra-small screens */
+    }
+}
+
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+    </div>
+
+    <!-- Header Section -->
+    <div class="header">
+        <h1>About/Contact</h1>
+    </div>
+    <!-- Header Section ends -->
+
+    <!-- Main Content -->
+    <div class="content">
+        <p>Welcome to the About/Contact page of Freshwater Predictions.</p>
+
+        <p>How and Why:</p>
+        <p>This site was created with the goal of providing accurate water temperature forecasts for wave pools around the world, beginning with Waco. The weather in Texas can change quickly and sometimes figuring out what equipment you need to bring can be difficult. This is because the water temperature usually does not match the air temperature. One can make an approximation of today's water temperature by making a simple calculation involving the local air temperature from the previous two days. This site automatically fetches the required data and makes the calculations needed while keeping track of the previously fetched data so there's no need to look at historical records. The last task for site completion is to add climatology, wind forecasts, celsius, operational statuses, and load balancing.</p>
+
+        <p>If you have any questions, feedback, or would like to get in touch, please feel free to contact me directly through the provided contact details.</p>
+        <p>About Me:</p>
+        <p>I'm a master's student at Texas A&M and Data Analyst at Flood Information Systems who is eager to apply exceptional programming skills and research experience to solve geoscience problems. I currently work under Dr. Istvan Szunyogh in the Atmospheric Science Department researching the application of machine learning to numerical weather prediction and data assimilation. In my free time, I enjoy surfing, fly fishing, and building personal coding projects like this one.</p>
+
+        <p>Dylan Elliott</p>
+        <p>email: dylanelliott@tamu.edu</p>
+        <p>Thank you for visiting Freshwater Predictions!</p>
+    <!-- Images at Bottom Center -->
+    <div class="bottom-center-images">
+        <img src="linkedin_profile.png" alt="LinkedIn Profile">
+        <img src="surfing_waco.png" alt="Surfing in Waco">
+    </div>
+
+
+    </div>
+    <!-- Main Content ends -->
+
+    <!-- Footer -->
+    <footer>
+        <p>2024 Freshwater Predictions. All rights reserved.</p>
+    </footer>
+    <!-- Footer ends -->
+
+</body>
+</html>
+
