@@ -1,0 +1,121 @@
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 173, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 65, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Error requesting data: HTTP Error 500: Internal Server Error
+Traceback (most recent call last):
+  File "/var/www/html/pull_api_data.py", line 175, in <module>
+    pull_api_temp_data_main(lat, lon, 1)
+  File "/var/www/html/pull_api_data.py", line 67, in pull_api_temp_data_main
+    parse_weather_data(hourly_weather_json_data)
+NameError: name 'hourly_weather_json_data' is not defined
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Attempt 1 failed: HTTP Error 500: Internal Server Error
+Error requesting data: HTTP Error 500: Internal Server Error
+len(date_list)  7
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Attempt 1 failed: HTTP Error 500: Internal Server Error
+Error requesting data: HTTP Error 500: Internal Server Error
+len(date_list)  7
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+len(date_list)  7
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Attempt 1 failed: HTTP Error 500: Internal Server Error
+Error requesting data: HTTP Error 500: Internal Server Error
+len(date_list)  7
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+Attempt 1 failed: HTTP Error 500: Internal Server Error
+Error requesting data: HTTP Error 500: Internal Server Error
+len(date_list)  7
+Ran without error
+hourly_forecast_url =  https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
+len(date_list)  7
+Ran without error

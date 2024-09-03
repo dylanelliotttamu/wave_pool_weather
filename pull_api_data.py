@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# TEST
 # Python script to pull NWS api data from selected station
 
 # Import necessary libraries
@@ -6,7 +8,7 @@ import urllib.request
 import json
 from datetime import datetime
 from datetime import date, timedelta
-
+import time
 
 lat, lon = 31.6212, -97.0037 # Waco, TX
 
@@ -32,21 +34,30 @@ def retrieve_the_hourly_url_given_only_lat_and_lon(input_lat,input_lon):
     # https://api.weather.gov/gridpoints/FWD/81,53/forecast/hourly
 
     get_hourly_forecast_url(data_1)
-    
+    print('hourly_forecast_url = ', hourly_forecast_url)    
     return hourly_forecast_url
 
 # Use url and return data 
-def request_data(url):
-    try:
-        with urllib.request.urlopen(url) as response: #url:
-            #data = json.loads(url.read().decode())
-            global hourly_weather_json_data
-            hourly_weather_json_data = json.loads(response.read().decode())
-            return hourly_weather_json_data
+def request_data(url, retries=3, delay=2):
+    
+    for attempt in range(retries):
+    
+        try:
+            with urllib.request.urlopen(url) as response: #url:
+                #data = json.loads(url.read().decode())
+                global hourly_weather_json_data
+                hourly_weather_json_data = json.loads(response.read().decode())
+                return hourly_weather_json_data
  
-            # returns 7-days of hourly data
-    except Exception as e:
-        print(f"Error requesting data: {e}")
+                # returns 7-days of hourly data
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}") 
+            print(f"Error requesting data: {e}")
+            if attempt < retries -1:
+                time.sleep(delay)
+            else:
+                print(f"Failed to retrieve data after {retries} attempts.")
+                return None
 
 # frequency this script is ran will be determined by another script that will call this one
 
@@ -186,6 +197,10 @@ forecasted_3daysinfuture_pool_temp = ( average_temp_list[2] + average_temp_list[
 forecasted_4daysinfuture_pool_temp = ( average_temp_list[3] + average_temp_list[2] ) / 2
 forecasted_5daysinfuture_pool_temp = ( average_temp_list[4] + average_temp_list[3] ) / 2
 forecasted_6daysinfuture_pool_temp = ( average_temp_list[5] + average_temp_list[4] ) / 2
+
+# test
+print('len(date_list) ', len(date_list))
+
 if len(date_list) > 6:
     forecasted_7daysinfuture_pool_temp = ( average_temp_list[6] + average_temp_list[5] ) / 2
 
