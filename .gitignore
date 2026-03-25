@@ -1,0 +1,7 @@
+# Ignore cron-generated log
+cron_log_file.log
+
+# Ignore system files (optional but recommended)
+*.swp
+.DS_Store
+
