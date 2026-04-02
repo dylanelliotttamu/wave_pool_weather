@@ -463,16 +463,16 @@ dashboard_html = f'''<!DOCTYPE html>
 </body>
 </html>'''
 
-with open('/workspaces/wave_pool_weather/dashboard.html', 'w') as f:
+with open('../dashboard.html', 'w') as f:
     f.write(dashboard_html)
 # Update waco_water_temp.html with embedded data
-with open('/workspaces/wave_pool_weather/waco_water_temp.html', 'r') as f:
+with open('../waco_water_temp.html', 'r') as f:
     html = f.read()
 
 pool_data_json = json.dumps(pool_data)
 html = html.replace('const poolData = {};', f'const poolData = {pool_data_json};')
 
-with open('/workspaces/wave_pool_weather/waco_water_temp.html', 'w') as f:
+with open('../waco_water_temp.html', 'w') as f:
     f.write(html)
 conn.commit()
 conn.close()
