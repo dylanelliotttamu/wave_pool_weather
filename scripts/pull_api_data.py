@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # Import necessary libraries
-import numpy as np
 import urllib.request
 import json
 from datetime import datetime, date, timedelta
 import time
 import sqlite3
 import os
+import json
 
 # Locations dictionary
 locations = {
@@ -239,6 +239,15 @@ for name, coords in locations.items():
             forecasted_pool = (data['average_temp_list'][i] + data['average_temp_list'][i-1]) / 2
         cursor.execute('INSERT OR REPLACE INTO pool_temps (location_id, date, temp) VALUES (?, ?, ?)', (location_id, str(data['date_list'][i]), forecasted_pool))
 
+# Collect data for embedding in HTML
+pool_data = {}
+for name in locations:
+    cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (name,))
+    rows = cursor.fetchall()
+    dates = [row[0] for row in rows]
+    temps = [str(row[1]) for row in rows]
+    pool_data[name] = {'dates': dates, 'temps': temps}
+
 # Export forecasted pool temps for all locations to text files
 for name in locations.keys():
     cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (name,))
@@ -454,9 +463,17 @@ dashboard_html = f'''<!DOCTYPE html>
 </body>
 </html>'''
 
-with open('dashboard.html', 'w') as f:
+with open('/workspaces/wave_pool_weather/dashboard.html', 'w') as f:
     f.write(dashboard_html)
+# Update waco_water_temp.html with embedded data
+with open('/workspaces/wave_pool_weather/waco_water_temp.html', 'r') as f:
+    html = f.read()
 
+pool_data_json = json.dumps(pool_data)
+html = html.replace('const poolData = {};', f'const poolData = {pool_data_json};')
+
+with open('/workspaces/wave_pool_weather/waco_water_temp.html', 'w') as f:
+    f.write(html)
 conn.commit()
 conn.close()
 

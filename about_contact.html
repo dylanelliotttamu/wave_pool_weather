@@ -184,9 +184,13 @@ footer {
 
     <!-- Footer -->
     <footer>
-        <p>2024 Wave Pool Weather. All rights reserved.</p>
+        <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
     </footer>
     <!-- Footer ends -->
+
+    <script>
+        document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
+    </script>
 
 </body>
 </html>
