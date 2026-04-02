@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waco Water Temperature</title>
+    <title>Pool Temperature Predictions</title>
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <style>
     /* CSS styles */
     body {
@@ -130,70 +135,150 @@
         bottom: 0;
         width: 100%;
     }
+
+    /* Tab styles */
+    .pool-tabs {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .tab {
+        padding: 10px 15px;
+        border: 1px solid #ccc;
+        background: #444;
+        color: #ccc;
+        cursor: pointer;
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+        font-size: 16px;
+    }
+    .tab:hover {
+        background: #555;
+    }
+    .tab.active {
+        background: #8db600;
+        color: white;
+        border-color: #8db600;
+    }
+
+    /* Mobile responsiveness for tabs */
+    @media (max-width: 768px) {
+        .pool-tabs {
+            flex-direction: column;
+            align-items: center;
+        }
+        .tab {
+            width: 80%;
+            max-width: 300px;
+        }
+    }
     </style> 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    fetch('forecasted_pool_temps.txt')
-        .then(response => response.text())
-        .then(data => {
-            const lines = data.trim().split('\n');
-            lines.forEach((line, index) => {
-                const [date, temp] = line.split(',');
-                if (date && temp) {
-                    const column = document.getElementById(`day${index + 1}`);
-                    if (column) {
-                        let dayLabel = '';
-                        if (index === 0) {
-                            dayLabel = 'Today';
-                        } else if (index === 1) {
-                            dayLabel = 'Tomorrow';
-                        } else {
-                            const today = new Date();
-                            const nextDay = new Date(today);
-                            nextDay.setDate(today.getDate() + index);
-                            dayLabel = nextDay.toLocaleDateString('en-US', { weekday: 'long' });
-                        }
+    function loadPoolData(poolName) {
+        const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
+        let displayName = poolName.replace(/_/g, ' ');
+        // Special handling for display names
+        const displayMap = {
+            'Waco': 'Waco, Texas',
+            'Palm_Springs': 'Palm Springs, California',
+            'Lemoore': 'Lemoore, California',
+            'Atlantic_Park_Virginia_Beach': 'Atlantic Park, Virginia Beach',
+            'Oceanside': 'Oceanside, California'
+        };
+        displayName = displayMap[poolName] || displayName;
+        document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
+        fetch(filename)
+            .then(response => response.text())
+            .then(data => {
+                const lines = data.trim().split('\n');
+                lines.forEach((line, index) => {
+                    const [date, temp] = line.split(',');
+                    if (date && temp) {
+                        const column = document.getElementById(`day${index + 1}`);
+                        if (column) {
+                            let dayLabel = '';
+                            if (index === 0) {
+                                dayLabel = 'Today';
+                            } else if (index === 1) {
+                                dayLabel = 'Tomorrow';
+                            } else {
+                                const today = new Date();
+                                const nextDay = new Date(today);
+                                nextDay.setDate(today.getDate() + index);
+                                dayLabel = nextDay.toLocaleDateString('en-US', { weekday: 'long' });
+                            }
 
-                        let suitRecommendation = '';
-                        const temperature = parseFloat(temp);
-                        
-                        if (temperature > 75) {
-                            suitRecommendation = 'Boardshorts';
-                        } else if (temperature >= 69 && temperature <= 74) {
-                            suitRecommendation = 'Top / Shorty';
-                        } else if (temperature >= 63 && temperature <= 68) {
-                            suitRecommendation = '2 mm Springsuit / 3/2 mm Full Suit';
-                        } else if (temperature >= 58 && temperature <= 62) {
-                            suitRecommendation = '4/3 Full Suit';
-                        } else if (temperature >= 52 && temperature <= 57) {
-                            suitRecommendation = '4/3 Full Suit + Booties';
-                        } else if (temperature < 52) {
-                            suitRecommendation = '5/4 Full Suit + Hood + Booties';
-                        }
+                            let suitRecommendation = '';
+                            const temperature = parseFloat(temp);
+                            
+                            if (isNaN(temperature)) {
+                                suitRecommendation = 'Invalid temperature data';
+                            } else if (temperature >= 75) {
+                                suitRecommendation = 'Boardshorts';
+                            } else if (temperature >= 69 && temperature <= 74.99) {
+                                suitRecommendation = 'Top / Shorty';
+                            } else if (temperature >= 63 && temperature <= 68.99) {
+                                suitRecommendation = '2 mm Springsuit / 3/2 mm Full Suit';
+                            } else if (temperature >= 58 && temperature <= 62.99) {
+                                suitRecommendation = '4/3 Full Suit';
+                            } else if (temperature >= 52 && temperature <= 57.99) {
+                                suitRecommendation = '4/3 Full Suit + Booties';
+                            } else if (temperature < 51.99) {
+                                suitRecommendation = '5/4 Full Suit + Hood + Booties';
+                            } else {
+                                suitRecommendation = 'Temperature out of range';
+                            }
 
-                        column.innerHTML = `
-                            <h2>${dayLabel}</h2>
-                            <h3>${date}</h3>
-                            <p>${temp} °F</p>
-                            <p>Recommended Suit: ${suitRecommendation}</p>
-                        `;
+                            column.innerHTML = `
+                                <h2>${dayLabel}</h2>
+                                <h3>${date}</h3>
+                                <p>${temp} °F</p>
+                                <p>Recommended Suit: ${suitRecommendation}</p>
+                            `;
+                        }
                     }
-                }
-            });
-        })
-        .catch(error => console.error('Error fetching temperature:', error));
-    });
+                });
+            })
+            .catch(error => console.error('Error fetching temperature:', error));
+    }
 
-    
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabs = document.querySelectorAll('.tab');
+        
+        // Load default (Waco)
+        loadPoolData('Waco');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
+                // Load data for selected pool
+                loadPoolData(this.dataset.pool);
+            });
+        });
+    });
     </script>
 </head>
 <body>
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
-        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="waco_water_temp.html">Pool Temp Predictions</a>
         <a href="news.html">Wave Pool News</a>
-        <a href="about_contact.html">About/Contact</a>
+        <a href="about_contact.html">About/Contact</a>        <a href="dashboard.html">Dashboard</a>    </div>
+
+    <!-- Pool Selector -->
+    <div style="text-align: center; padding: 20px; background-color: #222; color: #ccc;">
+        <nav class="pool-tabs">
+            <button class="tab active" data-pool="Waco">Waco, TX</button>
+            <button class="tab" data-pool="Palm_Springs">Palm Springs, CA</button>
+            <button class="tab" data-pool="Lemoore">Lemoore, CA</button>
+            <button class="tab" data-pool="Atlantic_Park_Virginia_Beach">Atlantic Park, VA</button>
+            <button class="tab" data-pool="Oceanside">Oceanside, CA</button>
+        </nav>
     </div>
 
     <!-- Waco Water Temperature Section -->
@@ -205,7 +290,7 @@
 
     <!-- Days Container -->
     <div class="content">
-        <h2 style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas</h2>
+        <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas</h2>
         <div class="days-container">
             <div id="day1" class="day-column"></div>
             <div id="day2" class="day-column"></div>

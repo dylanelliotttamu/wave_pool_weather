@@ -5,3 +5,7 @@ cron_log_file.log
 *.swp
 .DS_Store
 
+# Ignore generated data files
+data/wave_pool_weather.db
+data/forecasts/*.txt
+

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Pool Weather Dashboard</title>
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .navbar {
+            background-color: #222;
+            overflow: hidden;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar a {
+            color: #ccc;
+            text-align: center;
+            padding: 14px 20px;
+            text-decoration: none;
+            font-size: 17px;
+            transition: color 0.3s ease;
+        }
+        .navbar a:hover {
+            color: #8db600;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            padding: 20px;
+        }
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+        <a href="dashboard.html">Dashboard</a>
+    </div>
+
+    <div class="container">
+        <h1>Wave Pool Weather Dashboard</h1>
+
+        <div class="chart-container">
+            <h2>Pool Temperature Forecast</h2>
+            <canvas id="poolTempChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Air Temperature Forecast</h2>
+            <canvas id="airTempChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Humidity Forecast</h2>
+            <canvas id="humidityChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Wind Speed Forecast</h2>
+            <canvas id="windChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Wind Rose</h2>
+            <canvas id="windRoseChart" class="chart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const realData = {
+            dates: ['2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05', '2026-04-06', '2026-04-07', '2026-04-08'],
+            poolTemps: [78.5, 76.5, 75.75, 71.0, 62.0, 59.5, 60.0, 57.0],
+            airTemps: [78.5, 74.5, 77.0, 65.0, 59.0, 60.0, 60.0, 54.0],
+            humidities: [59.75, 78.5, 75.75, 84.45833333333333, 60.916666666666664, 64.0, 62.291666666666664, 75.25],
+            windSpeeds: [20.0, 14.791666666666666, 14.583333333333334, 12.5, 10.833333333333334, 5.0, 3.3333333333333335, 5.0],
+            windBins: [10, 20, 15, 5, 10, 5, 15, 20]
+        };
+
+        // Pool Temp Chart
+        new Chart(document.getElementById('poolTempChart'), {
+            type: 'line',
+            data: {
+                labels: realData.dates,
+                datasets: [{
+                    label: 'Pool Temperature (°F)',
+                    data: realData.poolTemps,
+                    borderColor: 'blue',
+                    fill: false
+                }]
+            }
+        });
+
+        // Air Temp Chart
+        new Chart(document.getElementById('airTempChart'), {
+            type: 'line',
+            data: {
+                labels: realData.dates,
+                datasets: [{
+                    label: 'Air Temperature (°F)',
+                    data: realData.airTemps,
+                    borderColor: 'red',
+                    fill: false
+                }]
+            }
+        });
+
+        // Humidity Chart
+        new Chart(document.getElementById('humidityChart'), {
+            type: 'bar',
+            data: {
+                labels: realData.dates,
+                datasets: [{
+                    label: 'Humidity (%)',
+                    data: realData.humidities,
+                    backgroundColor: 'green'
+                }]
+            }
+        });
+
+        // Wind Speed Chart
+        new Chart(document.getElementById('windChart'), {
+            type: 'line',
+            data: {
+                labels: realData.dates,
+                datasets: [{
+                    label: 'Wind Speed (mph)',
+                    data: realData.windSpeeds,
+                    borderColor: 'orange',
+                    fill: false
+                }]
+            }
+        });
+
+        // Wind Rose
+        new Chart(document.getElementById('windRoseChart'), {
+            type: 'polarArea',
+            data: {
+                labels: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+                datasets: [{
+                    label: 'Wind Direction Frequency',
+                    data: realData.windBins,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 205, 86, 0.5)',
+                        'rgba(75, 192, 192, 0.5)',
+                        'rgba(153, 102, 255, 0.5)',
+                        'rgba(255, 159, 64, 0.5)',
+                        'rgba(199, 199, 199, 0.5)',
+                        'rgba(83, 102, 255, 0.5)'
+                    ]
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
