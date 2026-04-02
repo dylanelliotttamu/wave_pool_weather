@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # Import necessary libraries
+import numpy as np
 import urllib.request
 import json
 from datetime import datetime, date, timedelta
 import time
 import sqlite3
+import os
 
 # Locations dictionary
 locations = {
@@ -24,6 +26,8 @@ direction_map = {
 }
 
 # Database setup
+os.makedirs('../data', exist_ok=True)
+os.makedirs('../data/forecasts', exist_ok=True)
 conn = sqlite3.connect('../data/wave_pool_weather.db')
 cursor = conn.cursor()
 
