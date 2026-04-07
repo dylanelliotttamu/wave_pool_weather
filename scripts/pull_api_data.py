@@ -8,6 +8,13 @@ import sqlite3
 import os
 import json
 
+todays_date = date.today()
+todays_time = datetime.now().time()
+
+print("Starting data pull from NWS API...")
+print(f"Today's date: {todays_date}")
+print(f"Current time: {todays_time}")
+
 # Locations dictionary
 locations = {
     'Waco': {'lat': 31.6212, 'lon': -97.0037},
@@ -26,9 +33,13 @@ direction_map = {
 }
 
 # Database setup
-os.makedirs('../data', exist_ok=True)
-os.makedirs('../data/forecasts', exist_ok=True)
-conn = sqlite3.connect('../data/wave_pool_weather.db')
+DATA_DIR = '/var/www/html/data'
+FORECASTS_DIR = '/var/www/html/data/forecasts'
+SITE_ROOT = '/var/www/html'
+
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(FORECASTS_DIR, exist_ok=True)
+conn = sqlite3.connect(os.path.join(DATA_DIR, 'wave_pool_weather.db'))
 cursor = conn.cursor()
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS locations (
@@ -239,20 +250,11 @@ for name, coords in locations.items():
             forecasted_pool = (data['average_temp_list'][i] + data['average_temp_list'][i-1]) / 2
         cursor.execute('INSERT OR REPLACE INTO pool_temps (location_id, date, temp) VALUES (?, ?, ?)', (location_id, str(data['date_list'][i]), forecasted_pool))
 
-# Collect data for embedding in HTML
-pool_data = {}
-for name in locations:
-    cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (name,))
-    rows = cursor.fetchall()
-    dates = [row[0] for row in rows]
-    temps = [str(row[1]) for row in rows]
-    pool_data[name] = {'dates': dates, 'temps': temps}
-
 # Export forecasted pool temps for all locations to text files
 for name in locations.keys():
     cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (name,))
     rows = cursor.fetchall()
-    filename = f'../data/forecasts/forecasted_pool_temps_{name.replace(" ", "_")}.txt'
+    filename = os.path.join(FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt')
     with open(filename, 'w') as f:
         for row in rows:
             f.write(f"{row[0]},{row[1]}\n")
@@ -260,12 +262,14 @@ for name in locations.keys():
 # Keep the old Waco file for backward compatibility
 cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") ORDER BY date')
 pool_rows = cursor.fetchall()
-with open('../data/forecasts/forecasted_pool_temps.txt', 'w') as f:
+with open(os.path.join(FORECASTS_DIR, 'forecasted_pool_temps.txt'), 'w') as f:
     for row in pool_rows:
         f.write(f"{row[0]},{row[1]}\n")
 
 # Generate dashboard.html with real data
-cursor.execute('SELECT date, temp, humidity, wind_speed FROM air_temps WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") ORDER BY date')
+dashboard_location = 'Waco'
+
+cursor.execute('SELECT date, temp, humidity, wind_speed FROM air_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (dashboard_location,))
 air_rows = cursor.fetchall()
 dates = [row[0] for row in air_rows]
 air_temps = [row[1] for row in air_rows]
@@ -338,42 +342,43 @@ dashboard_html = f'''<!DOCTYPE html>
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
-        <a href="waco_water_temp.html">Waco Water Temp Prediction</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
     </div>
 
     <div class="container">
-        <h1>Wave Pool Weather Dashboard</h1>
+        <h1>Wave Pool Weather Dashboard - {dashboard_location}</h1>
 
         <div class="chart-container">
-            <h2>Pool Temperature Forecast</h2>
+            <h2>{dashboard_location} Pool Temperature Forecast</h2>
             <canvas id="poolTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Air Temperature Forecast</h2>
+            <h2>{dashboard_location} Air Temperature Forecast</h2>
             <canvas id="airTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Humidity Forecast</h2>
+            <h2>{dashboard_location} Humidity Forecast</h2>
             <canvas id="humidityChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Wind Speed Forecast</h2>
+            <h2>{dashboard_location} Wind Speed Forecast</h2>
             <canvas id="windChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Wind Rose</h2>
+            <h2>{dashboard_location} Wind Rose</h2>
             <canvas id="windRoseChart" class="chart"></canvas>
         </div>
     </div>
 
     <script>
+        const chartLocation = {json.dumps(dashboard_location)};
         const realData = {{
             dates: {dates},
             poolTemps: {pool_temps},
@@ -394,6 +399,28 @@ dashboard_html = f'''<!DOCTYPE html>
                     borderColor: 'blue',
                     fill: false
                 }}]
+            }},
+            options: {{
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: `${{chartLocation}} Pool Temperature Forecast (°F)`
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        title: {{
+                            display: true,
+                            text: 'Pool Temperature (°F)'
+                        }}
+                    }}
+                }}
             }}
         }});
 
@@ -408,6 +435,28 @@ dashboard_html = f'''<!DOCTYPE html>
                     borderColor: 'red',
                     fill: false
                 }}]
+            }},
+            options: {{
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: `${{chartLocation}} Air Temperature Forecast (°F)`
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        title: {{
+                            display: true,
+                            text: 'Air Temperature (°F)'
+                        }}
+                    }}
+                }}
             }}
         }});
 
@@ -421,6 +470,28 @@ dashboard_html = f'''<!DOCTYPE html>
                     data: realData.humidities,
                     backgroundColor: 'green'
                 }}]
+            }},
+            options: {{
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: `${{chartLocation}} Humidity Forecast (%)`
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        title: {{
+                            display: true,
+                            text: 'Humidity (%)'
+                        }}
+                    }}
+                }}
             }}
         }});
 
@@ -435,6 +506,28 @@ dashboard_html = f'''<!DOCTYPE html>
                     borderColor: 'orange',
                     fill: false
                 }}]
+            }},
+            options: {{
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: `${{chartLocation}} Wind Speed Forecast (mph)`
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        title: {{
+                            display: true,
+                            text: 'Wind Speed (mph)'
+                        }}
+                    }}
+                }}
             }}
         }});
 
@@ -457,23 +550,30 @@ dashboard_html = f'''<!DOCTYPE html>
                         'rgba(83, 102, 255, 0.5)'
                     ]
                 }}]
+            }},
+            options: {{
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: `${{chartLocation}} Wind Direction Frequency` 
+                    }}
+                }},
+                scales: {{
+                    r: {{
+                        title: {{
+                            display: true,
+                            text: 'Frequency (count)'
+                        }}
+                    }}
+                }}
             }}
         }});
     </script>
 </body>
 </html>'''
 
-with open('/var/www/html/dashboard.html', 'w') as f:
+with open(os.path.join(SITE_ROOT, 'dashboard.html'), 'w') as f:
     f.write(dashboard_html)
-# Update waco_water_temp.html with embedded data
-with open('/var/www/html/waco_water_temp.html', 'r') as f:
-    html = f.read()
-
-pool_data_json = json.dumps(pool_data)
-html = html.replace('const poolData = {};', f'const poolData = {pool_data_json};')
-
-with open('/var/www/html/waco_water_temp.html', 'w') as f:
-    f.write(html)
 conn.commit()
 conn.close()
 

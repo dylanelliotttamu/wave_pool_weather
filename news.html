@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wave Pool News</title>
     <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
@@ -10,147 +10,167 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <style>
-    /* CSS styles */
-    body {
-        margin: 0;
-        font-family: 'Lato', sans-serif;
-        background-color: #333;
-        color: #fff;
-        overflow-x: hidden; /* Prevent horizontal scrolling */
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh; /* Ensure full height of viewport */
-        position: relative; /* Needed for absolute positioning of images */
-    }
-    h1 {
-        font-weight: 300;
-        letter-spacing: 2px;
-        font-size: 48px;
-        margin: 0;
-        padding: 20px 0;
-    }
-    p {
-        letter-spacing: 1px;
-        font-size: 14px;
-        color: #ccc;
-    }
-    .header {
-        text-align: center;
-        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
-        color: white;
-        padding: 20px;
-        margin-bottom: 20px; /* Add margin to create space for content */
-    }
-    .navbar {
-        background-color: #222;
-        overflow: hidden;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        position: sticky;
-        top: 0;
-        z-index: 1000; /* Ensure navigation bar stays on top */
-    }
-    .navbar a {
-        color: #ccc;
-        text-align: center;
-        padding: 14px 20px;
-        text-decoration: none;
-        font-size: 17px;
-        transition: color 0.3s ease;
-    }
-    .navbar a:hover {
-        color: #8db600; /* Olive color */
-    }
-    .content {
-        flex: 1; /* Take remaining vertical space */
-        position: relative;
-        min-height: 300px;
-        background-color: #666; /* Cooler background color */
-        padding: 20px;
-    }
-    footer {
-        background-color: #222;
-        color: #ccc;
-        text-align: center;
-        padding: 10px;
-        width: 100%;
-    }
-    .article {
-        background-color: #444; /* Darker background color */
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .article h2 {
-        font-size: 24px;
-        margin-bottom: 10px;
-    }
-    .article p {
-        font-size: 16px;
-        color: #ccc;
-    }
-    .article a {
-        color: #8db600; /* Olive color */
-        text-decoration: none;
-    }
-    .article a:hover {
-        text-decoration: underline;
-    }
+        body {
+            margin: 0;
+            font-family: 'Lato', sans-serif;
+            background-color: #121212;
+            color: #e5e5e5;
+            min-height: 100vh;
+        }
+        .navbar {
+            background-color: #161616;
+            display: flex;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar a {
+            color: #ccc;
+            text-decoration: none;
+            padding: 16px 22px;
+            font-size: 16px;
+            transition: color 0.2s ease;
+        }
+        .navbar a:hover {
+            color: #8db600;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            background: linear-gradient(180deg, rgba(7, 20, 40, 1) 0%, rgba(16, 70, 56, 1) 100%);
+            color: white;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 3rem;
+            letter-spacing: 0.08em;
+        }
+        .header p {
+            max-width: 720px;
+            margin: 16px auto 0;
+            font-size: 1rem;
+            color: #d3d3d3;
+            line-height: 1.8;
+        }
+        .content {
+            padding: 30px 20px 40px;
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+        .article,
+        .card {
+            background-color: #1f2733;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+        }
+        .article {
+            margin-bottom: 20px;
+        }
+        .article h2,
+        .card h3 {
+            margin-top: 0;
+            color: #ffffff;
+        }
+        .article p,
+        .card p,
+        .article li {
+            color: #c7d0dc;
+            line-height: 1.7;
+        }
+        .article a,
+        .card a {
+            color: #8db600;
+            text-decoration: none;
+        }
+        .article a:hover,
+        .card a:hover {
+            text-decoration: underline;
+        }
+        ul {
+            padding-left: 1.2rem;
+        }
+        .card-list {
+            display: grid;
+            gap: 18px;
+        }
+        footer {
+            background-color: #15191f;
+            color: #8f9aa3;
+            text-align: center;
+            padding: 18px 20px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
-    <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
-        <a href="waco_water_temp.html">Pool Temp Predictions</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
     </div>
 
-    <!-- Header Section -->
     <div class="header">
         <h1>Wave Pool News</h1>
+        <p>Latest updates on publicly open surf wave pools, session booking details, and weather-aware visitor tips for planning your next ride.</p>
     </div>
-    <!-- Header Section ends -->
 
-    <!-- Main Content -->
-    <div class="content">
-        <div class="article">
-            <h2>Latest Trends in Wave Pool Technology</h2>
-            <p>Discover the most recent advancements in wave pool technology, from Wave Pool Mag. </p>
-            <a href="https://wavepoolmag.com/" target="_blank">Read More</a>
- 
-	</div>
+    <main class="content">
+        <section class="article">
+            <h2>Featured Open Wave Pools</h2>
+            <p>These publicly accessible wave pools are currently offering visitor sessions and reservations. Always confirm availability directly before booking, as schedules may change seasonally.</p>
+            <div class="card-list">
+                <div class="card">
+                    <h3>Waco Surf - Waco, Texas</h3>
+                    <p>Waco Surf remains one of the most accessible inland surf destinations in the U.S. Public sessions are generally released on a rolling schedule, and advanced booking is strongly recommended for weekends.</p>
+                    <p><strong>Book at:</strong> <a href="https://www.wacosurf.com" target="_blank" rel="noopener">wacosurf.com</a></p>
+                </div>
+                <div class="card">
+                    <h3>Palm Springs Surf Club - Palm Springs, California</h3>
+                    <p>Palm Springs Surf Club offers pool sessions and members-only windows. Public bookings are available through their website, with a strong focus on warm-weather afternoons.</p>
+                    <p><strong>Book at:</strong> <a href="https://palmspringssurfclub.com" target="_blank" rel="noopener">palmspringssurfclub.com</a></p>
+                </div>
+                <div class="card">
+                    <h3>URBNSURF Melbourne &amp; Sydney - Australia</h3>
+                    <p>URBNSURF operates two major wave pool venues in Australia. Both locations publish public session blocks and special event dates, making them ideal for international travelers seeking reliable pool waves.</p>
+                    <p><strong>Book at:</strong> <a href="https://urbnsurf.com" target="_blank" rel="noopener">urbnsurf.com</a></p>
+                </div>
+                <div class="card">
+                    <h3>Surf Ranch - Lemoore, California</h3>
+                    <p>Surf Ranch offers premium wave sessions and occasional public reservations. Availability can vary, so check the schedule often and sign up for release alerts.</p>
+                    <p><strong>Info at:</strong> <a href="https://www.kswaveco.com" target="_blank" rel="noopener">kswaveco.com</a></p>
+                </div>
+            </div>
+        </section>
 
-        <div class="article">
-            <h2>Top Wave Pools to Visit in 2024</h2>
-	    <p>Check out my list of the top wave pools around the world that you should visit in 2024.</p>
+        <section class="article">
+            <h2>Booking and Visit Planning Tips</h2>
+            <ul>
+                <li>Book at least 1-2 weeks in advance for weekend sessions, especially at popular pools like Waco Surf and URBNSURF.</li>
+                <li>Review cancellation and rescheduling policies before purchase; wave pool tickets often have strict session windows.</li>
+                <li>Check local weather and pool operating hours, since some locations adjust availability for heat, storms, or maintenance.</li>
+                <li>Bring proper gear for the conditions: sun protection for desert pools and a light wetsuit for cooler inland water.</li>
+            </ul>
+        </section>
 
-	    <p>1. URBNSURF Melbourne and URBNSURF Sydney - <a href="https://urbnsurf.com/" target="_blank">URBNSURF</a></p> 
-	    <p>2. Surf Ranch - <a href="https://www.kswaveco.com/" target="_blank">KSWAVECO</a></p> 
-	    <p>3. Palm Springs Surf Club - <a href="https://palmspringssurfclub.com/" target="_blank">PSSC</a></p> 
-	    <p>4. Waco Surf - <a href="https://www.wacosurf.com/" target="_blank">WACOSURF</a></p> 
-        </div>
+        <section class="article">
+            <h2>How Weather Impacts Wave Pool Sessions</h2>
+            <p>Weather can affect comfort and scheduling even when the wave itself is mechanically generated. High wind, extreme heat, or thunderstorms can lead to shorter sessions or temporary closures.</p>
+            <p>Wind direction can matter a lot depending on wave technology and pool orientation. At Waco, the dominant south wind is often offshore on the lefts, which can hold up faces and improve barrel shape, while the rights are usually more onshore in that same wind and can be better for airs and progressive sections.</p>
+            <p>Monitor forecasted temperature, wind speed, and humidity when planning your trip, and use this site to compare pool temperatures with local weather.</p>
+            <a href="pool_temp_forecasts.html">See Pool Temperature Forecasts</a>
+        </section>
+    </main>
 
-        <div class="article">
-            <h2>The Impact of Weather on Wave Pool Conditions</h2>
-            <p>Learn how various weather conditions affect wave pool operations and how you can prepare for different scenarios.</p>
-            <a href="#link-to-full-article.html">Read More</a>
-        </div>
-    </div>
-    <!-- Main Content ends -->
-
-    <!-- Footer -->
     <footer>
-        <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
+        <p id="copyright">2026 Wave Pool Weather. All rights reserved.</p>
     </footer>
-    <!-- Footer ends -->
 
     <script>
         document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
     </script>
 </body>
 </html>
-
