@@ -276,7 +276,9 @@ air_temps = [row[1] for row in air_rows]
 humidities = [row[2] for row in air_rows]
 wind_speeds = [row[3] for row in air_rows]
 
-pool_temps = [row[1] for row in pool_rows]
+cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (dashboard_location,))
+dashboard_pool_rows = cursor.fetchall()
+pool_temps = [row[1] for row in dashboard_pool_rows]
 
 # For wind rose, mock for now
 bins = [10, 20, 15, 5, 10, 5, 15, 20]
