@@ -175,7 +175,7 @@
     }
     </style> 
     <script>
-    function loadPoolData(poolName) {
+    async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
@@ -188,44 +188,75 @@
         };
         displayName = displayMap[poolName] || displayName;
         document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
-        const data = poolData[poolName];
-        if (data) {
-            data.dates.forEach((date, index) => {
-                const temp = data.temps[index];
+
+        for (let i = 1; i <= 6; i++) {
+            const column = document.getElementById(`day${i}`);
+            if (column) {
+                column.innerHTML = '<p>Loading...</p>';
+            }
+        }
+
+        try {
+            const response = await fetch(filename, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`Failed to load data from ${filename}`);
+            }
+
+            const text = await response.text();
+            const rows = text
+                .trim()
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .map(line => line.split(','))
+                .filter(parts => parts.length >= 2)
+                .map(parts => ({ date: parts[0], temp: parts[1] }));
+
+            rows.slice(0, 6).forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
-                if (column) {
-                    const dateObj = new Date(date);
-                    const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-
-                    let suitRecommendation = '';
-                    const temperature = parseFloat(temp);
-                    
-                    if (isNaN(temperature)) {
-                        suitRecommendation = 'Invalid temperature data';
-                    } else if (temperature >= 75) {
-                        suitRecommendation = 'Boardshorts';
-                    } else if (temperature >= 69 && temperature <= 74.99) {
-                        suitRecommendation = 'Top / Shorty';
-                    } else if (temperature >= 63 && temperature <= 68.99) {
-                        suitRecommendation = '2 mm Springsuit / 3/2 mm Full Suit';
-                    } else if (temperature >= 58 && temperature <= 62.99) {
-                        suitRecommendation = '4/3 Full Suit';
-                    } else if (temperature >= 52 && temperature <= 57.99) {
-                        suitRecommendation = '4/3 Full Suit + Booties';
-                    } else if (temperature < 51.99) {
-                        suitRecommendation = '5/4 Full Suit + Hood + Booties';
-                    } else {
-                        suitRecommendation = 'Temperature out of range';
-                    }
-
-                    column.innerHTML = `
-                        <h2>${dayLabel}</h2>
-                        <h3>${date}</h3>
-                        <p>${temp} °F</p>
-                        <p>Recommended Suit: ${suitRecommendation}</p>
-                    `;
+                if (!column) {
+                    return;
                 }
+
+                const dateObj = new Date(row.date);
+                const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+                let suitRecommendation = '';
+                const temperature = parseFloat(row.temp);
+
+                if (isNaN(temperature)) {
+                    suitRecommendation = 'Invalid temperature data';
+                } else if (temperature >= 75) {
+                    suitRecommendation = 'Boardshorts';
+                } else if (temperature >= 69 && temperature <= 74.99) {
+                    suitRecommendation = 'Top / Shorty';
+                } else if (temperature >= 63 && temperature <= 68.99) {
+                    suitRecommendation = '2 mm Springsuit / 3/2 mm Full Suit';
+                } else if (temperature >= 58 && temperature <= 62.99) {
+                    suitRecommendation = '4/3 Full Suit';
+                } else if (temperature >= 52 && temperature <= 57.99) {
+                    suitRecommendation = '4/3 Full Suit + Booties';
+                } else if (temperature < 51.99) {
+                    suitRecommendation = '5/4 Full Suit + Hood + Booties';
+                } else {
+                    suitRecommendation = 'Temperature out of range';
+                }
+
+                column.innerHTML = `
+                    <h2>${dayLabel}</h2>
+                    <h3>${row.date}</h3>
+                    <p>${row.temp} °F</p>
+                    <p>Recommended Suit: ${suitRecommendation}</p>
+                `;
             });
+        } catch (error) {
+            for (let i = 1; i <= 6; i++) {
+                const column = document.getElementById(`day${i}`);
+                if (column) {
+                    column.innerHTML = '<p>Unable to load forecast data.</p>';
+                }
+            }
+            console.error(error);
         }
     }
 
@@ -252,7 +283,7 @@
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
-        <a href="waco_water_temp.html">Pool Temp Predictions</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>        <a href="dashboard.html">Dashboard</a>    </div>
 
@@ -294,8 +325,6 @@
         <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
     </footer>
     <!-- Footer ends -->
-    <script id="poolDataScript">const poolData = {"Waco": {"dates": ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08"], "temps": ["76.0", "75.25", "75.75", "71.0", "62.0", "59.5", "60.0", "57.0"]}, "Palm Springs": {"dates": ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08"], "temps": ["73.0", "73.0", "72.75", "74.75", "78.75", "80.0", "79.75", "74.25"]}, "Lemoore": {"dates": ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08"], "temps": ["66.5", "63.5", "59.75", "61.5", "66.0", "68.0", "67.25", "62.25"]}, "Atlantic Park Virginia Beach": {"dates": ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08"], "temps": ["67.0", "67.75", "67.75", "67.0", "66.5", "60.0", "54.5", "51.25"]}, "Oceanside": {"dates": ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08"], "temps": ["63.0", "61.5", "61.0", "62.0", "61.75", "61.25", "61.5", "61.0"]}};</script>
-
     <script>
         document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
     </script>
