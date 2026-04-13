@@ -11,5 +11,8 @@ __pycache__/
 
 # Ignore generated data files
 data/wave_pool_weather.db
+
+# Always track text files anywhere in the repo
+!*.txt
 data/forecasts/*.txt
 
