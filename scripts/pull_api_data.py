@@ -94,8 +94,9 @@ def retrieve_the_hourly_url_given_only_lat_and_lon(input_lat, input_lon):
     print('hourly_forecast_url = ', hourly_forecast_url)    
     return hourly_forecast_url
 
-# Use url and return data 
+# Use url and return data (returns 7-days of hourly data)
 def request_data(url, retries=3, delay=2):
+    hourly_weather_json_data = None
     for attempt in range(retries):
         try:
             with urllib.request.urlopen(url) as response:
@@ -104,17 +105,6 @@ def request_data(url, retries=3, delay=2):
         except Exception as e:
             print(f"Attempt {attempt + 1} failed: {e}")
             if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                print(f"Failed to retrieve data after {retries} attempts.")
-                print(f"Last response: {hourly_weather_json_data}")
-                return None
- 
-                # returns 7-days of hourly data
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}") 
-            print(f"Error requesting data: {e}")
-            if attempt < retries -1:
                 time.sleep(delay)
             else:
                 print(f"Failed to retrieve data after {retries} attempts.")
@@ -225,8 +215,8 @@ for name, coords in locations.items():
     
     # Insert forecasted air temps
     for i in range(len(data['date_list'])):
-        cursor.execute('INSERT OR REPLACE INTO air_temps (location_id, date, temp, humidity, wind_speed) VALUES (?, ?, ?, ?, ?)',
-            (location_id, str(data['date_list'][i]), data['average_temp_list'][i], data['average_humidity_list'][i], data['average_wind_list'][i]))
+        cursor.execute('INSERT OR REPLACE INTO air_temps (location_id, date, temp, humidity, wind_speed, wind_direction) VALUES (?, ?, ?, ?, ?, ?)',
+            (location_id, str(data['date_list'][i]), data['average_temp_list'][i], data['average_humidity_list'][i], data['average_wind_list'][i], data['average_wind_direction_list'][i]))
     
     # Calculate pool temps
     yesterday = current_date - timedelta(days=1)
