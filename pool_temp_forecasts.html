@@ -221,7 +221,7 @@
                     return;
                 }
 
-                const dateObj = new Date(row.date);
+                const dateObj = new Date(row.date + 'T00:00:00');
                 const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
                 let suitRecommendation = '';
