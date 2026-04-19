@@ -177,6 +177,7 @@
     <script>
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
+        const todayString = new Date().toLocaleDateString('en-CA');
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
@@ -210,7 +211,9 @@
                 .filter(Boolean)
                 .map(line => line.split(','))
                 .filter(parts => parts.length >= 2)
-                .map(parts => ({ date: parts[0], temp: parts[1] }));
+                .map(parts => ({ date: parts[0], temp: parts[1] }))
+                .filter(row => row.date >= todayString)
+                .sort((left, right) => left.date.localeCompare(right.date));
 
             rows.slice(0, 6).forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
