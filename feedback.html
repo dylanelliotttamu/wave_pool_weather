@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback &amp; Subscribe - Wave Pool Weather</title>
     <title>Feedback - Wave Pool Weather</title>
     <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
@@ -10,6 +11,184 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <style>
+    body {
+        margin: 0;
+        font-family: 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    h1 {
+        font-weight: 300;
+        letter-spacing: 2px;
+        font-size: 48px;
+        margin: 0;
+        padding: 20px 0;
+        text-align: center;
+    }
+    h2 {
+        font-weight: 400;
+        letter-spacing: 1px;
+        font-size: 26px;
+        margin: 0 0 15px 0;
+        color: #fff;
+    }
+    p {
+        letter-spacing: 1px;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #ccc;
+    }
+    .header {
+        position: relative;
+        text-align: center;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: white;
+        padding: 20px;
+    }
+    .navbar {
+        background-color: #222;
+        overflow: hidden;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    .navbar a {
+        color: #ccc;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-size: 17px;
+        transition: color 0.3s ease;
+    }
+    .navbar a:hover {
+        color: #8db600;
+    }
+    .navbar a.active {
+        color: #8db600;
+    }
+    .content {
+        flex: 1;
+        background-color: #666;
+        padding: 40px 20px 60px;
+    }
+    .section-card {
+        background-color: #444;
+        border-radius: 10px;
+        padding: 30px 35px;
+        max-width: 680px;
+        margin: 0 auto 40px auto;
+    }
+    .form-group {
+        margin-bottom: 18px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        color: #ccc;
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+    }
+    .form-group input[type="email"],
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #666;
+        border-radius: 5px;
+        background-color: #555;
+        color: #fff;
+        font-family: 'Lato', sans-serif;
+        font-size: 14px;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
+    }
+    .form-group input[type="email"]:focus,
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #8db600;
+    }
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    .checkboxes-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 6px;
+    }
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #ccc;
+        cursor: pointer;
+    }
+    .checkbox-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #8db600;
+        cursor: pointer;
+    }
+    .btn-submit {
+        display: inline-block;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 5px;
+        font-family: 'Lato', sans-serif;
+        font-size: 15px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: opacity 0.3s;
+        margin-top: 8px;
+    }
+    .btn-submit:hover {
+        opacity: 0.85;
+    }
+    .divider {
+        border: none;
+        border-top: 1px solid #555;
+        margin: 10px 0 25px 0;
+    }
+    .success-msg {
+        display: none;
+        background-color: #2e5e2e;
+        border: 1px solid #4caf50;
+        border-radius: 5px;
+        padding: 12px 16px;
+        color: #a5d6a7;
+        font-size: 14px;
+        margin-top: 14px;
+    }
+    footer {
+        background-color: #222;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        width: 100%;
+    }
+    @media (max-width: 768px) {
+        h1 { font-size: 32px; }
+        .section-card { padding: 22px 18px; }
+        .checkboxes-grid { grid-template-columns: 1fr; }
+    }
+    </style>
+</head>
+<body>
         body {
             margin: 0;
             font-family: 'Lato', sans-serif;
@@ -272,11 +451,15 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="feedback.html" class="active">Feedback</a>
+        <a href="feedback.html" class="active">Feedback &amp; Subscribe</a>
     </div>
 
     <!-- Header -->
     <div class="header">
+        <h1>Feedback &amp; Subscribe</h1>
+        <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 15px; letter-spacing: 1px;">
+            Get water temp forecasts delivered to your inbox &amp; share your thoughts
+        </p>
         <h1>Feedback</h1>
         <p>Help us improve Wave Pool Weather — share a review, report a bug, or suggest a new feature.</p>
     </div>
