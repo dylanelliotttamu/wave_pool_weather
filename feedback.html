@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback &amp; Subscribe - Wave Pool Weather</title>
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <style>
+    body {
+        margin: 0;
+        font-family: 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    h1 {
+        font-weight: 300;
+        letter-spacing: 2px;
+        font-size: 48px;
+        margin: 0;
+        padding: 20px 0;
+        text-align: center;
+    }
+    h2 {
+        font-weight: 400;
+        letter-spacing: 1px;
+        font-size: 26px;
+        margin: 0 0 15px 0;
+        color: #fff;
+    }
+    p {
+        letter-spacing: 1px;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #ccc;
+    }
+    .header {
+        position: relative;
+        text-align: center;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: white;
+        padding: 20px;
+    }
+    .navbar {
+        background-color: #222;
+        overflow: hidden;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    .navbar a {
+        color: #ccc;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-size: 17px;
+        transition: color 0.3s ease;
+    }
+    .navbar a:hover {
+        color: #8db600;
+    }
+    .navbar a.active {
+        color: #8db600;
+    }
+    .content {
+        flex: 1;
+        background-color: #666;
+        padding: 40px 20px 60px;
+    }
+    .section-card {
+        background-color: #444;
+        border-radius: 10px;
+        padding: 30px 35px;
+        max-width: 680px;
+        margin: 0 auto 40px auto;
+    }
+    .form-group {
+        margin-bottom: 18px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        color: #ccc;
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+    }
+    .form-group input[type="email"],
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #666;
+        border-radius: 5px;
+        background-color: #555;
+        color: #fff;
+        font-family: 'Lato', sans-serif;
+        font-size: 14px;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
+    }
+    .form-group input[type="email"]:focus,
+    .form-group input[type="text"]:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #8db600;
+    }
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    .checkboxes-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 6px;
+    }
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #ccc;
+        cursor: pointer;
+    }
+    .checkbox-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: #8db600;
+        cursor: pointer;
+    }
+    .btn-submit {
+        display: inline-block;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 5px;
+        font-family: 'Lato', sans-serif;
+        font-size: 15px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: opacity 0.3s;
+        margin-top: 8px;
+    }
+    .btn-submit:hover {
+        opacity: 0.85;
+    }
+    .divider {
+        border: none;
+        border-top: 1px solid #555;
+        margin: 10px 0 25px 0;
+    }
+    .success-msg {
+        display: none;
+        background-color: #2e5e2e;
+        border: 1px solid #4caf50;
+        border-radius: 5px;
+        padding: 12px 16px;
+        color: #a5d6a7;
+        font-size: 14px;
+        margin-top: 14px;
+    }
+    footer {
+        background-color: #222;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        width: 100%;
+    }
+    @media (max-width: 768px) {
+        h1 { font-size: 32px; }
+        .section-card { padding: 22px 18px; }
+        .checkboxes-grid { grid-template-columns: 1fr; }
+    }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="feedback.html" class="active">Feedback &amp; Subscribe</a>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Feedback &amp; Subscribe</h1>
+        <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 15px; letter-spacing: 1px;">
+            Get water temp forecasts delivered to your inbox &amp; share your thoughts
+        </p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+
+        <!-- Subscribe Section -->
+        <div class="section-card">
+            <h2>&#128139; Subscribe to Forecast Updates</h2>
+            <hr class="divider">
+            <p>Enter your email below and choose which wave pool(s) you want to receive water temperature forecast updates for. We'll send you an update whenever new forecasts are available.</p>
+
+            <form
+                action="https://formspree.io/f/xwpbpkgb"
+                method="POST"
+                id="subscribe-form"
+                onsubmit="handleSubscribeSubmit(event)"
+            >
+                <input type="hidden" name="_subject" value="Wave Pool Weather - New Subscription">
+                <input type="hidden" name="form_type" value="subscription">
+
+                <div class="form-group">
+                    <label for="sub-email">Email Address <span style="color:#8db600">*</span></label>
+                    <input type="email" id="sub-email" name="email" placeholder="you@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Wave Pool(s) <span style="color:#8db600">*</span></label>
+                    <div class="checkboxes-grid">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="pools[]" value="Waco, TX">
+                            Waco, TX
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="pools[]" value="Palm Springs, CA">
+                            Palm Springs, CA
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="pools[]" value="Lemoore, CA">
+                            Lemoore, CA
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="pools[]" value="Atlantic Park, VA Beach">
+                            Atlantic Park, VA Beach
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="pools[]" value="Oceanside, CA">
+                            Oceanside, CA
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sub-frequency">Update Frequency</label>
+                    <select id="sub-frequency" name="frequency">
+                        <option value="daily">Daily</option>
+                        <option value="weekly" selected>Weekly</option>
+                        <option value="when-updated">Whenever forecast updates</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-submit">Subscribe</button>
+                <div class="success-msg" id="subscribe-success">
+                    &#10003; You're subscribed! Check your inbox for a confirmation.
+                </div>
+            </form>
+        </div>
+
+        <!-- Feedback Section -->
+        <div class="section-card">
+            <h2>&#128172; Share Your Feedback</h2>
+            <hr class="divider">
+            <p>Have a suggestion, found a bug, or just want to share how accurate the forecasts have been for you? We'd love to hear it — this tool is built by surfers, for surfers.</p>
+
+            <form
+                action="https://formspree.io/f/xwpbpkgb"
+                method="POST"
+                id="feedback-form"
+                onsubmit="handleFeedbackSubmit(event)"
+            >
+                <input type="hidden" name="_subject" value="Wave Pool Weather - User Feedback">
+                <input type="hidden" name="form_type" value="feedback">
+
+                <div class="form-group">
+                    <label for="fb-name">Name (optional)</label>
+                    <input type="text" id="fb-name" name="name" placeholder="Your name">
+                </div>
+
+                <div class="form-group">
+                    <label for="fb-email">Email (optional, if you'd like a reply)</label>
+                    <input type="email" id="fb-email" name="email" placeholder="you@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="fb-pool">Which wave pool are you commenting on?</label>
+                    <select id="fb-pool" name="pool">
+                        <option value="general">General / All pools</option>
+                        <option value="Waco, TX">Waco, TX</option>
+                        <option value="Palm Springs, CA">Palm Springs, CA</option>
+                        <option value="Lemoore, CA">Lemoore, CA</option>
+                        <option value="Atlantic Park, VA Beach">Atlantic Park, VA Beach</option>
+                        <option value="Oceanside, CA">Oceanside, CA</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fb-type">Feedback Type</label>
+                    <select id="fb-type" name="feedback_type">
+                        <option value="forecast-accuracy">Forecast Accuracy</option>
+                        <option value="feature-request">Feature Request</option>
+                        <option value="bug-report">Bug Report</option>
+                        <option value="general">General Comment</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="fb-message">Your Feedback <span style="color:#8db600">*</span></label>
+                    <textarea id="fb-message" name="message" placeholder="Tell us what you think..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn-submit">Submit Feedback</button>
+                <div class="success-msg" id="feedback-success">
+                    &#10003; Thanks for your feedback! We really appreciate it.
+                </div>
+            </form>
+        </div>
+
+    </div>
+    <!-- Main Content ends -->
+
+    <!-- Footer -->
+    <footer>
+        <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
+
+        function handleSubscribeSubmit(event) {
+            const checkboxes = document.querySelectorAll('#subscribe-form input[type="checkbox"]:checked');
+            if (checkboxes.length === 0) {
+                event.preventDefault();
+                alert('Please select at least one wave pool to subscribe to.');
+                return;
+            }
+            // Allow native form submission to Formspree, then show success
+            event.preventDefault();
+            const form = document.getElementById('subscribe-form');
+            const data = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                body: data,
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                if (response.ok) {
+                    form.reset();
+                    document.getElementById('subscribe-success').style.display = 'block';
+                } else {
+                    alert('Submission failed. Please try again or email us directly.');
+                }
+            }).catch(function() {
+                alert('Network error. Please check your connection and try again.');
+            });
+        }
+
+        function handleFeedbackSubmit(event) {
+            event.preventDefault();
+            const form = document.getElementById('feedback-form');
+            const data = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                body: data,
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                if (response.ok) {
+                    form.reset();
+                    document.getElementById('feedback-success').style.display = 'block';
+                } else {
+                    alert('Submission failed. Please try again or email us directly.');
+                }
+            }).catch(function() {
+                alert('Network error. Please check your connection and try again.');
+            });
+        }
+    </script>
+</body>
+</html>
