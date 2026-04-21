@@ -66,41 +66,42 @@
     </div>
 
     <div class="container">
-        <h1>Wave Pool Weather Dashboard</h1>
+        <h1>Wave Pool Weather Dashboard - Waco</h1>
 
         <div class="chart-container">
-            <h2>Pool Temperature Forecast</h2>
+            <h2>Waco Pool Temperature Forecast</h2>
             <canvas id="poolTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Air Temperature Forecast</h2>
+            <h2>Waco Air Temperature Forecast</h2>
             <canvas id="airTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Humidity Forecast</h2>
+            <h2>Waco Humidity Forecast</h2>
             <canvas id="humidityChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Wind Speed Forecast</h2>
+            <h2>Waco Wind Speed Forecast</h2>
             <canvas id="windChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Wind Rose</h2>
+            <h2>Waco Wind Rose</h2>
             <canvas id="windRoseChart" class="chart"></canvas>
         </div>
     </div>
 
     <script>
+        const chartLocation = "Waco";
         const realData = {
-            dates: ['2026-04-06', '2026-04-07', '2026-04-08', '2026-04-09', '2026-04-10', '2026-04-11', '2026-04-12', '2026-04-13'],
-            poolTemps: [61.0, 60.25, 62.0, 67.0, 70.0, 70.75, 71.75, 71.0],
-            airTemps: [61.0, 59.5, 64.5, 69.5, 70.5, 71.0, 72.5, 69.5],
-            humidities: [51.0, 54.875, 63.875, 75.58333333333333, 82.04166666666667, 84.29166666666667, 83.625, 90.375],
-            windSpeeds: [5.0, 5.0, 5.208333333333333, 7.5, 7.708333333333333, 10.416666666666666, 13.333333333333334, 13.75],
+            dates: ['2026-04-06', '2026-04-07', '2026-04-08', '2026-04-09', '2026-04-10', '2026-04-11', '2026-04-12', '2026-04-13', '2026-04-14', '2026-04-15', '2026-04-16', '2026-04-17', '2026-04-18', '2026-04-19', '2026-04-20', '2026-04-21', '2026-04-22', '2026-04-23', '2026-04-24', '2026-04-25'],
+            poolTemps: [61.0, 60.75, 62.75, 66.75, 69.75, 71.5, 68.0, 71.25, 75.0, 74.75, 75.0, 76.0, 65.5, 56.5, 58.75, 60.75, 65.75, 71.5, 74.25, 70.5],
+            airTemps: [61.0, 60.5, 65.0, 68.5, 71.0, 72.0, 68.0, 74.5, 75.5, 74.0, 76.0, 76.0, 55.0, 58.0, 59.5, 62.0, 69.5, 73.5, 75.0, 66.0],
+            humidities: [51.0, 51.476190476190474, 54.95238095238095, 74.0, 79.9047619047619, 82.0, 97.0, 87.33333333333333, 79.9047619047619, 78.71428571428571, 77.66666666666667, 74.04761904761905, 61.0, 50.125, 54.0, 81.33333333333333, 85.58333333333333, 83.75, 78.5, 87.54545454545455],
+            windSpeeds: [5.0, 5.476190476190476, 3.0952380952380953, 7.619047619047619, 7.380952380952381, 10.476190476190476, 10.0, 13.333333333333334, 12.142857142857142, 12.380952380952381, 10.0, 15.238095238095237, 10.0, 7.291666666666667, 4.583333333333333, 6.041666666666667, 7.708333333333333, 13.125, 13.333333333333334, 10.0],
             windBins: [10, 20, 15, 5, 10, 5, 15, 20]
         };
 
@@ -115,6 +116,28 @@
                     borderColor: 'blue',
                     fill: false
                 }]
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${chartLocation} Pool Temperature Forecast (°F)`
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Pool Temperature (°F)'
+                        }
+                    }
+                }
             }
         });
 
@@ -129,6 +152,28 @@
                     borderColor: 'red',
                     fill: false
                 }]
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${chartLocation} Air Temperature Forecast (°F)`
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Air Temperature (°F)'
+                        }
+                    }
+                }
             }
         });
 
@@ -142,6 +187,28 @@
                     data: realData.humidities,
                     backgroundColor: 'green'
                 }]
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${chartLocation} Humidity Forecast (%)`
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Humidity (%)'
+                        }
+                    }
+                }
             }
         });
 
@@ -156,6 +223,28 @@
                     borderColor: 'orange',
                     fill: false
                 }]
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${chartLocation} Wind Speed Forecast (mph)`
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Wind Speed (mph)'
+                        }
+                    }
+                }
             }
         });
 
@@ -178,6 +267,22 @@
                         'rgba(83, 102, 255, 0.5)'
                     ]
                 }]
+            },
+            options: {
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `${chartLocation} Wind Direction Frequency` 
+                    }
+                },
+                scales: {
+                    r: {
+                        title: {
+                            display: true,
+                            text: 'Frequency (count)'
+                        }
+                    }
+                }
             }
         });
     </script>

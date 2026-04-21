@@ -242,7 +242,12 @@ for name, coords in locations.items():
 
 # Export forecasted pool temps for all locations to text files
 for name in locations.keys():
-    cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (name,))
+    cursor.execute(
+        'SELECT date, temp FROM pool_temps '
+        'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ? '
+        'ORDER BY date',
+        (name, str(current_date))
+    )
     rows = cursor.fetchall()
     filename = os.path.join(FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt')
     with open(filename, 'w') as f:
@@ -250,7 +255,12 @@ for name in locations.keys():
             f.write(f"{row[0]},{row[1]}\n")
 
 # Keep the old Waco file for backward compatibility
-cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") ORDER BY date')
+cursor.execute(
+    'SELECT date, temp FROM pool_temps '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") AND date >= ? '
+    'ORDER BY date',
+    (str(current_date),)
+)
 pool_rows = cursor.fetchall()
 with open(os.path.join(FORECASTS_DIR, 'forecasted_pool_temps.txt'), 'w') as f:
     for row in pool_rows:
