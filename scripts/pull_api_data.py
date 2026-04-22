@@ -723,7 +723,7 @@ dashboard_html = f'''<!DOCTYPE html>
     </div>
 
     <div class="container">
-        <h1>Wave Pool Weather Dashboard &mdash; {dashboard_location}</h1>
+        <h1>Wave Pool Weather Dashboard - {dashboard_location}</h1>
 
         <div class="chart-container">
             <h2>{dashboard_location} Pool Temperature Forecast</h2>
