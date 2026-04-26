@@ -8,6 +8,8 @@ import time
 import sqlite3
 import os
 
+print("Imported libraries successfully.")
+
 todays_date = date.today()
 todays_time = datetime.now().time()
 
@@ -20,26 +22,59 @@ print(f"Current time: {todays_time}")
 #   depth_m: effective thermal-mass depth used in the pool energy balance.
 #   For a well-mixed pool this is the mean water depth (~1.5–2.5 m).
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Bottom heat-loss calibration notes
+# ---------------------------------------------------------------------------
+# U_bottom is NOT set directly — it is derived from the thermal resistance
+# chain in the main loop:
+#
+#   R_concrete = L_CONCRETE_M / K_CONCRETE   (1 ft reinforced concrete slab)
+#   R_soil     = soil_depth_m / k_soil_Wm1K  (soil column to undisturbed earth)
+#   U_bottom   = 1 / (R_concrete + R_soil)    [W m⁻² K⁻¹]
+#
+# Soil conductivity typical values:
+#   Dry desert sand  : 0.30–0.40 W m⁻¹ K⁻¹
+#   Moist sandy loam : 0.60–0.90 W m⁻¹ K⁻¹
+#   Moist clay-loam  : 1.20–1.60 W m⁻¹ K⁻¹
+#
+# soil_depth_m = effective column depth to undisturbed ground temperature.
+# ground_temp_C = approximate annual mean deep-soil temperature.
+# ---------------------------------------------------------------------------
 locations = {
     'Waco': {
         'lat': 31.6212, 'lon': -97.0037,
-        'depth_m': 2.0,          # BSR Waco — roughly 2 m mean depth
+        'depth_m': 2.0,           # BSR Waco — roughly 2 m mean depth
+        'ground_temp_C': 20.0,    # Annual-mean deep-soil temp, central TX (~68 °F)
+        'k_soil_Wm1K': 1.5,       # Moist Texas clay-loam
+        'soil_depth_m': 2.0,      # Effective column to undisturbed ground
     },
     'Palm Springs': {
         'lat': 33.8303, 'lon': -116.5453,
         'depth_m': 1.8,
+        'ground_temp_C': 23.0,    # Coachella Valley — warm desert (~73 °F)
+        'k_soil_Wm1K': 0.35,      # Dry desert sand/gravel (low conductivity)
+        'soil_depth_m': 2.0,
     },
     'Lemoore': {
         'lat': 36.3008, 'lon': -119.7829,
         'depth_m': 2.0,
+        'ground_temp_C': 18.0,    # San Joaquin Valley (~64 °F)
+        'k_soil_Wm1K': 1.2,       # Irrigated valley clay/silt-loam
+        'soil_depth_m': 2.0,
     },
     'Atlantic Park Virginia Beach': {
         'lat': 36.8529, 'lon': -75.9779,
         'depth_m': 1.8,
+        'ground_temp_C': 16.0,    # Coastal Virginia (~61 °F)
+        'k_soil_Wm1K': 0.8,       # Moist coastal sand
+        'soil_depth_m': 2.0,
     },
     'Oceanside': {
         'lat': 33.1959, 'lon': -117.3795,
         'depth_m': 1.5,
+        'ground_temp_C': 18.0,    # Southern CA coast (~64 °F)
+        'k_soil_Wm1K': 0.6,       # Dry/moist coastal sand
+        'soil_depth_m': 2.0,
     },
 }
 
@@ -51,7 +86,9 @@ EPSILON_WATER = 0.97      # Long-wave emissivity of water surface  (–)
 ALBEDO_WATER  = 0.06      # Short-wave albedo of open water  (–)
 RHO_WATER     = 1000.0    # Density of water  (kg m⁻³)
 CP_WATER      = 4186.0    # Specific heat of water  (J kg⁻¹ K⁻¹)
-L_VAP         = 2.45e6    # Latent heat of vaporisation ≈ 25 °C  (J kg⁻¹)
+L_VAP         = 2.45e6    # Latent heat of vaporization ≈ 25 °C  (J kg⁻¹)
+K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
+L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
 
 # ---------------------------------------------------------------------------
 # Unit-conversion helpers
@@ -99,6 +136,9 @@ def pool_thermal_balance_step(
         wind_speed_ms,
         solar_MJm2_day,
         depth_m=2.0,
+        ground_temp_C=18.0,
+        bottom_u_Wm2K=1.0,
+        include_ground=True,
         dt_days=1.0):
     """
     Advance pool temperature by one time step using a single-layer (one-state)
@@ -118,6 +158,8 @@ def pool_thermal_balance_step(
                   = −L × f(U) × (e_s(T_pool) − e_air)
                   open-water mass-transfer: f(U) ≈ 2.7e-3 + 1.35e-3 U
                   [kg m⁻² s⁻¹ kPa⁻¹]  (after Penman 1948 / Monteith)
+    Q_ground  : conductive heat exchange through pool bottom to ground
+                  = −U_bottom × (T_pool − T_ground)
 
     Forward Euler integration:
       ΔT = Q_total × Δt / (ρ d c_p)
@@ -130,6 +172,8 @@ def pool_thermal_balance_step(
     wind_speed_ms : wind speed (m s⁻¹)
     solar_MJm2_day: total daily solar irradiation (MJ m⁻² day⁻¹)
     depth_m       : effective depth / thermal-mass depth of the pool (m)
+    ground_temp_C : effective ground temperature beneath pool (°C)
+    bottom_u_Wm2K : effective bottom U-value (W m⁻² K⁻¹)
     dt_days       : integration time step (days)
 
     Returns
@@ -167,8 +211,11 @@ def pool_thermal_balance_step(
     e_a      = saturation_vapor_pressure_kPa(T_air_C) * RH  # kPa
     Q_evap   = -EVAP_COEFF * wind_speed_ms * (e_s_pool - e_a)  # W m⁻²
 
-    # 5. Total flux and temperature change (forward Euler)
-    Q_total      = Q_solar + Q_lw_net + Q_conv + Q_evap
+    # 5. Conductive exchange at pool bottom (positive warms pool)
+    Q_ground = -bottom_u_Wm2K * (T_pool_C - ground_temp_C) if include_ground else 0.0
+
+    # 6. Total flux and temperature change (forward Euler)
+    Q_total      = Q_solar + Q_lw_net + Q_conv + Q_evap + Q_ground
     dt_seconds   = dt_days * 86400.0
     thermal_mass = RHO_WATER * depth_m * CP_WATER            # J m⁻² K⁻¹
     dT           = Q_total * dt_seconds / thermal_mass       # °C
@@ -180,6 +227,7 @@ def pool_thermal_balance_step(
         'Q_lw_net_Wm2' : round(Q_lw_net,  2),
         'Q_conv_Wm2'   : round(Q_conv,    2),
         'Q_evap_Wm2'   : round(Q_evap,    2),
+        'Q_ground_Wm2' : round(Q_ground,  2),
         'Q_total_Wm2'  : round(Q_total,   2),
         'dT_C'         : round(dT,         4),
     }
@@ -467,12 +515,25 @@ Begin main part of script and call functions
 # Main execution
 # ---------------------------------------------------------------------------
 current_date = date.today()
+all_comparison_rows = {}
 
 for name, coords in locations.items():
-    lat       = coords['lat']
-    lon       = coords['lon']
-    depth_m   = coords.get('depth_m', 2.0)
-    print(f"\nProcessing {name}  (lat={lat}, lon={lon}, depth={depth_m} m)...")
+    lat            = coords['lat']
+    lon            = coords['lon']
+    depth_m        = coords.get('depth_m', 2.0)
+    ground_temp_C  = coords.get('ground_temp_C', 18.0)
+    k_soil         = coords.get('k_soil_Wm1K', 1.0)
+    soil_depth     = coords.get('soil_depth_m', 2.0)
+    # Resistance-network derivation: concrete slab + soil column in series
+    R_concrete    = L_CONCRETE_M / K_CONCRETE             # m²K/W
+    R_soil        = soil_depth / k_soil                   # m²K/W
+    bottom_u_Wm2K = 1.0 / (R_concrete + R_soil)          # W m⁻² K⁻¹
+    print(
+        f"\nProcessing {name}  (lat={lat}, lon={lon}, depth={depth_m} m, "
+        f"T_ground={ground_temp_C} °C, "
+        f"R_slab={R_concrete:.3f} + R_soil={R_soil:.3f} = {R_concrete+R_soil:.3f} m²K/W, "
+        f"U_bottom={bottom_u_Wm2K:.3f} W/m²/K)..."
+    )
 
     cursor.execute('SELECT id FROM locations WHERE name=?', (name,))
     location_id = cursor.fetchone()[0]
@@ -540,7 +601,11 @@ for name, coords in locations.items():
     # Default solar irradiation fallback (clear-sky midlatitude estimate)
     SOLAR_FALLBACK_MJM2 = 15.0
 
-    T_pool_C = T_pool_init_C
+    T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
+    T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
+    T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
+    comparison_rows = []           # for the per-location comparison file
+
     for i, d in enumerate(data['date_list']):
         T_air_C      = data['average_temp_list'][i]
         RH_pct       = data['average_humidity_list'][i]
@@ -549,23 +614,93 @@ for name, coords in locations.items():
         if solar_MJm2 is None:
             solar_MJm2 = SOLAR_FALLBACK_MJM2
 
-        T_pool_C, fluxes = pool_thermal_balance_step(
-            T_pool_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
-            depth_m=depth_m, dt_days=1.0
+        # --- simple baseline (pool temp equals daily mean air temp) ---
+        T_pool_air_C = T_air_C
+
+        # --- original model (no bottom conduction) ---
+        T_pool_old_C, _ = pool_thermal_balance_step(
+            T_pool_old_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=False,
+            dt_days=1.0
         )
 
+        # --- new physics model (with bottom conduction) ---
+        T_pool_new_C, fluxes = pool_thermal_balance_step(
+            T_pool_new_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=True,
+            dt_days=1.0
+        )
+
+        # DB and exported files continue to use the new physics model
         cursor.execute(
             'INSERT OR REPLACE INTO pool_temps (location_id, date, temp, heat_fluxes) '
             'VALUES (?, ?, ?, ?)',
-            (location_id, str(d), T_pool_C, json.dumps(fluxes))
+            (location_id, str(d), T_pool_new_C, json.dumps(fluxes))
         )
-        print(f"  {d}: T_pool = {celsius_to_fahrenheit(T_pool_C):.1f} °F | "
+
+        air_F         = celsius_to_fahrenheit(T_pool_air_C)
+        old_F         = celsius_to_fahrenheit(T_pool_old_C)
+        new_F         = celsius_to_fahrenheit(T_pool_new_C)
+        delta_new_old = new_F - old_F
+        delta_old_air = old_F - air_F
+        delta_new_air = new_F - air_F
+        comparison_rows.append((
+            str(d),
+            round(air_F, 2),
+            round(old_F, 2),
+            round(new_F, 2),
+            round(delta_new_old, 2),
+            round(delta_old_air, 2),
+            round(delta_new_air, 2),
+            fluxes['Q_ground_Wm2']
+        ))
+
+        print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F | "
+              f"Δ(new-old)={delta_new_old:+.2f}°F "
+              f"Δ(old-air)={delta_old_air:+.2f}°F "
+              f"Δ(new-air)={delta_new_air:+.2f}°F | "
               f"Q_solar={fluxes['Q_solar_Wm2']:.0f} "
               f"Q_lw={fluxes['Q_lw_net_Wm2']:.0f} "
               f"Q_conv={fluxes['Q_conv_Wm2']:.0f} "
-              f"Q_evap={fluxes['Q_evap_Wm2']:.0f} W/m²")
+              f"Q_evap={fluxes['Q_evap_Wm2']:.0f} "
+              f"Q_ground={fluxes['Q_ground_Wm2']:.0f} W/m²")
+
+    # Write per-location comparison file
+    cmp_filename = os.path.join(
+        FORECASTS_DIR,
+        f'model_comparison_{name.replace(" ", "_")}.txt'
+    )
+    with open(cmp_filename, 'w') as f:
+        f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+        for row in comparison_rows:
+            f.write(
+                f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+            )
+    print(f"  Comparison written → {cmp_filename}")
+
+    # Accumulate for the cross-location summary (keyed by location name)
+    all_comparison_rows[name] = comparison_rows
 
 conn.commit()
+
+# ---------------------------------------------------------------------------
+# Write cross-location model comparison summary
+# ---------------------------------------------------------------------------
+summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
+with open(summary_path, 'w') as f:
+    f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+    for loc_name, rows in all_comparison_rows.items():
+        for row in rows:
+            f.write(
+                f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+            )
+print(f"\nCross-location summary written → {summary_path}")
 
 # ---------------------------------------------------------------------------
 # Export forecasted pool temps to text files (°F for website compatibility)
