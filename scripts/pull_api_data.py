@@ -89,6 +89,8 @@ CP_WATER      = 4186.0    # Specific heat of water  (J kg⁻¹ K⁻¹)
 L_VAP         = 2.45e6    # Latent heat of vaporization ≈ 25 °C  (J kg⁻¹)
 K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
 L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
+MIN_POOL_TEMP_C = 4.0     # Reject obviously bad stored seeds below ~39 F
+MAX_POOL_TEMP_C = 40.0    # Reject obviously bad stored seeds above 104 F
 
 # ---------------------------------------------------------------------------
 # Unit-conversion helpers
@@ -104,6 +106,9 @@ def mph_to_ms(speed_mph):
 
 def kmh_to_ms(speed_kmh):
     return speed_kmh * 0.27778
+
+def is_plausible_pool_temp_C(temp_C):
+    return math.isfinite(temp_C) and MIN_POOL_TEMP_C <= temp_C <= MAX_POOL_TEMP_C
 
 # ---------------------------------------------------------------------------
 # Atmospheric / thermodynamic helpers
@@ -248,28 +253,33 @@ direction_map = {
 # ---------------------------------------------------------------------------
 # Output mode switch:
 #   Live mode (default): writes under /var/www/html
-#   Test mode: set WAVE_POOL_TEST_MODE=1 to write under current directory
-#   Optional override in test mode: WAVE_POOL_OUTPUT_DIR=/some/path
+#   Test mode: set WAVE_POOL_TEST_MODE=1 for terminal-only execution
+#              (no file writes, no on-disk DB writes)
 TEST_MODE = os.getenv('WAVE_POOL_TEST_MODE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
-TEST_OUTPUT_OVERRIDE = os.getenv('WAVE_POOL_OUTPUT_DIR', '').strip()
+WRITE_FILES = not TEST_MODE
 
-if TEST_MODE:
-    BASE_OUTPUT_DIR = TEST_OUTPUT_OVERRIDE if TEST_OUTPUT_OVERRIDE else os.getcwd()
-else:
+if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
+    DATA_DIR      = os.path.join(BASE_OUTPUT_DIR, 'data')
+    FORECASTS_DIR = os.path.join(DATA_DIR, 'forecasts')
+    SITE_ROOT     = BASE_OUTPUT_DIR
+    DB_PATH       = os.path.join(DATA_DIR, 'wave_pool_weather.db')
 
-DATA_DIR      = os.path.join(BASE_OUTPUT_DIR, 'data')
-FORECASTS_DIR = os.path.join(DATA_DIR, 'forecasts')
-SITE_ROOT     = BASE_OUTPUT_DIR
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(FORECASTS_DIR, exist_ok=True)
+else:
+    BASE_OUTPUT_DIR = os.getcwd()
+    DATA_DIR      = '(disabled in test mode)'
+    FORECASTS_DIR = '(disabled in test mode)'
+    SITE_ROOT     = '(disabled in test mode)'
+    DB_PATH       = ':memory:'
 
 print(
     f"Output mode: {'TEST' if TEST_MODE else 'LIVE'} | "
-    f"base={BASE_OUTPUT_DIR} | data={DATA_DIR} | forecasts={FORECASTS_DIR}"
+    f"base={BASE_OUTPUT_DIR} | db={DB_PATH} | write_files={WRITE_FILES}"
 )
 
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(FORECASTS_DIR, exist_ok=True)
-conn   = sqlite3.connect(os.path.join(DATA_DIR, 'wave_pool_weather.db'))
+conn   = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS locations (
@@ -358,7 +368,7 @@ def request_data(url, retries=3, delay=2):
                 print(f"Failed to retrieve data after {retries} attempts.")
                 return None
 
-# frequency this script is ran will be determined by another script that will call this one
+# cron tab calls this script to be ran -> frequency is determiend there (once per day) now.
 
 # ---------------------------------------------------------------------------
 # Open-Meteo solar radiation retrieval  (no API key required)
@@ -599,20 +609,35 @@ for name, coords in locations.items():
         )
         row = cursor.fetchone()
         if row is not None:
-            T_pool_init_C = row[0]
-            print(f"  Using stored pool temp from {check_date}: {T_pool_init_C:.2f} °C "
-                  f"({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
-            break
+            candidate_pool_temp_C = float(row[0])
+            if is_plausible_pool_temp_C(candidate_pool_temp_C):
+                T_pool_init_C = candidate_pool_temp_C
+                print(f"  Using stored pool temp from {check_date}: {T_pool_init_C:.2f} °C "
+                      f"({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
+                break
+            print(
+                f"  WARNING: ignoring implausible stored pool temp from {check_date}: "
+                f"{candidate_pool_temp_C:.2f} °C "
+                f"({celsius_to_fahrenheit(candidate_pool_temp_C):.1f} °F)"
+            )
 
     if T_pool_init_C is None:
-        # No history: initialise to today's air temperature
+        # No plausible pool history: initialise from today's air temp.
+        # If today's row is unexpectedly missing, use the most recent air temp.
         cursor.execute(
-            'SELECT temp FROM air_temps WHERE location_id=? ORDER BY date DESC LIMIT 1',
-            (location_id,)
+            'SELECT temp FROM air_temps WHERE location_id=? AND date=?',
+            (location_id, str(current_date))
         )
         row = cursor.fetchone()
-        T_pool_init_C = row[0] if row else 20.0
-        print(f"  No pool history found; initialising to air temp: "
+        if row is None:
+            cursor.execute(
+                'SELECT temp FROM air_temps WHERE location_id=? ORDER BY date DESC LIMIT 1',
+                (location_id,)
+            )
+            row = cursor.fetchone()
+
+        T_pool_init_C = float(row[0]) if row else 20.0
+        print(f"  No plausible pool history found; initialising to today's air temp: "
               f"{T_pool_init_C:.2f} °C ({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
 
     print(
@@ -693,18 +718,26 @@ for name, coords in locations.items():
               f"Q_evap={fluxes['Q_evap_Wm2']:.0f} "
               f"Q_ground={fluxes['Q_ground_Wm2']:.0f} W/m²")
 
-    # Write per-location comparison file
-    cmp_filename = os.path.join(
-        FORECASTS_DIR,
-        f'model_comparison_{name.replace(" ", "_")}.txt'
-    )
-    with open(cmp_filename, 'w') as f:
-        f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
-        for row in comparison_rows:
-            f.write(
-                f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+    if WRITE_FILES:
+        # Write per-location comparison file
+        cmp_filename = os.path.join(
+            FORECASTS_DIR,
+            f'model_comparison_{name.replace(" ", "_")}.txt'
+        )
+        with open(cmp_filename, 'w') as f:
+            f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+            for row in comparison_rows:
+                f.write(
+                    f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+                )
+        print(f"  Comparison written → {cmp_filename}")
+    else:
+        print(f"  TEST MODE summary for {name} (first 3 rows):")
+        for row in comparison_rows[:3]:
+            print(
+                f"    {row[0]} air={row[1]} old={row[2]} new={row[3]} "
+                f"d_new_old={row[4]} d_old_air={row[5]} d_new_air={row[6]} Qg={row[7]}"
             )
-    print(f"  Comparison written → {cmp_filename}")
 
     # Accumulate for the cross-location summary (keyed by location name)
     all_comparison_rows[name] = comparison_rows
@@ -714,46 +747,49 @@ conn.commit()
 # ---------------------------------------------------------------------------
 # Write cross-location model comparison summary
 # ---------------------------------------------------------------------------
-summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
-with open(summary_path, 'w') as f:
-    f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
-    for loc_name, rows in all_comparison_rows.items():
-        for row in rows:
-            f.write(
-                f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
-            )
-print(f"\nCross-location summary written → {summary_path}")
+if WRITE_FILES:
+    summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
+    with open(summary_path, 'w') as f:
+        f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+        for loc_name, rows in all_comparison_rows.items():
+            for row in rows:
+                f.write(
+                    f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+                )
+    print(f"\nCross-location summary written → {summary_path}")
 
-# ---------------------------------------------------------------------------
-# Export forecasted pool temps to text files (°F for website compatibility)
-# ---------------------------------------------------------------------------
-for name in locations.keys():
+    # -----------------------------------------------------------------------
+    # Export forecasted pool temps to text files (°F for website compatibility)
+    # -----------------------------------------------------------------------
+    for name in locations.keys():
+        cursor.execute(
+            'SELECT date, temp FROM pool_temps '
+            'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ? '
+            'ORDER BY date',
+            (name, str(current_date))
+        )
+        rows = cursor.fetchall()
+        filename = os.path.join(
+            FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt'
+        )
+        with open(filename, 'w') as f:
+            for row in rows:
+                temp_F = celsius_to_fahrenheit(row[1])
+                f.write(f"{row[0]},{temp_F:.2f}\n")
+
+    # Keep the legacy Waco file for backward compatibility
     cursor.execute(
         'SELECT date, temp FROM pool_temps '
-        'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ? '
+        'WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") AND date >= ? '
         'ORDER BY date',
-        (name, str(current_date))
+        (str(current_date),)
     )
-    rows = cursor.fetchall()
-    filename = os.path.join(
-        FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt'
-    )
-    with open(filename, 'w') as f:
-        for row in rows:
+    with open(os.path.join(FORECASTS_DIR, 'forecasted_pool_temps.txt'), 'w') as f:
+        for row in cursor.fetchall():
             temp_F = celsius_to_fahrenheit(row[1])
             f.write(f"{row[0]},{temp_F:.2f}\n")
-
-# Keep the legacy Waco file for backward compatibility
-cursor.execute(
-    'SELECT date, temp FROM pool_temps '
-    'WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") AND date >= ? '
-    'ORDER BY date',
-    (str(current_date),)
-)
-with open(os.path.join(FORECASTS_DIR, 'forecasted_pool_temps.txt'), 'w') as f:
-    for row in cursor.fetchall():
-        temp_F = celsius_to_fahrenheit(row[1])
-        f.write(f"{row[0]},{temp_F:.2f}\n")
+else:
+    print("\nTEST MODE: skipped all file exports (comparison txt + forecast txt).")
 
 # ---------------------------------------------------------------------------
 # Generate dashboard.html with real data
@@ -1082,8 +1118,11 @@ dashboard_html = f'''<!DOCTYPE html>
 </body>
 </html>'''
 
-with open(os.path.join(SITE_ROOT, 'dashboard.html'), 'w') as f:
-    f.write(dashboard_html)
+if WRITE_FILES:
+    with open(os.path.join(SITE_ROOT, 'dashboard.html'), 'w') as f:
+        f.write(dashboard_html)
+else:
+    print("TEST MODE: skipped dashboard.html write.")
 conn.commit()
 conn.close()
 
