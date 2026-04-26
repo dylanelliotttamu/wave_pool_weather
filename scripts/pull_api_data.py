@@ -2,11 +2,13 @@
 # Import necessary libraries
 import urllib.request
 import json
+import math
 from datetime import datetime, date, timedelta
 import time
 import sqlite3
 import os
-import json
+
+print("Imported libraries successfully.")
 
 todays_date = date.today()
 todays_time = datetime.now().time()
@@ -15,16 +17,225 @@ print("Starting data pull from NWS API...")
 print(f"Today's date: {todays_date}")
 print(f"Current time: {todays_time}")
 
+# ---------------------------------------------------------------------------
 # Locations dictionary
+#   depth_m: effective thermal-mass depth used in the pool energy balance.
+#   For a well-mixed pool this is the mean water depth (~1.5–2.5 m).
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Bottom heat-loss calibration notes
+# ---------------------------------------------------------------------------
+# U_bottom is NOT set directly — it is derived from the thermal resistance
+# chain in the main loop:
+#
+#   R_concrete = L_CONCRETE_M / K_CONCRETE   (1 ft reinforced concrete slab)
+#   R_soil     = soil_depth_m / k_soil_Wm1K  (soil column to undisturbed earth)
+#   U_bottom   = 1 / (R_concrete + R_soil)    [W m⁻² K⁻¹]
+#
+# Soil conductivity typical values:
+#   Dry desert sand  : 0.30–0.40 W m⁻¹ K⁻¹
+#   Moist sandy loam : 0.60–0.90 W m⁻¹ K⁻¹
+#   Moist clay-loam  : 1.20–1.60 W m⁻¹ K⁻¹
+#
+# soil_depth_m = effective column depth to undisturbed ground temperature.
+# ground_temp_C = approximate annual mean deep-soil temperature.
+# ---------------------------------------------------------------------------
 locations = {
-    'Waco': {'lat': 31.6212, 'lon': -97.0037},
-    'Palm Springs': {'lat': 33.8303, 'lon': -116.5453},
-    'Lemoore': {'lat': 36.3008, 'lon': -119.7829},
-    'Atlantic Park Virginia Beach': {'lat': 36.8529, 'lon': -75.9779},
-    'Oceanside': {'lat': 33.1959, 'lon': -117.3795},
+    'Waco': {
+        'lat': 31.6212, 'lon': -97.0037,
+        'depth_m': 2.0,           # BSR Waco — roughly 2 m mean depth
+        'ground_temp_C': 20.0,    # Annual-mean deep-soil temp, central TX (~68 °F)
+        'k_soil_Wm1K': 1.5,       # Moist Texas clay-loam
+        'soil_depth_m': 2.0,      # Effective column to undisturbed ground
+    },
+    'Palm Springs': {
+        'lat': 33.8303, 'lon': -116.5453,
+        'depth_m': 1.8,
+        'ground_temp_C': 23.0,    # Coachella Valley — warm desert (~73 °F)
+        'k_soil_Wm1K': 0.35,      # Dry desert sand/gravel (low conductivity)
+        'soil_depth_m': 2.0,
+    },
+    'Lemoore': {
+        'lat': 36.3008, 'lon': -119.7829,
+        'depth_m': 2.0,
+        'ground_temp_C': 18.0,    # San Joaquin Valley (~64 °F)
+        'k_soil_Wm1K': 1.2,       # Irrigated valley clay/silt-loam
+        'soil_depth_m': 2.0,
+    },
+    'Atlantic Park Virginia Beach': {
+        'lat': 36.8529, 'lon': -75.9779,
+        'depth_m': 1.8,
+        'ground_temp_C': 16.0,    # Coastal Virginia (~61 °F)
+        'k_soil_Wm1K': 0.8,       # Moist coastal sand
+        'soil_depth_m': 2.0,
+    },
+    'Oceanside': {
+        'lat': 33.1959, 'lon': -117.3795,
+        'depth_m': 1.5,
+        'ground_temp_C': 18.0,    # Southern CA coast (~64 °F)
+        'k_soil_Wm1K': 0.6,       # Dry/moist coastal sand
+        'soil_depth_m': 2.0,
+    },
 }
 
-# Direction to degrees
+# ---------------------------------------------------------------------------
+# Physical constants used by the thermal balance model
+# ---------------------------------------------------------------------------
+SIGMA_SB      = 5.67e-8   # Stefan-Boltzmann constant  (W m⁻² K⁻⁴)
+EPSILON_WATER = 0.97      # Long-wave emissivity of water surface  (–)
+ALBEDO_WATER  = 0.06      # Short-wave albedo of open water  (–)
+RHO_WATER     = 1000.0    # Density of water  (kg m⁻³)
+CP_WATER      = 4186.0    # Specific heat of water  (J kg⁻¹ K⁻¹)
+L_VAP         = 2.45e6    # Latent heat of vaporization ≈ 25 °C  (J kg⁻¹)
+K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
+L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
+
+# ---------------------------------------------------------------------------
+# Unit-conversion helpers
+# ---------------------------------------------------------------------------
+def fahrenheit_to_celsius(T_F):
+    return (T_F - 32.0) * 5.0 / 9.0
+
+def celsius_to_fahrenheit(T_C):
+    return T_C * 9.0 / 5.0 + 32.0
+
+def mph_to_ms(speed_mph):
+    return speed_mph * 0.44704
+
+def kmh_to_ms(speed_kmh):
+    return speed_kmh * 0.27778
+
+# ---------------------------------------------------------------------------
+# Atmospheric / thermodynamic helpers
+# ---------------------------------------------------------------------------
+def saturation_vapor_pressure_kPa(T_C):
+    """Saturation vapour pressure (kPa) via the Tetens formula."""
+    return 0.6108 * math.exp(17.27 * T_C / (T_C + 237.3))
+
+def sky_emissivity(T_air_C, RH_pct):
+    """
+    Effective sky emissivity after Brutsaert (1975).
+    Uses near-surface vapour pressure to approximate atmospheric
+    longwave emission from a clear-ish sky.
+
+    Note: the Brutsaert formula requires e_a in hPa (millibars) and T in K.
+    """
+    T_air_K = T_air_C + 273.15
+    RH = max(0.0, min(1.0, RH_pct / 100.0))
+    e_a_hPa = saturation_vapor_pressure_kPa(T_air_C) * RH * 10.0  # 1 kPa = 10 hPa
+    # Brutsaert: ε_sky = 1.24 * (e_a [hPa] / T [K])^(1/7)
+    return min(1.0, 1.24 * (e_a_hPa / T_air_K) ** (1.0 / 7.0))
+
+# ---------------------------------------------------------------------------
+# One-state (well-mixed) pool thermal balance model
+# ---------------------------------------------------------------------------
+def pool_thermal_balance_step(
+        T_pool_C,
+        T_air_C,
+        RH_pct,
+        wind_speed_ms,
+        solar_MJm2_day,
+        depth_m=2.0,
+        ground_temp_C=18.0,
+        bottom_u_Wm2K=1.0,
+        include_ground=True,
+        dt_days=1.0):
+    """
+    Advance pool temperature by one time step using a single-layer (one-state)
+    energy balance.  All fluxes are in W m⁻²; positive values heat the pool.
+
+    Energy components
+    -----------------
+    Q_solar   : absorbed shortwave solar radiation
+                  = (1 − α) × G_s
+    Q_lw_net  : net longwave exchange (sky emission minus pool emission)
+                  = ε_sky σ T_air⁴ − ε_water σ T_pool⁴
+    Q_conv    : sensible (convective) heat from air
+                  = h_c (T_air − T_pool),   h_c = 5.7 + 3.8 U  [W m⁻² K⁻¹]
+                  (McAdams 1954 bulk-transfer correlation)
+    Q_evap    : latent heat loss due to evaporation (always ≤ 0 when
+                  pool is warmer than dew point)
+                  = −L × f(U) × (e_s(T_pool) − e_air)
+                  open-water mass-transfer: f(U) ≈ 2.7e-3 + 1.35e-3 U
+                  [kg m⁻² s⁻¹ kPa⁻¹]  (after Penman 1948 / Monteith)
+    Q_ground  : conductive heat exchange through pool bottom to ground
+                  = −U_bottom × (T_pool − T_ground)
+
+    Forward Euler integration:
+      ΔT = Q_total × Δt / (ρ d c_p)
+
+    Parameters
+    ----------
+    T_pool_C      : current pool temperature (°C)
+    T_air_C       : daily-mean air temperature (°C)
+    RH_pct        : relative humidity (%)
+    wind_speed_ms : wind speed (m s⁻¹)
+    solar_MJm2_day: total daily solar irradiation (MJ m⁻² day⁻¹)
+    depth_m       : effective depth / thermal-mass depth of the pool (m)
+    ground_temp_C : effective ground temperature beneath pool (°C)
+    bottom_u_Wm2K : effective bottom U-value (W m⁻² K⁻¹)
+    dt_days       : integration time step (days)
+
+    Returns
+    -------
+    T_pool_new_C  : updated pool temperature (°C)
+    heat_fluxes   : dict with individual flux components (W m⁻²) and dT (°C)
+    """
+    T_pool_K = T_pool_C + 273.15
+    T_air_K  = T_air_C  + 273.15
+    RH       = max(0.0, min(1.0, RH_pct / 100.0))
+
+    # Convert daily solar sum to mean irradiance over the day
+    solar_Wm2 = solar_MJm2_day * 1.0e6 / 86400.0  # W m⁻²
+
+    # 1. Absorbed solar radiation
+    Q_solar = (1.0 - ALBEDO_WATER) * solar_Wm2
+
+    # 2. Net longwave radiation
+    eps_sky  = sky_emissivity(T_air_C, RH_pct)
+    Q_lw_in  = eps_sky * SIGMA_SB * T_air_K ** 4
+    Q_lw_out = EPSILON_WATER * SIGMA_SB * T_pool_K ** 4
+    Q_lw_net = Q_lw_in - Q_lw_out
+
+    # 3. Sensible (convective) heat flux
+    h_c    = 5.7 + 3.8 * wind_speed_ms          # W m⁻² K⁻¹
+    Q_conv = h_c * (T_air_C - T_pool_C)
+
+    # 4. Evaporative heat flux (bulk atmospheric transfer)
+    #    E [kg/m²/s] = ρ_a × C_E × U × (0.622/P_atm) × (e_s_pool − e_a)
+    #    Q_evap [W/m²] = −L_VAP × E
+    #    EVAP_COEFF = ρ_a × C_E × L_VAP × 0.622 / P_atm
+    #               = 1.2 × 1.3e-3 × 2.45e6 × 0.622 / 101.325 ≈ 23.5
+    EVAP_COEFF = 1.2 * 1.3e-3 * L_VAP * 0.622 / 101.325  # W m⁻² (m s⁻¹)⁻¹ kPa⁻¹
+    e_s_pool = saturation_vapor_pressure_kPa(T_pool_C)      # kPa
+    e_a      = saturation_vapor_pressure_kPa(T_air_C) * RH  # kPa
+    Q_evap   = -EVAP_COEFF * wind_speed_ms * (e_s_pool - e_a)  # W m⁻²
+
+    # 5. Conductive exchange at pool bottom (positive warms pool)
+    Q_ground = -bottom_u_Wm2K * (T_pool_C - ground_temp_C) if include_ground else 0.0
+
+    # 6. Total flux and temperature change (forward Euler)
+    Q_total      = Q_solar + Q_lw_net + Q_conv + Q_evap + Q_ground
+    dt_seconds   = dt_days * 86400.0
+    thermal_mass = RHO_WATER * depth_m * CP_WATER            # J m⁻² K⁻¹
+    dT           = Q_total * dt_seconds / thermal_mass       # °C
+
+    T_pool_new_C = T_pool_C + dT
+
+    heat_fluxes = {
+        'Q_solar_Wm2'  : round(Q_solar,   2),
+        'Q_lw_net_Wm2' : round(Q_lw_net,  2),
+        'Q_conv_Wm2'   : round(Q_conv,    2),
+        'Q_evap_Wm2'   : round(Q_evap,    2),
+        'Q_ground_Wm2' : round(Q_ground,  2),
+        'Q_total_Wm2'  : round(Q_total,   2),
+        'dT_C'         : round(dT,         4),
+    }
+    return T_pool_new_C, heat_fluxes
+
+# ---------------------------------------------------------------------------
+# Wind-direction text → degrees lookup
+# ---------------------------------------------------------------------------
 direction_map = {
     'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
     'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
@@ -32,45 +243,82 @@ direction_map = {
     'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5
 }
 
+# ---------------------------------------------------------------------------
 # Database setup
-DATA_DIR = '/var/www/html/data'
-FORECASTS_DIR = '/var/www/html/data/forecasts'
-SITE_ROOT = '/var/www/html'
+# ---------------------------------------------------------------------------
+# Output mode switch:
+#   Live mode (default): writes under /var/www/html
+#   Test mode: set WAVE_POOL_TEST_MODE=1 to write under current directory
+#   Optional override in test mode: WAVE_POOL_OUTPUT_DIR=/some/path
+TEST_MODE = os.getenv('WAVE_POOL_TEST_MODE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+TEST_OUTPUT_OVERRIDE = os.getenv('WAVE_POOL_OUTPUT_DIR', '').strip()
+
+if TEST_MODE:
+    BASE_OUTPUT_DIR = TEST_OUTPUT_OVERRIDE if TEST_OUTPUT_OVERRIDE else os.getcwd()
+else:
+    BASE_OUTPUT_DIR = '/var/www/html'
+
+DATA_DIR      = os.path.join(BASE_OUTPUT_DIR, 'data')
+FORECASTS_DIR = os.path.join(DATA_DIR, 'forecasts')
+SITE_ROOT     = BASE_OUTPUT_DIR
+
+print(
+    f"Output mode: {'TEST' if TEST_MODE else 'LIVE'} | "
+    f"base={BASE_OUTPUT_DIR} | data={DATA_DIR} | forecasts={FORECASTS_DIR}"
+)
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(FORECASTS_DIR, exist_ok=True)
-conn = sqlite3.connect(os.path.join(DATA_DIR, 'wave_pool_weather.db'))
+conn   = sqlite3.connect(os.path.join(DATA_DIR, 'wave_pool_weather.db'))
 cursor = conn.cursor()
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS locations (
-    id INTEGER PRIMARY KEY,
+    id   INTEGER PRIMARY KEY,
     name TEXT UNIQUE,
-    lat REAL,
-    lon REAL
+    lat  REAL,
+    lon  REAL
 )''')
 
+# air_temps: temperatures stored in °C, wind speed in m s⁻¹,
+#            solar_radiation in MJ m⁻² day⁻¹
 cursor.execute('''CREATE TABLE IF NOT EXISTS air_temps (
-    location_id INTEGER,
-    date TEXT,
-    temp REAL,
-    humidity REAL,
-    wind_speed REAL,
-    wind_direction REAL,
+    location_id      INTEGER,
+    date             TEXT,
+    temp             REAL,
+    humidity         REAL,
+    wind_speed       REAL,
+    wind_direction   REAL,
+    solar_radiation  REAL,
     FOREIGN KEY(location_id) REFERENCES locations(id),
     UNIQUE(location_id, date)
 )''')
 
+# pool_temps: temperature stored in °C; heat_fluxes is a JSON string
 cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temps (
-    location_id INTEGER,
-    date TEXT,
-    temp REAL,
+    location_id  INTEGER,
+    date         TEXT,
+    temp         REAL,
+    heat_fluxes  TEXT,
     FOREIGN KEY(location_id) REFERENCES locations(id),
     UNIQUE(location_id, date)
 )''')
 
-# Insert locations if not exist
+# Migrate existing databases: add new columns if they are absent
+for col, table in [
+    ('solar_radiation', 'air_temps'),
+    ('heat_fluxes',     'pool_temps'),
+]:
+    try:
+        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} TEXT')
+    except Exception:
+        pass  # column already exists
+
+# Insert/update locations (now including depth_m)
 for name, coords in locations.items():
-    cursor.execute('INSERT OR IGNORE INTO locations (name, lat, lon) VALUES (?, ?, ?)', (name, coords['lat'], coords['lon']))
+    cursor.execute(
+        'INSERT OR IGNORE INTO locations (name, lat, lon) VALUES (?, ?, ?)',
+        (name, coords['lat'], coords['lon'])
+    )
 
 conn.commit()
 
@@ -112,6 +360,39 @@ def request_data(url, retries=3, delay=2):
 
 # frequency this script is ran will be determined by another script that will call this one
 
+# ---------------------------------------------------------------------------
+# Open-Meteo solar radiation retrieval  (no API key required)
+# ---------------------------------------------------------------------------
+def fetch_solar_radiation_open_meteo(lat, lon, date_list):
+    """
+    Retrieve daily total shortwave solar radiation from the Open-Meteo API.
+
+    Returns a dict mapping 'YYYY-MM-DD' strings to solar irradiation values
+    in MJ m⁻² day⁻¹.  Returns an empty dict on any failure so the caller can
+    fall back gracefully.
+    """
+    if not date_list:
+        return {}
+    start_date = str(min(date_list))
+    end_date   = str(max(date_list))
+    url = (
+        f"https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        f"&daily=shortwave_radiation_sum"
+        f"&timezone=auto"
+        f"&start_date={start_date}&end_date={end_date}"
+    )
+    try:
+        response_data = fetch_json_from_url(url)
+        times  = response_data['daily']['time']                      # list of 'YYYY-MM-DD'
+        solar  = response_data['daily']['shortwave_radiation_sum']   # MJ m⁻² day⁻¹
+        result = {t: s for t, s in zip(times, solar) if s is not None}
+        print(f"  Fetched solar radiation for {len(result)} days from Open-Meteo")
+        return result
+    except Exception as exc:
+        print(f"  Warning: could not fetch solar radiation from Open-Meteo: {exc}")
+        return {}
+
 # Main function to pull data from NWS api
 def pull_api_temp_data_main(lat, lon, timestep_in_hours):
     try:
@@ -129,66 +410,115 @@ def pull_api_temp_data_main(lat, lon, timestep_in_hours):
     return None
 
 def parse_weather_data(inputhourlyjsonweather_data):
+    """
+    Parse the NWS hourly forecast JSON.
+
+    All temperatures are normalised to **°C** and wind speeds to **m s⁻¹**
+    before aggregation, regardless of the unit format returned by the API.
+    """
     print(f"Data keys: {inputhourlyjsonweather_data.keys()}")
-    try:  
+    try:
         # Access periods
         periods = inputhourlyjsonweather_data["properties"]["periods"]
         print(f"Periods type: {type(periods)}, len: {len(periods) if hasattr(periods, '__len__') else 'N/A'}")
-        
-        # Check if periods is list
+
         if not isinstance(periods, list):
             print(f"Unexpected periods type: {type(periods)}, content: {periods}")
             return None
-        
-        # Dictionary to hold aggregated data by day
+
         daily_data = {}
 
         for period in periods:
             start_time = period["startTime"]
-            date_obj = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z").date()
-            temperature = float(period["temperature"]["value"] if isinstance(period["temperature"], dict) else period["temperature"])
-            humidity = float(period["relativeHumidity"]["value"] if isinstance(period["relativeHumidity"], dict) else period["relativeHumidity"])
-            wind_str = period["windSpeed"]["value"] if isinstance(period["windSpeed"], dict) else period["windSpeed"]
-            wind_speed = float(wind_str.split()[0]) if isinstance(wind_str, str) else float(wind_str)
-            wind_direction_str = period["windDirection"]["value"] if isinstance(period["windDirection"], dict) else period["windDirection"]
-            wind_direction = direction_map.get(wind_direction_str, 0)  # default to 0 if unknown
+            date_obj   = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z").date()
+
+            # ---- Temperature ------------------------------------------------
+            # NWS can return either:
+            #   dict  {"value": 22.2, "unitCode": "wmoUnit:degC"}  → Celsius
+            #   int/float  72                                        → Fahrenheit
+            if isinstance(period["temperature"], dict):
+                temp_raw      = float(period["temperature"]["value"])
+                unit_code_raw = period["temperature"].get("unitCode", "")
+                # Treat as Celsius if unit says degC, otherwise Fahrenheit
+                if "degC" in unit_code_raw or "cel" in unit_code_raw.lower():
+                    temperature_C = temp_raw
+                else:
+                    temperature_C = fahrenheit_to_celsius(temp_raw)
+            else:
+                # Plain value → Fahrenheit (NWS text forecast default)
+                temperature_C = fahrenheit_to_celsius(float(period["temperature"]))
+
+            # ---- Humidity ---------------------------------------------------
+            humidity = float(
+                period["relativeHumidity"]["value"]
+                if isinstance(period["relativeHumidity"], dict)
+                else period["relativeHumidity"]
+            )
+
+            # ---- Wind speed → m s⁻¹ ----------------------------------------
+            if isinstance(period["windSpeed"], dict):
+                ws_raw = float(period["windSpeed"]["value"])
+                ws_unit = period["windSpeed"].get("unitCode", "")
+                if "mph" in ws_unit or "mi_i-h" in ws_unit:
+                    wind_speed_ms = mph_to_ms(ws_raw)
+                else:
+                    # Assume km h⁻¹ (NWS SI default for windSpeed dict)
+                    wind_speed_ms = kmh_to_ms(ws_raw)
+            else:
+                # String like "8 mph"
+                wind_mph      = float(period["windSpeed"].split()[0])
+                wind_speed_ms = mph_to_ms(wind_mph)
+
+            # ---- Wind direction → degrees ------------------------------------
+            wind_direction_str = (
+                period["windDirection"]["value"]
+                if isinstance(period["windDirection"], dict)
+                else period["windDirection"]
+            )
+            wind_direction = direction_map.get(str(wind_direction_str), 0)
 
             if date_obj not in daily_data:
-                daily_data[date_obj] = {"temperatures": [], "humidities": [], "wind_speeds": [], "wind_directions": []}
-            
-            daily_data[date_obj]["temperatures"].append(temperature)
+                daily_data[date_obj] = {
+                    "temperatures":    [],
+                    "humidities":      [],
+                    "wind_speeds":     [],
+                    "wind_directions": [],
+                }
+
+            daily_data[date_obj]["temperatures"].append(temperature_C)
             daily_data[date_obj]["humidities"].append(humidity)
-            daily_data[date_obj]["wind_speeds"].append(wind_speed)
+            daily_data[date_obj]["wind_speeds"].append(wind_speed_ms)
             daily_data[date_obj]["wind_directions"].append(wind_direction)
 
-        date_list = []
-        average_temp_list = []
-        average_humidity_list = []
-        average_wind_list = []
+        date_list                = []
+        average_temp_list        = []   # °C
+        average_humidity_list    = []   # %
+        average_wind_list        = []   # m s⁻¹
         average_wind_direction_list = []
 
         for date_obj in sorted(daily_data.keys()):
-            data = daily_data[date_obj]
-            avg_temperature = (max(data["temperatures"]) + min(data["temperatures"])) / 2 
-            avg_humidity = sum(data["humidities"]) / len(data["humidities"])
-            avg_wind = sum(data["wind_speeds"]) / len(data["wind_speeds"])
-            avg_wind_dir = sum(data["wind_directions"]) / len(data["wind_directions"])
-            
+            day = daily_data[date_obj]
+            # Daily mean temperature: average of hourly max and min
+            avg_temperature = (max(day["temperatures"]) + min(day["temperatures"])) / 2.0
+            avg_humidity    = sum(day["humidities"])      / len(day["humidities"])
+            avg_wind        = sum(day["wind_speeds"])     / len(day["wind_speeds"])
+            avg_wind_dir    = sum(day["wind_directions"]) / len(day["wind_directions"])
+
             date_list.append(date_obj)
             average_temp_list.append(avg_temperature)
             average_humidity_list.append(avg_humidity)
             average_wind_list.append(avg_wind)
             average_wind_direction_list.append(avg_wind_dir)
-        
+
         return {
-            'date_list': date_list,
-            'average_temp_list': average_temp_list,
-            'average_humidity_list': average_humidity_list,
-            'average_wind_list': average_wind_list,
-            'average_wind_direction_list': average_wind_direction_list
+            'date_list':                  date_list,
+            'average_temp_list':          average_temp_list,          # °C
+            'average_humidity_list':      average_humidity_list,      # %
+            'average_wind_list':          average_wind_list,          # m s⁻¹
+            'average_wind_direction_list': average_wind_direction_list,
         }
-    except Exception as e:
-        print(f"Error parsing data: {e}")
+    except Exception as exc:
+        print(f"Error parsing data: {exc}")
         return None
 
 
@@ -198,49 +528,200 @@ Begin main part of script and call functions
 
 '''
 
+# ---------------------------------------------------------------------------
 # Main execution
+# ---------------------------------------------------------------------------
 current_date = date.today()
+all_comparison_rows = {}
 
 for name, coords in locations.items():
-    lat, lon = coords['lat'], coords['lon']
-    print(f"Processing {name}...")
-    
+    lat            = coords['lat']
+    lon            = coords['lon']
+    depth_m        = coords.get('depth_m', 2.0)
+    ground_temp_C  = coords.get('ground_temp_C', 18.0)
+    k_soil         = coords.get('k_soil_Wm1K', 1.0)
+    soil_depth     = coords.get('soil_depth_m', 2.0)
+    # Resistance-network derivation: concrete slab + soil column in series
+    R_concrete    = L_CONCRETE_M / K_CONCRETE             # m²K/W
+    R_soil        = soil_depth / k_soil                   # m²K/W
+    bottom_u_Wm2K = 1.0 / (R_concrete + R_soil)          # W m⁻² K⁻¹
+    print(
+        f"\nProcessing {name}  (lat={lat}, lon={lon}, depth={depth_m} m, "
+        f"T_ground={ground_temp_C} °C, "
+        f"R_slab={R_concrete:.3f} + R_soil={R_soil:.3f} = {R_concrete+R_soil:.3f} m²K/W, "
+        f"U_bottom={bottom_u_Wm2K:.3f} W/m²/K)..."
+    )
+
     cursor.execute('SELECT id FROM locations WHERE name=?', (name,))
     location_id = cursor.fetchone()[0]
-    
+
     data = pull_api_temp_data_main(lat, lon, 1)
     if not data:
-        print(f"Failed to get data for {name}")
+        print(f"  Failed to get NWS data for {name}")
         continue
-    
-    # Insert forecasted air temps
-    for i in range(len(data['date_list'])):
-        cursor.execute('INSERT OR REPLACE INTO air_temps (location_id, date, temp, humidity, wind_speed, wind_direction) VALUES (?, ?, ?, ?, ?, ?)',
-            (location_id, str(data['date_list'][i]), data['average_temp_list'][i], data['average_humidity_list'][i], data['average_wind_list'][i], data['average_wind_direction_list'][i]))
-    
-    # Calculate pool temps
-    yesterday = current_date - timedelta(days=1)
-    two_days_ago = current_date - timedelta(days=2)
-    
-    cursor.execute('SELECT temp FROM air_temps WHERE location_id=? AND date=?', (location_id, str(two_days_ago)))
-    two_days_temp = cursor.fetchone()
-    cursor.execute('SELECT temp FROM air_temps WHERE location_id=? AND date=?', (location_id, str(yesterday)))
-    one_day_temp = cursor.fetchone()
-    
-    if two_days_temp and one_day_temp:
-        today_pool_temp = (two_days_temp[0] + one_day_temp[0]) / 2
-        cursor.execute('INSERT OR REPLACE INTO pool_temps (location_id, date, temp) VALUES (?, ?, ?)', (location_id, str(current_date), today_pool_temp))
-    
-    # Forecasted pool temps
-    for i in range(len(data['date_list'])):
-        if i == 0:
-            prev_temp = one_day_temp[0] if one_day_temp else data['average_temp_list'][0]
-            forecasted_pool = (data['average_temp_list'][0] + prev_temp) / 2
-        else:
-            forecasted_pool = (data['average_temp_list'][i] + data['average_temp_list'][i-1]) / 2
-        cursor.execute('INSERT OR REPLACE INTO pool_temps (location_id, date, temp) VALUES (?, ?, ?)', (location_id, str(data['date_list'][i]), forecasted_pool))
 
-# Export forecasted pool temps for all locations to text files
+    # ------------------------------------------------------------------ #
+    # Fetch solar radiation from Open-Meteo                               #
+    # ------------------------------------------------------------------ #
+    solar_map = fetch_solar_radiation_open_meteo(lat, lon, data['date_list'])
+
+    # ------------------------------------------------------------------ #
+    # Store forecasted air temperatures (°C), wind (m s⁻¹), solar        #
+    # ------------------------------------------------------------------ #
+    for i, d in enumerate(data['date_list']):
+        solar_val = solar_map.get(str(d), None)
+        cursor.execute(
+            'INSERT OR REPLACE INTO air_temps '
+            '(location_id, date, temp, humidity, wind_speed, wind_direction, solar_radiation) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                location_id,
+                str(d),
+                data['average_temp_list'][i],
+                data['average_humidity_list'][i],
+                data['average_wind_list'][i],
+                data['average_wind_direction_list'][i],
+                solar_val,
+            )
+        )
+
+    # ------------------------------------------------------------------ #
+    # Thermal balance: find the most recent stored pool temperature as    #
+    # the initial condition, then step forward through the forecast.      #
+    # ------------------------------------------------------------------ #
+    # Look for the latest pool temp already in the DB (up to 7 days ago)
+    T_pool_init_C = None
+    for days_back in range(1, 8):
+        check_date = current_date - timedelta(days=days_back)
+        cursor.execute(
+            'SELECT temp FROM pool_temps WHERE location_id=? AND date=?',
+            (location_id, str(check_date))
+        )
+        row = cursor.fetchone()
+        if row is not None:
+            T_pool_init_C = row[0]
+            print(f"  Using stored pool temp from {check_date}: {T_pool_init_C:.2f} °C "
+                  f"({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
+            break
+
+    if T_pool_init_C is None:
+        # No history: initialise to today's air temperature
+        cursor.execute(
+            'SELECT temp FROM air_temps WHERE location_id=? ORDER BY date DESC LIMIT 1',
+            (location_id,)
+        )
+        row = cursor.fetchone()
+        T_pool_init_C = row[0] if row else 20.0
+        print(f"  No pool history found; initialising to air temp: "
+              f"{T_pool_init_C:.2f} °C ({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
+
+    # Default solar irradiation fallback (clear-sky midlatitude estimate)
+    SOLAR_FALLBACK_MJM2 = 15.0
+
+    T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
+    T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
+    T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
+    comparison_rows = []           # for the per-location comparison file
+
+    for i, d in enumerate(data['date_list']):
+        T_air_C      = data['average_temp_list'][i]
+        RH_pct       = data['average_humidity_list'][i]
+        wind_ms      = data['average_wind_list'][i]
+        solar_MJm2   = solar_map.get(str(d), SOLAR_FALLBACK_MJM2)
+        if solar_MJm2 is None:
+            solar_MJm2 = SOLAR_FALLBACK_MJM2
+
+        # --- simple baseline (pool temp equals daily mean air temp) ---
+        T_pool_air_C = T_air_C
+
+        # --- original model (no bottom conduction) ---
+        T_pool_old_C, _ = pool_thermal_balance_step(
+            T_pool_old_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=False,
+            dt_days=1.0
+        )
+
+        # --- new physics model (with bottom conduction) ---
+        T_pool_new_C, fluxes = pool_thermal_balance_step(
+            T_pool_new_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=True,
+            dt_days=1.0
+        )
+
+        # DB and exported files continue to use the new physics model
+        cursor.execute(
+            'INSERT OR REPLACE INTO pool_temps (location_id, date, temp, heat_fluxes) '
+            'VALUES (?, ?, ?, ?)',
+            (location_id, str(d), T_pool_new_C, json.dumps(fluxes))
+        )
+
+        air_F         = celsius_to_fahrenheit(T_pool_air_C)
+        old_F         = celsius_to_fahrenheit(T_pool_old_C)
+        new_F         = celsius_to_fahrenheit(T_pool_new_C)
+        delta_new_old = new_F - old_F
+        delta_old_air = old_F - air_F
+        delta_new_air = new_F - air_F
+        comparison_rows.append((
+            str(d),
+            round(air_F, 2),
+            round(old_F, 2),
+            round(new_F, 2),
+            round(delta_new_old, 2),
+            round(delta_old_air, 2),
+            round(delta_new_air, 2),
+            fluxes['Q_ground_Wm2']
+        ))
+
+        print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F | "
+              f"Δ(new-old)={delta_new_old:+.2f}°F "
+              f"Δ(old-air)={delta_old_air:+.2f}°F "
+              f"Δ(new-air)={delta_new_air:+.2f}°F | "
+              f"Q_solar={fluxes['Q_solar_Wm2']:.0f} "
+              f"Q_lw={fluxes['Q_lw_net_Wm2']:.0f} "
+              f"Q_conv={fluxes['Q_conv_Wm2']:.0f} "
+              f"Q_evap={fluxes['Q_evap_Wm2']:.0f} "
+              f"Q_ground={fluxes['Q_ground_Wm2']:.0f} W/m²")
+
+    # Write per-location comparison file
+    cmp_filename = os.path.join(
+        FORECASTS_DIR,
+        f'model_comparison_{name.replace(" ", "_")}.txt'
+    )
+    with open(cmp_filename, 'w') as f:
+        f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+        for row in comparison_rows:
+            f.write(
+                f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+            )
+    print(f"  Comparison written → {cmp_filename}")
+
+    # Accumulate for the cross-location summary (keyed by location name)
+    all_comparison_rows[name] = comparison_rows
+
+conn.commit()
+
+# ---------------------------------------------------------------------------
+# Write cross-location model comparison summary
+# ---------------------------------------------------------------------------
+summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
+with open(summary_path, 'w') as f:
+    f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+    for loc_name, rows in all_comparison_rows.items():
+        for row in rows:
+            f.write(
+                f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
+            )
+print(f"\nCross-location summary written → {summary_path}")
+
+# ---------------------------------------------------------------------------
+# Export forecasted pool temps to text files (°F for website compatibility)
+# ---------------------------------------------------------------------------
 for name in locations.keys():
     cursor.execute(
         'SELECT date, temp FROM pool_temps '
@@ -249,39 +730,82 @@ for name in locations.keys():
         (name, str(current_date))
     )
     rows = cursor.fetchall()
-    filename = os.path.join(FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt')
+    filename = os.path.join(
+        FORECASTS_DIR, f'forecasted_pool_temps_{name.replace(" ", "_")}.txt'
+    )
     with open(filename, 'w') as f:
         for row in rows:
-            f.write(f"{row[0]},{row[1]}\n")
+            temp_F = celsius_to_fahrenheit(row[1])
+            f.write(f"{row[0]},{temp_F:.2f}\n")
 
-# Keep the old Waco file for backward compatibility
+# Keep the legacy Waco file for backward compatibility
 cursor.execute(
     'SELECT date, temp FROM pool_temps '
     'WHERE location_id = (SELECT id FROM locations WHERE name = "Waco") AND date >= ? '
     'ORDER BY date',
     (str(current_date),)
 )
-pool_rows = cursor.fetchall()
 with open(os.path.join(FORECASTS_DIR, 'forecasted_pool_temps.txt'), 'w') as f:
-    for row in pool_rows:
-        f.write(f"{row[0]},{row[1]}\n")
+    for row in cursor.fetchall():
+        temp_F = celsius_to_fahrenheit(row[1])
+        f.write(f"{row[0]},{temp_F:.2f}\n")
 
+# ---------------------------------------------------------------------------
 # Generate dashboard.html with real data
+# ---------------------------------------------------------------------------
 dashboard_location = 'Waco'
 
-cursor.execute('SELECT date, temp, humidity, wind_speed FROM air_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (dashboard_location,))
-air_rows = cursor.fetchall()
-dates = [row[0] for row in air_rows]
-air_temps = [row[1] for row in air_rows]
-humidities = [row[2] for row in air_rows]
-wind_speeds = [row[3] for row in air_rows]
+cursor.execute(
+    'SELECT date, temp, humidity, wind_speed, solar_radiation '
+    'FROM air_temps '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) '
+    'ORDER BY date',
+    (dashboard_location,)
+)
+air_rows   = cursor.fetchall()
+dates      = [row[0] for row in air_rows]
+# Convert stored °C back to °F for the dashboard chart
+air_temps_F  = [round(celsius_to_fahrenheit(row[1]), 1) for row in air_rows]
+humidities   = [row[2] for row in air_rows]
+wind_speeds  = [row[3] for row in air_rows]          # m s⁻¹
+solar_vals   = [row[4] if row[4] is not None else 0 for row in air_rows]  # MJ/m²/day
 
-cursor.execute('SELECT date, temp FROM pool_temps WHERE location_id = (SELECT id FROM locations WHERE name = ?) ORDER BY date', (dashboard_location,))
-dashboard_pool_rows = cursor.fetchall()
-pool_temps = [row[1] for row in dashboard_pool_rows]
+cursor.execute(
+    'SELECT date, temp FROM pool_temps '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) '
+    'ORDER BY date',
+    (dashboard_location,)
+)
+pool_temps_F = [round(celsius_to_fahrenheit(row[1]), 1) for row in cursor.fetchall()]
 
-# For wind rose, mock for now
-bins = [10, 20, 15, 5, 10, 5, 15, 20]
+# Wind-direction frequency bins for wind rose
+cursor.execute(
+    'SELECT wind_direction FROM air_temps '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?)',
+    (dashboard_location,)
+)
+wind_dirs = [row[0] for row in cursor.fetchall() if row[0] is not None]
+bin_labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+bin_edges  = [337.5, 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]
+bins = [0] * 8
+for wd in wind_dirs:
+    wd = wd % 360
+    if wd >= 337.5 or wd < 22.5:
+        bins[0] += 1
+    elif wd < 67.5:
+        bins[1] += 1
+    elif wd < 112.5:
+        bins[2] += 1
+    elif wd < 157.5:
+        bins[3] += 1
+    elif wd < 202.5:
+        bins[4] += 1
+    elif wd < 247.5:
+        bins[5] += 1
+    elif wd < 292.5:
+        bins[6] += 1
+    else:
+        bins[7] += 1
 
 dashboard_html = f'''<!DOCTYPE html>
 <html lang="en">
@@ -374,6 +898,11 @@ dashboard_html = f'''<!DOCTYPE html>
         </div>
 
         <div class="chart-container">
+            <h2>{dashboard_location} Solar Radiation Forecast</h2>
+            <canvas id="solarChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
             <h2>{dashboard_location} Wind Rose</h2>
             <canvas id="windRoseChart" class="chart"></canvas>
         </div>
@@ -382,12 +911,13 @@ dashboard_html = f'''<!DOCTYPE html>
     <script>
         const chartLocation = {json.dumps(dashboard_location)};
         const realData = {{
-            dates: {dates},
-            poolTemps: {pool_temps},
-            airTemps: {air_temps},
-            humidities: {humidities},
-            windSpeeds: {wind_speeds},
-            windBins: {bins}
+            dates:      {json.dumps(dates)},
+            poolTemps:  {json.dumps(pool_temps_F)},
+            airTemps:   {json.dumps(air_temps_F)},
+            humidities: {json.dumps(humidities)},
+            windSpeeds: {json.dumps([round(w, 2) for w in wind_speeds])},
+            solarRad:   {json.dumps([round(s, 2) for s in solar_vals])},
+            windBins:   {json.dumps(bins)}
         }};
 
         // Pool Temp Chart
@@ -399,29 +929,15 @@ dashboard_html = f'''<!DOCTYPE html>
                     label: 'Pool Temperature (°F)',
                     data: realData.poolTemps,
                     borderColor: 'blue',
-                    fill: false
+                    backgroundColor: 'rgba(0,0,255,0.05)',
+                    fill: true
                 }}]
             }},
             options: {{
-                plugins: {{
-                    title: {{
-                        display: true,
-                        text: `${{chartLocation}} Pool Temperature Forecast (°F)`
-                    }}
-                }},
+                plugins: {{ title: {{ display: true, text: `${{chartLocation}} Pool Temperature Forecast (°F)` }} }},
                 scales: {{
-                    x: {{
-                        title: {{
-                            display: true,
-                            text: 'Date'
-                        }}
-                    }},
-                    y: {{
-                        title: {{
-                            display: true,
-                            text: 'Pool Temperature (°F)'
-                        }}
-                    }}
+                    x: {{ title: {{ display: true, text: 'Date' }} }},
+                    y: {{ title: {{ display: true, text: 'Pool Temperature (°F)' }} }}
                 }}
             }}
         }});
@@ -435,29 +951,15 @@ dashboard_html = f'''<!DOCTYPE html>
                     label: 'Air Temperature (°F)',
                     data: realData.airTemps,
                     borderColor: 'red',
-                    fill: false
+                    backgroundColor: 'rgba(255,0,0,0.05)',
+                    fill: true
                 }}]
             }},
             options: {{
-                plugins: {{
-                    title: {{
-                        display: true,
-                        text: `${{chartLocation}} Air Temperature Forecast (°F)`
-                    }}
-                }},
+                plugins: {{ title: {{ display: true, text: `${{chartLocation}} Air Temperature Forecast (°F)` }} }},
                 scales: {{
-                    x: {{
-                        title: {{
-                            display: true,
-                            text: 'Date'
-                        }}
-                    }},
-                    y: {{
-                        title: {{
-                            display: true,
-                            text: 'Air Temperature (°F)'
-                        }}
-                    }}
+                    x: {{ title: {{ display: true, text: 'Date' }} }},
+                    y: {{ title: {{ display: true, text: 'Air Temperature (°F)' }} }}
                 }}
             }}
         }});
@@ -468,31 +970,16 @@ dashboard_html = f'''<!DOCTYPE html>
             data: {{
                 labels: realData.dates,
                 datasets: [{{
-                    label: 'Humidity (%)',
+                    label: 'Relative Humidity (%)',
                     data: realData.humidities,
-                    backgroundColor: 'green'
+                    backgroundColor: 'rgba(0,128,0,0.6)'
                 }}]
             }},
             options: {{
-                plugins: {{
-                    title: {{
-                        display: true,
-                        text: `${{chartLocation}} Humidity Forecast (%)`
-                    }}
-                }},
+                plugins: {{ title: {{ display: true, text: `${{chartLocation}} Humidity Forecast (%)` }} }},
                 scales: {{
-                    x: {{
-                        title: {{
-                            display: true,
-                            text: 'Date'
-                        }}
-                    }},
-                    y: {{
-                        title: {{
-                            display: true,
-                            text: 'Humidity (%)'
-                        }}
-                    }}
+                    x: {{ title: {{ display: true, text: 'Date' }} }},
+                    y: {{ title: {{ display: true, text: 'Humidity (%)' }}, min: 0, max: 100 }}
                 }}
             }}
         }});
@@ -503,32 +990,38 @@ dashboard_html = f'''<!DOCTYPE html>
             data: {{
                 labels: realData.dates,
                 datasets: [{{
-                    label: 'Wind Speed (mph)',
+                    label: 'Wind Speed (m/s)',
                     data: realData.windSpeeds,
                     borderColor: 'orange',
-                    fill: false
+                    backgroundColor: 'rgba(255,165,0,0.05)',
+                    fill: true
                 }}]
             }},
             options: {{
-                plugins: {{
-                    title: {{
-                        display: true,
-                        text: `${{chartLocation}} Wind Speed Forecast (mph)`
-                    }}
-                }},
+                plugins: {{ title: {{ display: true, text: `${{chartLocation}} Wind Speed Forecast (m/s)` }} }},
                 scales: {{
-                    x: {{
-                        title: {{
-                            display: true,
-                            text: 'Date'
-                        }}
-                    }},
-                    y: {{
-                        title: {{
-                            display: true,
-                            text: 'Wind Speed (mph)'
-                        }}
-                    }}
+                    x: {{ title: {{ display: true, text: 'Date' }} }},
+                    y: {{ title: {{ display: true, text: 'Wind Speed (m s⁻¹)' }} }}
+                }}
+            }}
+        }});
+
+        // Solar Radiation Chart
+        new Chart(document.getElementById('solarChart'), {{
+            type: 'bar',
+            data: {{
+                labels: realData.dates,
+                datasets: [{{
+                    label: 'Solar Radiation (MJ/m²/day)',
+                    data: realData.solarRad,
+                    backgroundColor: 'rgba(255,215,0,0.7)'
+                }}]
+            }},
+            options: {{
+                plugins: {{ title: {{ display: true, text: `${{chartLocation}} Solar Radiation Forecast (MJ m⁻² day⁻¹)` }} }},
+                scales: {{
+                    x: {{ title: {{ display: true, text: 'Date' }} }},
+                    y: {{ title: {{ display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)' }} }}
                 }}
             }}
         }});
@@ -555,18 +1048,10 @@ dashboard_html = f'''<!DOCTYPE html>
             }},
             options: {{
                 plugins: {{
-                    title: {{
-                        display: true,
-                        text: `${{chartLocation}} Wind Direction Frequency` 
-                    }}
+                    title: {{ display: true, text: `${{chartLocation}} Wind Direction Frequency` }}
                 }},
                 scales: {{
-                    r: {{
-                        title: {{
-                            display: true,
-                            text: 'Frequency (count)'
-                        }}
-                    }}
+                    r: {{ title: {{ display: true, text: 'Frequency (count)' }} }}
                 }}
             }}
         }});
