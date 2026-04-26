@@ -615,6 +615,11 @@ for name, coords in locations.items():
         print(f"  No pool history found; initialising to air temp: "
               f"{T_pool_init_C:.2f} °C ({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
 
+    print(
+        f"  DEBUG init pool temp type={type(T_pool_init_C).__name__}, "
+        f"value={T_pool_init_C!r}"
+    )
+
     # Default solar irradiation fallback (clear-sky midlatitude estimate)
     SOLAR_FALLBACK_MJM2 = 15.0
 
@@ -768,7 +773,25 @@ dates      = [row[0] for row in air_rows]
 air_temps_F  = [round(celsius_to_fahrenheit(row[1]), 1) for row in air_rows]
 humidities   = [row[2] for row in air_rows]
 wind_speeds  = [row[3] for row in air_rows]          # m s⁻¹
-solar_vals   = [row[4] if row[4] is not None else 0 for row in air_rows]  # MJ/m²/day
+solar_vals   = []  # MJ/m²/day
+for i, row in enumerate(air_rows):
+    raw_solar = row[4]
+    try:
+        solar_val = float(raw_solar) if raw_solar is not None else 0.0
+    except (TypeError, ValueError):
+        print(
+            f"WARNING: invalid solar_radiation at index {i}: "
+            f"raw={raw_solar!r}, type={type(raw_solar).__name__}; using 0.0"
+        )
+        solar_val = 0.0
+    solar_vals.append(solar_val)
+
+    # Print a small sample for debugging values/types pulled from DB.
+    if i < 10:
+        print(
+            f"DEBUG solar_vals[{i}] raw={raw_solar!r} "
+            f"type={type(raw_solar).__name__} -> parsed={solar_val:.3f}"
+        )
 
 cursor.execute(
     'SELECT date, temp FROM pool_temps '
