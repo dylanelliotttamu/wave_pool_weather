@@ -246,9 +246,26 @@ direction_map = {
 # ---------------------------------------------------------------------------
 # Database setup
 # ---------------------------------------------------------------------------
-DATA_DIR      = '/var/www/html/data'
-FORECASTS_DIR = '/var/www/html/data/forecasts'
-SITE_ROOT     = '/var/www/html'
+# Output mode switch:
+#   Live mode (default): writes under /var/www/html
+#   Test mode: set WAVE_POOL_TEST_MODE=1 to write under current directory
+#   Optional override in test mode: WAVE_POOL_OUTPUT_DIR=/some/path
+TEST_MODE = os.getenv('WAVE_POOL_TEST_MODE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+TEST_OUTPUT_OVERRIDE = os.getenv('WAVE_POOL_OUTPUT_DIR', '').strip()
+
+if TEST_MODE:
+    BASE_OUTPUT_DIR = TEST_OUTPUT_OVERRIDE if TEST_OUTPUT_OVERRIDE else os.getcwd()
+else:
+    BASE_OUTPUT_DIR = '/var/www/html'
+
+DATA_DIR      = os.path.join(BASE_OUTPUT_DIR, 'data')
+FORECASTS_DIR = os.path.join(DATA_DIR, 'forecasts')
+SITE_ROOT     = BASE_OUTPUT_DIR
+
+print(
+    f"Output mode: {'TEST' if TEST_MODE else 'LIVE'} | "
+    f"base={BASE_OUTPUT_DIR} | data={DATA_DIR} | forecasts={FORECASTS_DIR}"
+)
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(FORECASTS_DIR, exist_ok=True)
