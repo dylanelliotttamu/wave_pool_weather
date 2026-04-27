@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Development dependencies
+# Keep this lightweight for resource-constrained environments.

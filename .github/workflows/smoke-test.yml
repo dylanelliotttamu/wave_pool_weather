@@ -1,0 +1,35 @@
+name: Smoke Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 10 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run lightweight validator
+        run: python scripts/validate_repo.py
+
+      - name: Run API smoke test in terminal-only mode
+        env:
+          WAVE_POOL_TEST_MODE: '1'
+        run: python scripts/pull_api_data.py
