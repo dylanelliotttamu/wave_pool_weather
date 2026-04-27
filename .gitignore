@@ -94,6 +94,9 @@ data/*.sqlite3
 data/forecasts/model_comparison_*.txt
 data/forecasts/model_comparison_summary.txt
 
+# Generated dashboard (built from dashboard.template.html by pull_api_data.py)
+dashboard.html
+
 # Optional: ignore temp output roots used in test mode
 tmp/
 temp/

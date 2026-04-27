@@ -866,7 +866,30 @@ for wd in wind_dirs:
     else:
         bins[7] += 1
 
-dashboard_html = f'''<!DOCTYPE html>
+real_data_js = (
+    f'const chartLocation = {json.dumps(dashboard_location)};\n'
+    f'        const realData = {{\n'
+    f'            dates:      {json.dumps(dates)},\n'
+    f'            poolTemps:  {json.dumps(pool_temps_F)},\n'
+    f'            airTemps:   {json.dumps(air_temps_F)},\n'
+    f'            humidities: {json.dumps(humidities)},\n'
+    f'            windSpeeds: {json.dumps([round(w, 2) for w in wind_speeds])},\n'
+    f'            solarRad:   {json.dumps([round(s, 2) for s in solar_vals])},\n'
+    f'            windBins:   {json.dumps(bins)}\n'
+    f'        }};'
+)
+
+template_path = os.path.join(SITE_ROOT, 'dashboard.template.html')
+with open(template_path) as _tmpl:
+    _raw = _tmpl.read()
+dashboard_html = (
+    _raw
+    .replace('__LOCATION__', dashboard_location)
+    .replace('// __REAL_DATA__', real_data_js)
+)
+
+if False:  # dead branch — keeps the old giant f-string out of scope
+    dashboard_html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
