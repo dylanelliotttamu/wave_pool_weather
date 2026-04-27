@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feedback &amp; Subscribe - Wave Pool Weather</title>
-    <title>Feedback - Wave Pool Weather</title>
+    <title>Wave Pool Weather - Feedback</title>
     <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
     <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
     body {
         margin: 0;
-        font-family: 'Lato', sans-serif;
+        font-family: 'Inter', 'Lato', sans-serif;
         background-color: #333;
         color: #fff;
         overflow-x: hidden;
@@ -26,31 +26,25 @@
         letter-spacing: 2px;
         font-size: 48px;
         margin: 0;
-        padding: 20px 0;
+        padding: 20px 0 8px 0;
         text-align: center;
-    }
-    h2 {
-        font-weight: 400;
-        letter-spacing: 1px;
-        font-size: 26px;
-        margin: 0 0 15px 0;
-        color: #fff;
-    }
-    p {
-        letter-spacing: 1px;
-        font-size: 15px;
-        line-height: 1.6;
-        color: #ccc;
     }
     .header {
         position: relative;
         text-align: center;
         background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
         color: white;
-        padding: 20px;
+        padding: 40px 20px 30px;
+    }
+    .header p {
+        margin: 0;
+        font-size: 15px;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.85);
     }
     .navbar {
         background-color: #222;
+        border-bottom: 1px solid #333;
         overflow: hidden;
         width: 100%;
         display: flex;
@@ -72,107 +66,13 @@
         color: #8db600;
     }
     .navbar a.active {
-        color: #8db600;
+        color: #4ecdc4;
+        border-bottom: 2px solid #4ecdc4;
     }
     .content {
         flex: 1;
-        background-color: #666;
+        background-color: #333;
         padding: 40px 20px 60px;
-    }
-    .section-card {
-        background-color: #444;
-        border-radius: 10px;
-        padding: 30px 35px;
-        max-width: 680px;
-        margin: 0 auto 40px auto;
-    }
-    .form-group {
-        margin-bottom: 18px;
-    }
-    .form-group label {
-        display: block;
-        font-size: 14px;
-        color: #ccc;
-        margin-bottom: 6px;
-        letter-spacing: 0.5px;
-    }
-    .form-group input[type="email"],
-    .form-group input[type="text"],
-    .form-group textarea,
-    .form-group select {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #666;
-        border-radius: 5px;
-        background-color: #555;
-        color: #fff;
-        font-family: 'Lato', sans-serif;
-        font-size: 14px;
-        box-sizing: border-box;
-        transition: border-color 0.3s;
-    }
-    .form-group input[type="email"]:focus,
-    .form-group input[type="text"]:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-        outline: none;
-        border-color: #8db600;
-    }
-    .form-group textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
-    .checkboxes-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 6px;
-    }
-    .checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 14px;
-        color: #ccc;
-        cursor: pointer;
-    }
-    .checkbox-item input[type="checkbox"] {
-        width: 16px;
-        height: 16px;
-        accent-color: #8db600;
-        cursor: pointer;
-    }
-    .btn-submit {
-        display: inline-block;
-        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
-        color: #fff;
-        border: none;
-        padding: 12px 32px;
-        border-radius: 5px;
-        font-family: 'Lato', sans-serif;
-        font-size: 15px;
-        letter-spacing: 1px;
-        cursor: pointer;
-        transition: opacity 0.3s;
-        margin-top: 8px;
-    }
-    .btn-submit:hover {
-        opacity: 0.85;
-    }
-    .divider {
-        border: none;
-        border-top: 1px solid #555;
-        margin: 10px 0 25px 0;
-    }
-    .success-msg {
-        display: none;
-        background-color: #2e5e2e;
-        border: 1px solid #4caf50;
-        border-radius: 5px;
-        padding: 12px 16px;
-        color: #a5d6a7;
-        font-size: 14px;
-        margin-top: 14px;
     }
     footer {
         background-color: #222;
@@ -181,269 +81,16 @@
         padding: 10px;
         width: 100%;
     }
+    footer a {
+        color: #8db600;
+        text-decoration: none;
+    }
     @media (max-width: 768px) {
         h1 { font-size: 32px; }
-        .section-card { padding: 22px 18px; }
-        .checkboxes-grid { grid-template-columns: 1fr; }
     }
     </style>
 </head>
 <body>
-        body {
-            margin: 0;
-            font-family: 'Lato', sans-serif;
-            background-color: #333;
-            color: #fff;
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        /* Navigation Bar */
-        .navbar {
-            background-color: #222;
-            overflow: hidden;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .navbar a {
-            color: #ccc;
-            text-align: center;
-            padding: 14px 20px;
-            text-decoration: none;
-            font-size: 17px;
-            transition: color 0.3s ease;
-        }
-        .navbar a:hover,
-        .navbar a.active {
-            color: #8db600;
-        }
-
-        /* Header */
-        .header {
-            position: relative;
-            text-align: center;
-            background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
-            color: white;
-            padding: 40px 20px 30px;
-        }
-        .header h1 {
-            margin: 0;
-            font-weight: 300;
-            letter-spacing: 2px;
-            font-size: 48px;
-        }
-        .header p {
-            max-width: 600px;
-            margin: 14px auto 0;
-            font-size: 15px;
-            color: rgba(255,255,255,0.85);
-            letter-spacing: 1px;
-        }
-
-        /* Main content */
-        .content {
-            flex: 1;
-            padding: 40px 20px 60px;
-            box-sizing: border-box;
-        }
-
-        .two-col {
-            display: flex;
-            gap: 40px;
-            max-width: 1100px;
-            margin: 0 auto;
-            align-items: flex-start;
-            flex-wrap: wrap;
-        }
-
-        /* ── Feedback Form ── */
-        .form-card {
-            flex: 1 1 380px;
-            background-color: #444;
-            border-radius: 10px;
-            padding: 30px 30px 36px;
-            box-sizing: border-box;
-        }
-        .form-card h2 {
-            margin: 0 0 20px;
-            font-weight: 400;
-            font-size: 24px;
-            color: #8db600;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #ccc;
-        }
-        input[type="text"],
-        input[type="email"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #666;
-            border-radius: 6px;
-            background-color: #555;
-            color: #fff;
-            font-size: 14px;
-            font-family: 'Lato', sans-serif;
-            box-sizing: border-box;
-            margin-bottom: 18px;
-            transition: border-color 0.2s;
-        }
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        select:focus,
-        textarea:focus {
-            border-color: #8db600;
-            outline: none;
-        }
-        select option {
-            background-color: #555;
-        }
-        textarea {
-            resize: vertical;
-            min-height: 110px;
-        }
-
-        /* Star rating */
-        .star-label {
-            margin-bottom: 5px;
-        }
-        .star-rating {
-            display: flex;
-            flex-direction: row-reverse;
-            justify-content: flex-end;
-            margin-bottom: 18px;
-        }
-        .star-rating input {
-            display: none;
-        }
-        .star-rating label {
-            font-size: 28px;
-            color: #888;
-            cursor: pointer;
-            transition: color 0.2s;
-            margin: 0;
-            padding: 0 2px;
-        }
-        .star-rating input:checked ~ label,
-        .star-rating label:hover,
-        .star-rating label:hover ~ label {
-            color: #f5c518;
-        }
-
-        /* Submit button */
-        .btn-submit {
-            display: inline-block;
-            background-color: #8db600;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-family: 'Lato', sans-serif;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        .btn-submit:hover {
-            background-color: #6e8f00;
-        }
-
-        /* Success banner */
-        #success-banner {
-            display: none;
-            background-color: #2a7a2a;
-            color: #fff;
-            border-radius: 6px;
-            padding: 14px 18px;
-            margin-bottom: 18px;
-            font-size: 15px;
-        }
-
-        /* ── Community Reviews ── */
-        .reviews-card {
-            flex: 1 1 340px;
-            background-color: #444;
-            border-radius: 10px;
-            padding: 30px 30px 36px;
-            box-sizing: border-box;
-        }
-        .reviews-card h2 {
-            margin: 0 0 20px;
-            font-weight: 400;
-            font-size: 24px;
-            color: #8db600;
-        }
-        .review-item {
-            background-color: #555;
-            border-radius: 8px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-        }
-        .review-item .review-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-        .review-item .reviewer-name {
-            font-weight: 600;
-            font-size: 15px;
-            color: #fff;
-        }
-        .review-item .review-stars {
-            color: #f5c518;
-            font-size: 16px;
-        }
-        .review-item .review-type {
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 6px;
-        }
-        .review-item .review-message {
-            font-size: 14px;
-            color: #ddd;
-            line-height: 1.5;
-        }
-        .review-item .review-date {
-            font-size: 11px;
-            color: #999;
-            margin-top: 8px;
-        }
-        .no-reviews {
-            color: #aaa;
-            font-size: 14px;
-            font-style: italic;
-        }
-
-        /* Footer */
-        footer {
-            background-color: #222;
-            color: #ccc;
-            text-align: center;
-            padding: 10px;
-            width: 100%;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header h1 { font-size: 32px; }
-            .two-col { flex-direction: column; }
-            .form-card, .reviews-card { flex: 1 1 100%; }
-        }
-    </style>
-</head>
-<body>
-
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
@@ -451,200 +98,33 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html">Learn More</a>
         <a href="feedback.html" class="active">Feedback &amp; Subscribe</a>
     </div>
 
     <!-- Header -->
     <div class="header">
         <h1>Feedback &amp; Subscribe</h1>
-        <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 15px; letter-spacing: 1px;">
-            Get water temp forecasts delivered to your inbox &amp; share your thoughts
-        </p>
-        <h1>Feedback</h1>
-        <p>Help us improve Wave Pool Weather — share a review, report a bug, or suggest a new feature.</p>
+        <p>Help us improve Wave Pool Weather</p>
     </div>
 
     <!-- Main Content -->
     <div class="content">
-        <div class="two-col">
-
-            <!-- Left: submission form -->
-            <div class="form-card">
-                <h2>Submit Feedback</h2>
-                <div id="success-banner">✅ Thanks for your feedback! It has been submitted successfully.</div>
-
-                <form id="feedback-form" action="https://formspree.io/f/xpwrzkqo" method="POST" novalidate>
-
-                    <label for="fb-name">Name <span style="color:#aaa">(optional)</span></label>
-                    <input type="text" id="fb-name" name="name" placeholder="Your name">
-
-                    <label for="fb-email">Email <span style="color:#aaa">(optional)</span></label>
-                    <input type="email" id="fb-email" name="email" placeholder="you@example.com">
-
-                    <label for="fb-type">Feedback Type</label>
-                    <select id="fb-type" name="feedback_type" required>
-                        <option value="" disabled selected>Select a type…</option>
-                        <option value="General Feedback">General Feedback</option>
-                        <option value="Bug Report">Bug Report</option>
-                        <option value="Feature Request">Feature Request</option>
-                        <option value="New Location Request">New Location Request</option>
-                        <option value="Review">Review / Rating</option>
-                    </select>
-
-                    <p class="star-label" style="margin:0 0 5px;font-size:14px;color:#ccc;">Rating <span style="color:#aaa">(optional)</span></p>
-                    <div class="star-rating" role="radiogroup" aria-label="Star rating">
-                        <input type="radio" id="star5" name="rating" value="5"><label for="star5" title="5 stars">★</label>
-                        <input type="radio" id="star4" name="rating" value="4"><label for="star4" title="4 stars">★</label>
-                        <input type="radio" id="star3" name="rating" value="3"><label for="star3" title="3 stars">★</label>
-                        <input type="radio" id="star2" name="rating" value="2"><label for="star2" title="2 stars">★</label>
-                        <input type="radio" id="star1" name="rating" value="1"><label for="star1" title="1 star">★</label>
-                    </div>
-
-                    <label for="fb-message">Message <span style="color:#c00">*</span></label>
-                    <textarea id="fb-message" name="message" placeholder="Tell us what you think…" required></textarea>
-
-                    <!-- Honeypot field to reduce spam -->
-                    <input type="text" name="_gotcha" style="display:none">
-
-                    <button type="submit" class="btn-submit">Send Feedback</button>
-                </form>
-            </div>
-
-            <!-- Right: community reviews (localStorage) -->
-            <div class="reviews-card">
-                <h2>Community Reviews</h2>
-                <div id="reviews-list">
-                    <p class="no-reviews">No reviews yet — be the first!</p>
-                </div>
-            </div>
-
+        <div style="text-align:center; padding: 80px 20px;">
+            <div style="font-size:80px; margin-bottom:20px;">🏄</div>
+            <h2 style="font-size:2rem; margin-bottom:12px;">Under Construction 🚧</h2>
+            <p style="color:#aaa; font-size:1.1rem;">We're working on something rad. Check back soon!</p>
         </div>
     </div>
 
     <!-- Footer -->
     <footer>
-        <p id="copyright"></p>
+        <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
+        <p><a href="https://github.com/dylanelliotttamu/wave_pool_weather" target="_blank" rel="noopener noreferrer">View Source on GitHub</a></p>
     </footer>
 
     <script>
-        // ── Footer year ────────────────────────────────────────────────
-        document.getElementById('copyright').textContent =
-            new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
-
-        // ── Helpers ────────────────────────────────────────────────────
-        const STORAGE_KEY = 'wavePoolFeedback';
-
-        function loadReviews() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            } catch {
-                return [];
-            }
-        }
-
-        function saveReviews(reviews) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
-        }
-
-        function starsHtml(rating) {
-            if (!rating) return '';
-            const n = parseInt(rating, 10);
-            return '★'.repeat(n) + '☆'.repeat(5 - n);
-        }
-
-        function formatDate(iso) {
-            const d = new Date(iso);
-            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-        }
-
-        function renderReviews() {
-            const reviews = loadReviews();
-            const container = document.getElementById('reviews-list');
-            if (reviews.length === 0) {
-                container.innerHTML = '<p class="no-reviews">No reviews yet — be the first!</p>';
-                return;
-            }
-            // Show most recent first
-            container.innerHTML = reviews.slice().reverse().map(r => `
-                <div class="review-item">
-                    <div class="review-header">
-                        <span class="reviewer-name">${escapeHtml(r.name || 'Anonymous')}</span>
-                        ${r.rating ? `<span class="review-stars">${starsHtml(r.rating)}</span>` : ''}
-                    </div>
-                    ${r.type ? `<div class="review-type">${escapeHtml(r.type)}</div>` : ''}
-                    <div class="review-message">${escapeHtml(r.message)}</div>
-                    <div class="review-date">${formatDate(r.date)}</div>
-                </div>
-            `).join('');
-        }
-
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        // ── Form submission ────────────────────────────────────────────
-        const form = document.getElementById('feedback-form');
-        const successBanner = document.getElementById('success-banner');
-
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-
-            // Client-side validation
-            const message = document.getElementById('fb-message').value.trim();
-            const type = document.getElementById('fb-type').value;
-            if (!message) {
-                alert('Please enter a message before submitting.');
-                return;
-            }
-            if (!type) {
-                alert('Please select a feedback type.');
-                return;
-            }
-
-            const name    = document.getElementById('fb-name').value.trim();
-            const email   = document.getElementById('fb-email').value.trim();
-            const ratingEl = form.querySelector('input[name="rating"]:checked');
-            const rating  = ratingEl ? ratingEl.value : '';
-
-            // Submit to Formspree (non-blocking — store locally regardless)
-            try {
-                const data = new FormData(form);
-                await fetch(form.action, {
-                    method: 'POST',
-                    body: data,
-                    headers: { 'Accept': 'application/json' }
-                });
-            } catch {
-                // Network errors are silently ignored; local review is still saved
-            }
-
-            // Save to localStorage for community reviews display
-            const reviews = loadReviews();
-            reviews.push({
-                name:    name    || '',
-                email:   email   || '',
-                type:    type    || '',
-                rating:  rating  || '',
-                message: message,
-                date:    new Date().toISOString()
-            });
-            saveReviews(reviews);
-
-            // Reset form and show success
-            form.reset();
-            successBanner.style.display = 'block';
-            window.scrollTo({ top: successBanner.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
-            renderReviews();
-        });
-
-        // ── Initial render ─────────────────────────────────────────────
-        renderReviews();
+        document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
     </script>
-
 </body>
 </html>

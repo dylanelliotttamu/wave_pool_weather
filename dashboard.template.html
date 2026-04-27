@@ -5,20 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wave Pool Weather Dashboard</title>
     <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
-            font-family: 'Lato', sans-serif;
+            font-family: 'Inter', 'Lato', sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;
         }
         .navbar {
             background-color: #222;
+            border-bottom: 1px solid #333;
             overflow: hidden;
             width: 100%;
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -33,6 +36,10 @@
         }
         .navbar a:hover {
             color: #8db600;
+        }
+        .navbar a.active {
+            color: #4ecdc4;
+            border-bottom: 2px solid #4ecdc4;
         }
         .container {
             max-width: 1200px;
@@ -63,6 +70,8 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html">Learn More</a>
+        <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 
     <div class="container">
