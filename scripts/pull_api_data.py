@@ -3,6 +3,7 @@
 import urllib.request
 import json
 import math
+import random
 from datetime import datetime, date, timedelta
 import time
 import sqlite3
@@ -109,6 +110,51 @@ def kmh_to_ms(speed_kmh):
 
 def is_plausible_pool_temp_C(temp_C):
     return math.isfinite(temp_C) and MIN_POOL_TEMP_C <= temp_C <= MAX_POOL_TEMP_C
+
+def clamp(value, low, high):
+    return max(low, min(high, value))
+
+def percentile(values, pct):
+    """Linear-interpolated percentile for a non-empty numeric list."""
+    if not values:
+        raise ValueError('percentile() requires non-empty values')
+    sorted_vals = sorted(values)
+    if len(sorted_vals) == 1:
+        return sorted_vals[0]
+    rank = (len(sorted_vals) - 1) * (pct / 100.0)
+    lo = int(math.floor(rank))
+    hi = int(math.ceil(rank))
+    if lo == hi:
+        return sorted_vals[lo]
+    frac = rank - lo
+    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * frac
+
+def mean_and_std(values):
+    if not values:
+        return 0.0, 0.0
+    mu = sum(values) / len(values)
+    if len(values) == 1:
+        return mu, 0.0
+    var = sum((v - mu) ** 2 for v in values) / len(values)
+    return mu, math.sqrt(var)
+
+def mc_sigma_schedule(day_index):
+    """
+    Day-dependent uncertainty assumptions (1-sigma).
+    day_index: 0-based forecast horizon index.
+    """
+    return {
+        # ~1.5 F at day 1, +0.5 F per extra day (converted to C)
+        'temp_C': fahrenheit_to_celsius(1.5 + 0.5 * day_index),
+        # ~2 mph at day 1, +0.5 mph per extra day (converted to m/s)
+        'wind_ms': mph_to_ms(2.0 + 0.5 * day_index),
+        # RH uncertainty widens with horizon
+        'rh_pct': 8.0 + 2.0 * day_index,
+        # solar uncertainty as fraction of daily value
+        'solar_frac': min(0.35, 0.10 + 0.02 * day_index),
+        # modest structural uncertainty for ground temperature
+        'ground_temp_C': 0.5,
+    }
 
 # ---------------------------------------------------------------------------
 # Atmospheric / thermodynamic helpers
@@ -309,6 +355,20 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temps (
     date         TEXT,
     temp         REAL,
     heat_fluxes  TEXT,
+    FOREIGN KEY(location_id) REFERENCES locations(id),
+    UNIQUE(location_id, date)
+)''')
+
+# pool_temp_ci: 95% interval and distribution stats for pool temp (°C)
+cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temp_ci (
+    location_id  INTEGER,
+    date         TEXT,
+    p025_C       REAL,
+    p500_C       REAL,
+    p975_C       REAL,
+    mean_C       REAL,
+    std_C        REAL,
+    n_samples    INTEGER,
     FOREIGN KEY(location_id) REFERENCES locations(id),
     UNIQUE(location_id, date)
 )''')
@@ -651,6 +711,12 @@ for name, coords in locations.items():
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
+    mc_prev_samples = []
+    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '200')))
+    for _ in range(MC_SAMPLES):
+        # Start near initial condition with a small spread.
+        init_sample = random.gauss(T_pool_init_C, fahrenheit_to_celsius(0.5))
+        mc_prev_samples.append(clamp(init_sample, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C))
     comparison_rows = []           # for the per-location comparison file
 
     for i, d in enumerate(data['date_list']):
@@ -684,11 +750,44 @@ for name, coords in locations.items():
             dt_days=1.0
         )
 
+        # --- Monte Carlo uncertainty propagation for 95% interval ---
+        sigmas = mc_sigma_schedule(i)
+        mc_day_samples = []
+        for prev_sample in mc_prev_samples:
+            T_air_s = random.gauss(T_air_C, sigmas['temp_C'])
+            RH_s = clamp(random.gauss(RH_pct, sigmas['rh_pct']), 0.0, 100.0)
+            wind_s = max(0.0, random.gauss(wind_ms, sigmas['wind_ms']))
+            solar_sigma = abs(solar_MJm2) * sigmas['solar_frac']
+            solar_s = max(0.0, random.gauss(solar_MJm2, solar_sigma))
+            ground_temp_s = random.gauss(ground_temp_C, sigmas['ground_temp_C'])
+
+            mc_temp_C, _ = pool_thermal_balance_step(
+                prev_sample, T_air_s, RH_s, wind_s, solar_s,
+                depth_m=depth_m,
+                ground_temp_C=ground_temp_s,
+                bottom_u_Wm2K=bottom_u_Wm2K,
+                include_ground=True,
+                dt_days=1.0
+            )
+            mc_day_samples.append(clamp(mc_temp_C, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C))
+
+        mc_prev_samples = mc_day_samples
+        p025_C = percentile(mc_day_samples, 2.5)
+        p500_C = percentile(mc_day_samples, 50.0)
+        p975_C = percentile(mc_day_samples, 97.5)
+        mc_mean_C, mc_std_C = mean_and_std(mc_day_samples)
+
         # DB and exported files continue to use the new physics model
         cursor.execute(
             'INSERT OR REPLACE INTO pool_temps (location_id, date, temp, heat_fluxes) '
             'VALUES (?, ?, ?, ?)',
             (location_id, str(d), T_pool_new_C, json.dumps(fluxes))
+        )
+        cursor.execute(
+            'INSERT OR REPLACE INTO pool_temp_ci '
+            '(location_id, date, p025_C, p500_C, p975_C, mean_C, std_C, n_samples) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            (location_id, str(d), p025_C, p500_C, p975_C, mc_mean_C, mc_std_C, MC_SAMPLES)
         )
 
         air_F         = celsius_to_fahrenheit(T_pool_air_C)
@@ -711,7 +810,8 @@ for name, coords in locations.items():
         print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F | "
               f"Δ(new-old)={delta_new_old:+.2f}°F "
               f"Δ(old-air)={delta_old_air:+.2f}°F "
-              f"Δ(new-air)={delta_new_air:+.2f}°F | "
+              f"Δ(new-air)={delta_new_air:+.2f}°F "
+              f"CI95=[{celsius_to_fahrenheit(p025_C):.1f}, {celsius_to_fahrenheit(p975_C):.1f}]°F | "
               f"Q_solar={fluxes['Q_solar_Wm2']:.0f} "
               f"Q_lw={fluxes['Q_lw_net_Wm2']:.0f} "
               f"Q_conv={fluxes['Q_conv_Wm2']:.0f} "
@@ -780,9 +880,11 @@ if WRITE_FILES:
         # Write extended weather forecast file (pool temp + air met data)
         weather_name = name.replace(" ", "_")
         cursor.execute(
-            'SELECT pt.date, pt.temp, at.temp, at.wind_speed, at.wind_direction, at.humidity '
+            'SELECT pt.date, pt.temp, ci.p025_C, ci.p975_C, '
+            'at.temp, at.wind_speed, at.wind_direction, at.humidity '
             'FROM pool_temps pt '
             'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
+            'LEFT JOIN pool_temp_ci ci ON pt.location_id = ci.location_id AND pt.date = ci.date '
             'WHERE pt.location_id = (SELECT id FROM locations WHERE name = ?) AND pt.date >= ? '
             'ORDER BY pt.date',
             (name, str(current_date))
@@ -794,12 +896,14 @@ if WRITE_FILES:
         with open(weather_filename, 'w') as wf:
             for wrow in weather_rows:
                 pool_temp_F = celsius_to_fahrenheit(wrow[1])
-                air_temp_F  = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else 0.0
-                wind_mph    = (wrow[3] / 0.44704) if wrow[3] is not None else 0.0
-                wind_dir    = wrow[4] if wrow[4] is not None else 0.0
-                humidity    = wrow[5] if wrow[5] is not None else 0.0
+                ci_low_F    = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else pool_temp_F
+                ci_high_F   = celsius_to_fahrenheit(wrow[3]) if wrow[3] is not None else pool_temp_F
+                air_temp_F  = celsius_to_fahrenheit(wrow[4]) if wrow[4] is not None else 0.0
+                wind_mph    = (wrow[5] / 0.44704) if wrow[5] is not None else 0.0
+                wind_dir    = wrow[6] if wrow[6] is not None else 0.0
+                humidity    = wrow[7] if wrow[7] is not None else 0.0
                 wf.write(
-                    f"{wrow[0]},{pool_temp_F:.2f},{air_temp_F:.2f},"
+                    f"{wrow[0]},{pool_temp_F:.2f},{ci_low_F:.2f},{ci_high_F:.2f},{air_temp_F:.2f},"
                     f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f}\n"
                 )
 
@@ -821,13 +925,16 @@ else:
 # Generate dashboard.html with real data
 # ---------------------------------------------------------------------------
 dashboard_location = 'Waco'
+dashboard_history_days = max(0, int(os.getenv('WAVE_POOL_DASHBOARD_HISTORY_DAYS', '3')))
+dashboard_default_min_date = str(current_date - timedelta(days=dashboard_history_days))
+dashboard_min_date = os.getenv('WAVE_POOL_DASHBOARD_MIN_DATE', dashboard_default_min_date).strip() or dashboard_default_min_date
 
 cursor.execute(
     'SELECT date, temp, humidity, wind_speed, solar_radiation '
     'FROM air_temps '
-    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ? '
     'ORDER BY date',
-    (dashboard_location,)
+    (dashboard_location, dashboard_min_date)
 )
 air_rows   = cursor.fetchall()
 dates      = [row[0] for row in air_rows]
@@ -857,17 +964,17 @@ for i, row in enumerate(air_rows):
 
 cursor.execute(
     'SELECT date, temp FROM pool_temps '
-    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) '
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ? '
     'ORDER BY date',
-    (dashboard_location,)
+    (dashboard_location, dashboard_min_date)
 )
 pool_temps_F = [round(celsius_to_fahrenheit(row[1]), 1) for row in cursor.fetchall()]
 
 # Wind-direction frequency bins for wind rose
 cursor.execute(
     'SELECT wind_direction FROM air_temps '
-    'WHERE location_id = (SELECT id FROM locations WHERE name = ?)',
-    (dashboard_location,)
+    'WHERE location_id = (SELECT id FROM locations WHERE name = ?) AND date >= ?',
+    (dashboard_location, dashboard_min_date)
 )
 wind_dirs = [row[0] for row in cursor.fetchall() if row[0] is not None]
 bin_labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
