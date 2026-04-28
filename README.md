@@ -16,7 +16,7 @@ Built for wave pool fans and outdoor aquatic venues, the site:
 
 | Location | Lat | Lon | Pool Depth |
 |---|---|---|---|
-| Waco, Texas | 31.5493 | −97.1467 | 2.0 m |
+| Waco, Texas | 31.6212 | −97.0037 | 2.0 m |
 | Palm Springs, California | 33.8303 | −116.5453 | 1.8 m |
 | Lemoore, California | 36.3008 | −119.7829 | 2.0 m |
 | Atlantic Park, Virginia Beach | 36.8529 | −75.9779 | 1.8 m |
