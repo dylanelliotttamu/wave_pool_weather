@@ -183,12 +183,13 @@
     </style> 
     <script>
     function getTempColor(temp) {
-        if (temp >= 75) return '#ff6b35';
-        if (temp >= 69) return '#ffa500';
-        if (temp >= 63) return '#4ecdc4';
-        if (temp >= 58) return '#45b7d1';
-        if (temp >= 52) return '#2196f3';
-        return '#9c27b0';
+        if (temp > 88)  return '#cc0000';        // hot red
+        if (temp >= 80) return '#ff4500';        // orange-red
+        if (temp >= 72) return '#ff8c00';        // dark orange
+        if (temp >= 65) return '#ffd700';        // golden yellow
+        if (temp >= 58) return '#4fc3f7';        // sky blue
+        if (temp >= 50) return '#1e88e5';        // medium blue
+        return '#b3e5fc';                        // very light blue (sub-50)
     }
 
     function getSuitEmoji(temp) {
