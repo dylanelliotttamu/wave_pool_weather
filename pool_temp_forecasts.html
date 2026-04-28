@@ -9,11 +9,12 @@
     <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
     /* CSS styles */
     body {
         margin: 0;
-        font-family: 'Lato', sans-serif;
+        font-family: 'Inter', 'Lato', sans-serif;
         background-color: #333;
         color: #fff;
         overflow-x: hidden; /* Prevent horizontal scrolling */
@@ -70,6 +71,7 @@
     /* Navigation Bar Styles */
     .navbar {
         background-color: #222;
+        border-bottom: 1px solid #333;
         overflow: hidden;
         width: 100%;
         display: flex;
@@ -88,6 +90,10 @@
     }
     .navbar a:hover {
         color: #8db600; /* Olive color */
+    }
+    .navbar a.active {
+        color: #4ecdc4;
+        border-bottom: 2px solid #4ecdc4;
     }
         
 
@@ -108,7 +114,8 @@
         text-align: center;
         padding: 20px;
         background-color: #444; /* Darker background color */
-        border-radius: 8px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         max-width: 200px; /* Limit maximum width of each column */
     }
     .day-column h2 {
@@ -175,6 +182,50 @@
     }
     </style> 
     <script>
+    function getTempColor(temp) {
+        if (temp > 88)  return '#cc0000';        // red (very hot)
+        if (temp >= 80) return '#ff6600';        // orange
+        if (temp >= 73) return '#ffd700';        // yellow
+        if (temp >= 66) return '#4caf50';        // green (high 60s–mid 70s)
+        if (temp >= 55) return '#1e88e5';        // blue
+        return '#b3e5fc';                        // glacier blue (sub-55)
+    }
+
+    function getSuitEmoji(temp) {
+        if (isNaN(temp)) return '';
+        if (temp >= 75) return '🩳 ';
+        if (temp >= 69) return '👕 ';
+        if (temp >= 63) return '🩱 ';
+        if (temp >= 58) return '🥶 ';
+        if (temp >= 52) return '🥶❄️ ';
+        return '🧊 ';
+    }
+
+    async function loadWeatherData(poolName) {
+        const weatherFilename = `data/forecasts/forecasted_weather_${poolName}.txt`;
+        try {
+            const response = await fetch(weatherFilename, { cache: 'no-store' });
+            if (!response.ok) return null;
+            const text = await response.text();
+            const weatherMap = {};
+            text.trim().split('\n').forEach(line => {
+                const parts = line.trim().split(',');
+                if (parts.length >= 6) {
+                    weatherMap[parts[0]] = {
+                        pool_temp:   parseFloat(parts[1]),
+                        air_temp:    parseFloat(parts[2]),
+                        wind_speed:  parseFloat(parts[3]),
+                        wind_dir:    parseFloat(parts[4]),
+                        humidity:    parseFloat(parts[5])
+                    };
+                }
+            });
+            return weatherMap;
+        } catch (e) {
+            return null;
+        }
+    }
+
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
         const todayString = new Date().toLocaleDateString('en-CA');
@@ -196,6 +247,9 @@
                 column.innerHTML = '<p>Loading...</p>';
             }
         }
+
+        // Fetch pool temps and weather data in parallel
+        const weatherMap = await loadWeatherData(poolName);
 
         try {
             const response = await fetch(filename, { cache: 'no-store' });
@@ -245,11 +299,29 @@
                     suitRecommendation = 'Temperature out of range';
                 }
 
+                const tempColor = getTempColor(temperature);
+                const suitEmoji = getSuitEmoji(temperature);
+
+                // Build wind row if weather data available
+                let windHtml = '';
+                if (weatherMap && weatherMap[row.date]) {
+                    const wd = weatherMap[row.date];
+                    const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
+                    const windDirDeg  = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
+                    windHtml = `
+                        <p style="font-size:14px; color:#ccc; margin:6px 0;">
+                            <span style="display:inline-block; transform: rotate(${windDirDeg}deg); font-size:18px;">↑</span>
+                            ${windSpeedMph.toFixed(1)} mph
+                            <span style="color:#aaa; font-size:12px;">Wind</span>
+                        </p>`;
+                }
+
                 column.innerHTML = `
                     <h2>${dayLabel}</h2>
                     <h3>${row.date}</h3>
-                    <p>${row.temp} °F</p>
-                    <p>Recommended Suit: ${suitRecommendation}</p>
+                    <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
+                    ${windHtml}
+                    <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
             });
         } catch (error) {
@@ -286,10 +358,11 @@
     <!-- Navigation Bar -->
     <div class="navbar">
         <a href="index.html">Home</a>
-        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
+        <a href="pool_temp_forecasts.html" class="active">Pool Temperature Forecasts</a>
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html">Learn More</a>
         <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 

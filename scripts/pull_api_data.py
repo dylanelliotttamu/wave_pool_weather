@@ -777,6 +777,32 @@ if WRITE_FILES:
                 temp_F = celsius_to_fahrenheit(row[1])
                 f.write(f"{row[0]},{temp_F:.2f}\n")
 
+        # Write extended weather forecast file (pool temp + air met data)
+        weather_name = name.replace(" ", "_")
+        cursor.execute(
+            'SELECT pt.date, pt.temp, at.temp, at.wind_speed, at.wind_direction, at.humidity '
+            'FROM pool_temps pt '
+            'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
+            'WHERE pt.location_id = (SELECT id FROM locations WHERE name = ?) AND pt.date >= ? '
+            'ORDER BY pt.date',
+            (name, str(current_date))
+        )
+        weather_rows = cursor.fetchall()
+        weather_filename = os.path.join(
+            FORECASTS_DIR, f'forecasted_weather_{weather_name}.txt'
+        )
+        with open(weather_filename, 'w') as wf:
+            for wrow in weather_rows:
+                pool_temp_F = celsius_to_fahrenheit(wrow[1])
+                air_temp_F  = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else 0.0
+                wind_mph    = (wrow[3] / 0.44704) if wrow[3] is not None else 0.0
+                wind_dir    = wrow[4] if wrow[4] is not None else 0.0
+                humidity    = wrow[5] if wrow[5] is not None else 0.0
+                wf.write(
+                    f"{wrow[0]},{pool_temp_F:.2f},{air_temp_F:.2f},"
+                    f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f}\n"
+                )
+
     # Keep the legacy Waco file for backward compatibility
     cursor.execute(
         'SELECT date, temp FROM pool_temps '
