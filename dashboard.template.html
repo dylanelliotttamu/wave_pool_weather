@@ -111,21 +111,74 @@
     <script>
         // __REAL_DATA__
 
+        const HISTORY_DAYS = 3;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().slice(0, 10);
+        const historyCutoff = new Date(today);
+        historyCutoff.setDate(historyCutoff.getDate() - HISTORY_DAYS);
+        const historyCutoffStr = historyCutoff.toISOString().slice(0, 10);
+
+        const firstVisibleIdx = Math.max(
+            0,
+            realData.dates.findIndex(d => d >= historyCutoffStr)
+        );
+
+        const visibleDates = realData.dates.slice(firstVisibleIdx);
+        const visiblePoolTemps = realData.poolTemps.slice(firstVisibleIdx);
+        const visibleAirTemps = realData.airTemps.slice(firstVisibleIdx);
+        const visibleHumidities = realData.humidities.slice(firstVisibleIdx);
+        const visibleWindSpeeds = realData.windSpeeds.slice(firstVisibleIdx);
+        const visibleSolar = realData.solarRad.slice(firstVisibleIdx);
+
+        const forecastStartIdx = visibleDates.findIndex(d => d >= todayStr);
+
+        function splitSeries(values) {
+            if (forecastStartIdx < 0) {
+                return { historical: values.slice(), forecast: values.map(() => null) };
+            }
+            return {
+                historical: values.map((v, i) => (i < forecastStartIdx ? v : null)),
+                forecast: values.map((v, i) => (i >= forecastStartIdx ? v : null))
+            };
+        }
+
+        const poolSplit = splitSeries(visiblePoolTemps);
+        const airSplit = splitSeries(visibleAirTemps);
+        const humiditySplit = splitSeries(visibleHumidities);
+        const windSplit = splitSeries(visibleWindSpeeds);
+        const solarSplit = splitSeries(visibleSolar);
+
         // Pool Temp Chart
         new Chart(document.getElementById('poolTempChart'), {
             type: 'line',
             data: {
-                labels: realData.dates,
-                datasets: [{
-                    label: 'Pool Temperature (°F)',
-                    data: realData.poolTemps,
-                    borderColor: 'blue',
-                    backgroundColor: 'rgba(0,0,255,0.05)',
-                    fill: true
-                }]
+                labels: visibleDates,
+                datasets: [
+                    {
+                        label: 'Historical Pool Temp (°F)',
+                        data: poolSplit.historical,
+                        borderColor: '#4ecdc4',
+                        backgroundColor: 'rgba(78,205,196,0.08)',
+                        fill: true,
+                        tension: 0.25
+                    },
+                    {
+                        label: 'Forecast Pool Temp (°F)',
+                        data: poolSplit.forecast,
+                        borderColor: '#ffd166',
+                        backgroundColor: 'rgba(255,209,102,0.08)',
+                        borderDash: [6, 6],
+                        fill: false,
+                        tension: 0.25
+                    }
+                ]
             },
             options: {
-                plugins: { title: { display: true, text: `${chartLocation} Pool Temperature Forecast (°F)` } },
+                plugins: {
+                    title: { display: true, text: `${chartLocation} Pool Temperature Forecast (°F)` },
+                    legend: { display: true }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Date' } },
                     y: { title: { display: true, text: 'Pool Temperature (°F)' } }
@@ -137,17 +190,32 @@
         new Chart(document.getElementById('airTempChart'), {
             type: 'line',
             data: {
-                labels: realData.dates,
-                datasets: [{
-                    label: 'Air Temperature (°F)',
-                    data: realData.airTemps,
-                    borderColor: 'red',
-                    backgroundColor: 'rgba(255,0,0,0.05)',
-                    fill: true
-                }]
+                labels: visibleDates,
+                datasets: [
+                    {
+                        label: 'Historical Air Temp (°F)',
+                        data: airSplit.historical,
+                        borderColor: '#7ad3ff',
+                        backgroundColor: 'rgba(122,211,255,0.08)',
+                        fill: true,
+                        tension: 0.25
+                    },
+                    {
+                        label: 'Forecast Air Temp (°F)',
+                        data: airSplit.forecast,
+                        borderColor: '#ff7b72',
+                        backgroundColor: 'rgba(255,123,114,0.08)',
+                        borderDash: [6, 6],
+                        fill: false,
+                        tension: 0.25
+                    }
+                ]
             },
             options: {
-                plugins: { title: { display: true, text: `${chartLocation} Air Temperature Forecast (°F)` } },
+                plugins: {
+                    title: { display: true, text: `${chartLocation} Air Temperature Forecast (°F)` },
+                    legend: { display: true }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Date' } },
                     y: { title: { display: true, text: 'Air Temperature (°F)' } }
@@ -159,15 +227,25 @@
         new Chart(document.getElementById('humidityChart'), {
             type: 'bar',
             data: {
-                labels: realData.dates,
-                datasets: [{
-                    label: 'Relative Humidity (%)',
-                    data: realData.humidities,
-                    backgroundColor: 'rgba(0,128,0,0.6)'
-                }]
+                labels: visibleDates,
+                datasets: [
+                    {
+                        label: 'Historical Humidity (%)',
+                        data: humiditySplit.historical,
+                        backgroundColor: 'rgba(78,205,196,0.7)'
+                    },
+                    {
+                        label: 'Forecast Humidity (%)',
+                        data: humiditySplit.forecast,
+                        backgroundColor: 'rgba(255,209,102,0.7)'
+                    }
+                ]
             },
             options: {
-                plugins: { title: { display: true, text: `${chartLocation} Humidity Forecast (%)` } },
+                plugins: {
+                    title: { display: true, text: `${chartLocation} Humidity Forecast (%)` },
+                    legend: { display: true }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Date' } },
                     y: { title: { display: true, text: 'Humidity (%)' }, min: 0, max: 100 }
@@ -179,17 +257,32 @@
         new Chart(document.getElementById('windChart'), {
             type: 'line',
             data: {
-                labels: realData.dates,
-                datasets: [{
-                    label: 'Wind Speed (m/s)',
-                    data: realData.windSpeeds,
-                    borderColor: 'orange',
-                    backgroundColor: 'rgba(255,165,0,0.05)',
-                    fill: true
-                }]
+                labels: visibleDates,
+                datasets: [
+                    {
+                        label: 'Historical Wind Speed (m/s)',
+                        data: windSplit.historical,
+                        borderColor: '#4ecdc4',
+                        backgroundColor: 'rgba(78,205,196,0.08)',
+                        fill: true,
+                        tension: 0.25
+                    },
+                    {
+                        label: 'Forecast Wind Speed (m/s)',
+                        data: windSplit.forecast,
+                        borderColor: '#ff9f1c',
+                        backgroundColor: 'rgba(255,159,28,0.08)',
+                        borderDash: [6, 6],
+                        fill: false,
+                        tension: 0.25
+                    }
+                ]
             },
             options: {
-                plugins: { title: { display: true, text: `${chartLocation} Wind Speed Forecast (m/s)` } },
+                plugins: {
+                    title: { display: true, text: `${chartLocation} Wind Speed Forecast (m/s)` },
+                    legend: { display: true }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Date' } },
                     y: { title: { display: true, text: 'Wind Speed (m s⁻¹)' } }
@@ -201,15 +294,25 @@
         new Chart(document.getElementById('solarChart'), {
             type: 'bar',
             data: {
-                labels: realData.dates,
-                datasets: [{
-                    label: 'Solar Radiation (MJ/m²/day)',
-                    data: realData.solarRad,
-                    backgroundColor: 'rgba(255,215,0,0.7)'
-                }]
+                labels: visibleDates,
+                datasets: [
+                    {
+                        label: 'Historical Solar Radiation (MJ/m²/day)',
+                        data: solarSplit.historical,
+                        backgroundColor: 'rgba(78,205,196,0.7)'
+                    },
+                    {
+                        label: 'Forecast Solar Radiation (MJ/m²/day)',
+                        data: solarSplit.forecast,
+                        backgroundColor: 'rgba(255,209,102,0.7)'
+                    }
+                ]
             },
             options: {
-                plugins: { title: { display: true, text: `${chartLocation} Solar Radiation Forecast (MJ m⁻² day⁻¹)` } },
+                plugins: {
+                    title: { display: true, text: `${chartLocation} Solar Radiation Forecast (MJ m⁻² day⁻¹)` },
+                    legend: { display: true }
+                },
                 scales: {
                     x: { title: { display: true, text: 'Date' } },
                     y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)' } }

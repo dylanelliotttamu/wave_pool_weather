@@ -76,6 +76,7 @@
         width: 100%;
         display: flex;
         justify-content: center;
+        flex-wrap: wrap;
         position: sticky;
         top: 0;
         z-index: 1000; /* Ensure navigation bar stays on top */
@@ -210,13 +211,26 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
-                if (parts.length >= 6) {
+                if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
-                        pool_temp:   parseFloat(parts[1]),
-                        air_temp:    parseFloat(parts[2]),
-                        wind_speed:  parseFloat(parts[3]),
-                        wind_dir:    parseFloat(parts[4]),
-                        humidity:    parseFloat(parts[5])
+                        pool_temp:    parseFloat(parts[1]),
+                        pool_ci_low:  parseFloat(parts[2]),
+                        pool_ci_high: parseFloat(parts[3]),
+                        air_temp:     parseFloat(parts[4]),
+                        wind_speed:   parseFloat(parts[5]),
+                        wind_dir:     parseFloat(parts[6]),
+                        humidity:     parseFloat(parts[7])
+                    };
+                } else if (parts.length >= 6) {
+                    // Backward compatibility for older export schema.
+                    weatherMap[parts[0]] = {
+                        pool_temp:    parseFloat(parts[1]),
+                        pool_ci_low:  NaN,
+                        pool_ci_high: NaN,
+                        air_temp:     parseFloat(parts[2]),
+                        wind_speed:   parseFloat(parts[3]),
+                        wind_dir:     parseFloat(parts[4]),
+                        humidity:     parseFloat(parts[5])
                     };
                 }
             });
@@ -304,22 +318,34 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
+                let ciHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
-                    const windDirDeg  = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
+                    const windDirDeg   = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
+                    // wind_dir is the direction wind comes FROM (met convention)
+                    // arrow points in the direction wind is travelling TO → add 180°
+                    const arrowRotation = (windDirDeg + 180) % 360;
+                    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+                    const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
                     windHtml = `
-                        <p style="font-size:14px; color:#ccc; margin:6px 0;">
-                            <span style="display:inline-block; transform: rotate(${windDirDeg}deg); font-size:18px;">↑</span>
-                            ${windSpeedMph.toFixed(1)} mph
-                            <span style="color:#aaa; font-size:12px;">Wind</span>
-                        </p>`;
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0;">
+                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
+                            <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
+                        </div>`;
+
+                    const ciLow = wd.pool_ci_low;
+                    const ciHigh = wd.pool_ci_high;
+                    if (!isNaN(ciLow) && !isNaN(ciHigh)) {
+                        ciHtml = `<p style="font-size:12px; color:#aaa; margin:4px 0 0;">95% CI: ${ciLow.toFixed(1)}–${ciHigh.toFixed(1)} °F</p>`;
+                    }
                 }
 
                 column.innerHTML = `
                     <h2>${dayLabel}</h2>
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
+                    ${ciHtml}
                     ${windHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;

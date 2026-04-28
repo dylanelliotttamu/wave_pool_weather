@@ -1,8 +1,8 @@
-# Wave Pool Weather
+# 🌊 Wave Pool Weather
 
 Wave Pool Weather is a lightweight weather analysis and forecasting website that predicts outdoor pool water temperatures across multiple US wave pool venues using a physics-based thermal energy balance model driven by live NWS and Open-Meteo forecast data.
 
-## Purpose
+## 🎯 Purpose
 
 Outdoor pools respond to weather in complex ways — a hot windy day can actually cool a pool faster than a mild calm one. This site models that physics to give wave pool visitors a better sense of what water temperature to expect before they show up.
 
@@ -12,7 +12,7 @@ Built for wave pool fans and outdoor aquatic venues, the site:
 - stores data in SQLite for historical tracking,
 - surfaces humidity, wind, and solar alongside temperature.
 
-## Supported Locations
+## 📍 Supported Locations
 
 | Location | Lat | Lon | Pool Depth |
 |---|---|---|---|
@@ -22,10 +22,10 @@ Built for wave pool fans and outdoor aquatic venues, the site:
 | Atlantic Park, Virginia Beach | 36.8529 | −75.9779 | 1.8 m |
 | Oceanside, California | 33.1959 | −117.3795 | 1.5 m |
 
-## Forecast Pipeline
+## 🔄 Forecast Pipeline
 
 ```mermaid
-flowchart TD
+flowchart LR
     A([Start: pull_api_data.py]) --> B[Fetch NWS hourly forecast\nfor each location]
     B --> C[Aggregate hourly → daily means\nT_air, RH, wind speed & direction]
     C --> D[Fetch Open-Meteo solar irradiation\nshortwave_radiation_sum MJ m⁻² day⁻¹]
@@ -45,11 +45,11 @@ flowchart TD
     P --> Q([Done])
 ```
 
-## Physics Model
+## ⚛️ Physics Model
 
 The pool is treated as a single well-mixed layer of water. Each day the temperature advances by one forward Euler step driven by five surface and bottom heat flux terms (all in W m⁻²; positive = heating the pool).
 
-### 1 — Absorbed Solar Radiation
+### 1 ☀️ — Absorbed Solar Radiation
 
 $$
 Q_{\text{solar}} = (1 - \alpha)\, G_s
@@ -65,7 +65,7 @@ $$
 
 ---
 
-### 2 — Net Longwave Radiation
+### 2 🌡️ — Net Longwave Radiation
 
 $$
 Q_{\text{lw,net}} = \varepsilon_{\text{sky}}\,\sigma\,T_{\text{air}}^4 - \varepsilon_{\text{water}}\,\sigma\,T_{\text{pool}}^4
@@ -87,7 +87,7 @@ $$
 
 ---
 
-### 3 — Sensible (Convective) Heat Flux
+### 3 💨 — Sensible (Convective) Heat Flux
 
 $$
 Q_{\text{conv}} = h_c\,(T_{\text{air}} - T_{\text{pool}})
@@ -101,7 +101,7 @@ where $U$ is wind speed in m s⁻¹. Correlation after McAdams (1954).
 
 ---
 
-### 4 — Evaporative Heat Flux
+### 4 💧 — Evaporative Heat Flux
 
 $$
 Q_{\text{evap}} = -L_v \cdot \rho_a \cdot C_E \cdot U \cdot \frac{0.622}{P_{\text{atm}}} \cdot \bigl(e_s(T_{\text{pool}}) - e_a\bigr)
@@ -121,7 +121,7 @@ where $e_a = e_s(T_{\text{air}}) \times \text{RH}$. After Penman (1948) / Montei
 
 ---
 
-### 5 — Conductive Ground Heat Flux
+### 5 🪨 — Conductive Ground Heat Flux
 
 Heat exchange through the pool floor is modelled as a series thermal resistance — concrete slab over a soil column:
 
@@ -140,7 +140,7 @@ Soil conductivity $k_{\text{soil}}$ and undisturbed ground temperature $T_{\text
 
 ---
 
-### 6 — Forward Euler Integration
+### 6 🔢 — Forward Euler Integration
 
 $$
 Q_{\text{total}} = Q_{\text{solar}} + Q_{\text{lw,net}} + Q_{\text{conv}} + Q_{\text{evap}} + Q_{\text{ground}}
@@ -162,7 +162,7 @@ $$
 
 ---
 
-## Repository Layout
+## 🗂️ Repository Layout
 
 ```
 scripts/pull_api_data.py     # Main data pipeline
@@ -178,7 +178,7 @@ news.html                    # Wave pool news
 about_contact.html           # About & contact
 ```
 
-## Getting Started
+## 🚀 Getting Started
 
 ```bash
 # Fetch latest weather data and regenerate all outputs
@@ -195,14 +195,14 @@ Then open `dashboard.html` or `pool_temp_forecasts.html` in a browser.
 
 Set `WAVE_POOL_TEST_MODE=1` to run the full pipeline in-memory with no file writes — useful for CI smoke tests.
 
-## CI / CD
+## ⚙️ CI / CD
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | `ci.yml` | push / PR to `dev`, `main` | Repo validation + unit tests |
 | `smoke-test.yml` | daily 10:15 UTC + manual | Full pipeline dry-run (`TEST_MODE=1`) |
 
-## References
+## 📚 References
 
 - Brutsaert, W. (1975). On a derivable formula for long-wave radiation from clear skies. *Water Resources Research*, 11(5), 742–744.
 - McAdams, W.H. (1954). *Heat Transmission*, 3rd ed. McGraw-Hill.
