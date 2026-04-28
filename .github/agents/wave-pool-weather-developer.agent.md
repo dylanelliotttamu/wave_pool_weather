@@ -1,6 +1,7 @@
 ---
 description: "Use when building or maintaining the wave pool weather website, handling data scripts, visualizations, and multi-location support."
 name: "Wave Pool Weather Developer"
+argument-hint: "Describe the feature, bug fix, script update, data enhancement, or visualization you want implemented."
 tools: [read, edit, search, execute, web, agent]
 user-invocable: true
 ---

@@ -9,10 +9,11 @@
     <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
-            font-family: 'Lato', sans-serif;
+            font-family: 'Inter', 'Lato', sans-serif;
             background-color: #333;
             color: #fff;
             overflow-x: hidden;
@@ -22,10 +23,12 @@
         }
         .navbar {
             background-color: #222;
+            border-bottom: 1px solid #333;
             overflow: hidden;
             width: 100%;
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -40,6 +43,10 @@
         }
         .navbar a:hover {
             color: #8db600;
+        }
+        .navbar a.active {
+            color: #4ecdc4;
+            border-bottom: 2px solid #4ecdc4;
         }
         .header {
             position: relative;
@@ -73,9 +80,9 @@
         .article,
         .card {
             background-color: #444;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 24px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         .article {
             margin-bottom: 20px;
@@ -122,9 +129,11 @@
     <div class="navbar">
         <a href="index.html">Home</a>
         <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
-        <a href="news.html">Wave Pool News</a>
+        <a href="news.html" class="active">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html">Learn More</a>
+        <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 
     <div class="header">
@@ -181,6 +190,7 @@
 
     <footer>
         <p id="copyright">2026 Wave Pool Weather. All rights reserved.</p>
+        <p><a href="https://github.com/dylanelliotttamu/wave_pool_weather" target="_blank" rel="noopener noreferrer">View Source on GitHub</a></p>
     </footer>
 
     <script>

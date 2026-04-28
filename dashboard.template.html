@@ -5,20 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wave Pool Weather Dashboard</title>
     <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
-            font-family: 'Lato', sans-serif;
+            font-family: 'Inter', 'Lato', sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f4f4f4;
         }
         .navbar {
             background-color: #222;
+            border-bottom: 1px solid #333;
             overflow: hidden;
             width: 100%;
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -33,6 +36,10 @@
         }
         .navbar a:hover {
             color: #8db600;
+        }
+        .navbar a.active {
+            color: #4ecdc4;
+            border-bottom: 2px solid #4ecdc4;
         }
         .container {
             max-width: 1200px;
@@ -63,47 +70,46 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html">Learn More</a>
+        <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 
     <div class="container">
-        <h1>Wave Pool Weather Dashboard - Waco</h1>
+        <h1>Wave Pool Weather Dashboard - __LOCATION__</h1>
 
         <div class="chart-container">
-            <h2>Waco Pool Temperature Forecast</h2>
+            <h2>__LOCATION__ Pool Temperature Forecast</h2>
             <canvas id="poolTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Waco Air Temperature Forecast</h2>
+            <h2>__LOCATION__ Air Temperature Forecast</h2>
             <canvas id="airTempChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Waco Humidity Forecast</h2>
+            <h2>__LOCATION__ Humidity Forecast</h2>
             <canvas id="humidityChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Waco Wind Speed Forecast</h2>
+            <h2>__LOCATION__ Wind Speed Forecast</h2>
             <canvas id="windChart" class="chart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h2>Waco Wind Rose</h2>
+            <h2>__LOCATION__ Solar Radiation Forecast</h2>
+            <canvas id="solarChart" class="chart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>__LOCATION__ Wind Rose</h2>
             <canvas id="windRoseChart" class="chart"></canvas>
         </div>
     </div>
 
     <script>
-        const chartLocation = "Waco";
-        const realData = {
-            dates: ['2026-04-06', '2026-04-07', '2026-04-08', '2026-04-09', '2026-04-10', '2026-04-11', '2026-04-12', '2026-04-13', '2026-04-14', '2026-04-15', '2026-04-16', '2026-04-17', '2026-04-18', '2026-04-19', '2026-04-20', '2026-04-21', '2026-04-22', '2026-04-23', '2026-04-24', '2026-04-25'],
-            poolTemps: [61.0, 60.75, 62.75, 66.75, 69.75, 71.5, 68.0, 71.25, 75.0, 74.75, 75.0, 76.0, 65.5, 56.5, 58.75, 60.75, 65.75, 71.5, 74.25, 70.5],
-            airTemps: [61.0, 60.5, 65.0, 68.5, 71.0, 72.0, 68.0, 74.5, 75.5, 74.0, 76.0, 76.0, 55.0, 58.0, 59.5, 62.0, 69.5, 73.5, 75.0, 66.0],
-            humidities: [51.0, 51.476190476190474, 54.95238095238095, 74.0, 79.9047619047619, 82.0, 97.0, 87.33333333333333, 79.9047619047619, 78.71428571428571, 77.66666666666667, 74.04761904761905, 61.0, 50.125, 54.0, 81.33333333333333, 85.58333333333333, 83.75, 78.5, 87.54545454545455],
-            windSpeeds: [5.0, 5.476190476190476, 3.0952380952380953, 7.619047619047619, 7.380952380952381, 10.476190476190476, 10.0, 13.333333333333334, 12.142857142857142, 12.380952380952381, 10.0, 15.238095238095237, 10.0, 7.291666666666667, 4.583333333333333, 6.041666666666667, 7.708333333333333, 13.125, 13.333333333333334, 10.0],
-            windBins: [10, 20, 15, 5, 10, 5, 15, 20]
-        };
+        // __REAL_DATA__
 
         // Pool Temp Chart
         new Chart(document.getElementById('poolTempChart'), {
@@ -114,29 +120,15 @@
                     label: 'Pool Temperature (°F)',
                     data: realData.poolTemps,
                     borderColor: 'blue',
-                    fill: false
+                    backgroundColor: 'rgba(0,0,255,0.05)',
+                    fill: true
                 }]
             },
             options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${chartLocation} Pool Temperature Forecast (°F)`
-                    }
-                },
+                plugins: { title: { display: true, text: `${chartLocation} Pool Temperature Forecast (°F)` } },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Pool Temperature (°F)'
-                        }
-                    }
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Pool Temperature (°F)' } }
                 }
             }
         });
@@ -150,29 +142,15 @@
                     label: 'Air Temperature (°F)',
                     data: realData.airTemps,
                     borderColor: 'red',
-                    fill: false
+                    backgroundColor: 'rgba(255,0,0,0.05)',
+                    fill: true
                 }]
             },
             options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${chartLocation} Air Temperature Forecast (°F)`
-                    }
-                },
+                plugins: { title: { display: true, text: `${chartLocation} Air Temperature Forecast (°F)` } },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Air Temperature (°F)'
-                        }
-                    }
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Air Temperature (°F)' } }
                 }
             }
         });
@@ -183,31 +161,16 @@
             data: {
                 labels: realData.dates,
                 datasets: [{
-                    label: 'Humidity (%)',
+                    label: 'Relative Humidity (%)',
                     data: realData.humidities,
-                    backgroundColor: 'green'
+                    backgroundColor: 'rgba(0,128,0,0.6)'
                 }]
             },
             options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${chartLocation} Humidity Forecast (%)`
-                    }
-                },
+                plugins: { title: { display: true, text: `${chartLocation} Humidity Forecast (%)` } },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Humidity (%)'
-                        }
-                    }
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Humidity (%)' }, min: 0, max: 100 }
                 }
             }
         });
@@ -218,32 +181,38 @@
             data: {
                 labels: realData.dates,
                 datasets: [{
-                    label: 'Wind Speed (mph)',
+                    label: 'Wind Speed (m/s)',
                     data: realData.windSpeeds,
                     borderColor: 'orange',
-                    fill: false
+                    backgroundColor: 'rgba(255,165,0,0.05)',
+                    fill: true
                 }]
             },
             options: {
-                plugins: {
-                    title: {
-                        display: true,
-                        text: `${chartLocation} Wind Speed Forecast (mph)`
-                    }
-                },
+                plugins: { title: { display: true, text: `${chartLocation} Wind Speed Forecast (m/s)` } },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Wind Speed (mph)'
-                        }
-                    }
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Wind Speed (m s⁻¹)' } }
+                }
+            }
+        });
+
+        // Solar Radiation Chart
+        new Chart(document.getElementById('solarChart'), {
+            type: 'bar',
+            data: {
+                labels: realData.dates,
+                datasets: [{
+                    label: 'Solar Radiation (MJ/m²/day)',
+                    data: realData.solarRad,
+                    backgroundColor: 'rgba(255,215,0,0.7)'
+                }]
+            },
+            options: {
+                plugins: { title: { display: true, text: `${chartLocation} Solar Radiation Forecast (MJ m⁻² day⁻¹)` } },
+                scales: {
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)' } }
                 }
             }
         });
@@ -270,18 +239,10 @@
             },
             options: {
                 plugins: {
-                    title: {
-                        display: true,
-                        text: `${chartLocation} Wind Direction Frequency` 
-                    }
+                    title: { display: true, text: `${chartLocation} Wind Direction Frequency` }
                 },
                 scales: {
-                    r: {
-                        title: {
-                            display: true,
-                            text: 'Frequency (count)'
-                        }
-                    }
+                    r: { title: { display: true, text: 'Frequency (count)' } }
                 }
             }
         });

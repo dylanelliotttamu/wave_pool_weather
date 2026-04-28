@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn More - Wave Pool Weather</title>
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+    body {
+        margin: 0;
+        font-family: 'Inter', 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+    .navbar {
+        background-color: #222;
+        border-bottom: 1px solid #333;
+        overflow: hidden;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+    .navbar a {
+        color: #ccc;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-size: 17px;
+        transition: color 0.3s ease;
+    }
+    .navbar a:hover { color: #8db600; }
+    .navbar a.active {
+        color: #4ecdc4;
+        border-bottom: 2px solid #4ecdc4;
+    }
+    .header {
+        text-align: center;
+        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        color: white;
+        padding: 50px 20px 35px;
+    }
+    .header h1 {
+        font-weight: 300;
+        letter-spacing: 2px;
+        font-size: 42px;
+        margin: 0 0 10px 0;
+    }
+    .header p {
+        margin: 0;
+        font-size: 15px;
+        color: rgba(255,255,255,0.85);
+        letter-spacing: 1px;
+    }
+    .content {
+        flex: 1;
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 40px 20px 60px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .card {
+        background-color: #444;
+        border-radius: 12px;
+        padding: 28px 32px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .card h2 {
+        margin-top: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #4ecdc4;
+        letter-spacing: 0.5px;
+    }
+    .card p {
+        color: #ccc;
+        line-height: 1.7;
+        font-size: 15px;
+        margin-bottom: 10px;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    pre, code {
+        background-color: #2a2a2a;
+        color: #f8f8f2;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+    }
+    pre {
+        padding: 14px 18px;
+        overflow-x: auto;
+        line-height: 1.6;
+        margin: 12px 0;
+    }
+    code {
+        padding: 2px 6px;
+    }
+    .eq-label {
+        color: #aaa;
+        font-size: 13px;
+        margin-top: -4px;
+        margin-bottom: 10px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+        font-size: 14px;
+    }
+    th {
+        background-color: #333;
+        color: #4ecdc4;
+        padding: 10px 14px;
+        text-align: left;
+        font-weight: 600;
+    }
+    td {
+        padding: 9px 14px;
+        border-bottom: 1px solid #555;
+        color: #ccc;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background-color: #3a3a3a; }
+    footer {
+        background-color: #222;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        width: 100%;
+    }
+    footer a { color: #8db600; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="learn_more.html" class="active">Learn More</a>
+        <a href="feedback.html">Feedback &amp; Subscribe</a>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>The Science Behind the Forecast</h1>
+        <p>How we predict wave pool temperatures</p>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+        <!-- Section 1: Pool Temperature Model -->
+        <div class="card">
+            <h2>1. Pool Temperature Model</h2>
+            <p>The pool temperature is advanced in time using a single-layer (well-mixed) energy balance with a forward Euler integration scheme:</p>
+            <pre>T_pool_new = T_pool + Q_total × Δt / (ρ × d × c_p)</pre>
+            <p class="eq-label">where ρ = 1000 kg/m³ (water density), d = pool effective depth (m), c_p = 4186 J/kg/K (specific heat), Δt = time step (s)</p>
+            <p>The total surface heat flux combines five components:</p>
+            <pre>Q_total = Q_solar + Q_lw_net + Q_conv + Q_evap + Q_ground</pre>
+        </div>
+
+        <!-- Section 2: Solar Radiation -->
+        <div class="card">
+            <h2>2. Absorbed Solar Radiation</h2>
+            <p>Shortwave energy absorbed at the water surface after reflection:</p>
+            <pre>Q_solar = (1 − α) × G_s</pre>
+            <p class="eq-label">α = 0.06 (shortwave albedo of open water), G_s = daily mean solar irradiance (W/m²) from Open-Meteo API</p>
+        </div>
+
+        <!-- Section 3: Net Longwave Radiation -->
+        <div class="card">
+            <h2>3. Net Longwave Radiation</h2>
+            <p>Difference between downwelling atmospheric emission and upwelling emission from the pool surface:</p>
+            <pre>Q_lw_net = ε_sky × σ × T_air⁴ − ε_water × σ × T_pool⁴</pre>
+            <p class="eq-label">σ = 5.67×10⁻⁸ W/m²/K⁴ (Stefan-Boltzmann), ε_water = 0.97</p>
+            <p>Sky emissivity is estimated using the Brutsaert (1975) formula based on near-surface vapour pressure <code>e_a</code> (hPa) and air temperature <code>T_air</code> (K):</p>
+            <pre>ε_sky = 1.24 × (e_a / T_air)^(1/7)    [Brutsaert 1975]</pre>
+        </div>
+
+        <!-- Section 4: Sensible Heat -->
+        <div class="card">
+            <h2>4. Sensible Heat (Convection)</h2>
+            <p>Turbulent heat exchange between the air and water surface using the McAdams (1954) bulk-transfer coefficient:</p>
+            <pre>Q_conv = h_c × (T_air − T_pool)
+
+h_c = 5.7 + 3.8 × U    [W m⁻² K⁻¹]</pre>
+            <p class="eq-label">U = wind speed (m/s). Positive Q_conv warms the pool when air is warmer than water.</p>
+        </div>
+
+        <!-- Section 5: Evaporative Heat Loss -->
+        <div class="card">
+            <h2>5. Evaporative Heat Loss</h2>
+            <p>Latent heat removed by evaporation using a bulk atmospheric transfer approach (Penman 1948 / Monteith):</p>
+            <pre>Q_evap = −L × f(U) × (e_s(T_pool) − e_a)
+
+f(U) ≈ C_E × U    [kg m⁻² s⁻¹ kPa⁻¹]</pre>
+            <p class="eq-label">L = 2.45×10⁶ J/kg (latent heat of vaporisation), e_s(T_pool) = saturation vapour pressure at pool temperature (kPa), e_a = actual vapour pressure of air (kPa). This flux is nearly always negative (heat loss).</p>
+        </div>
+
+        <!-- Section 6: Ground Heat Exchange -->
+        <div class="card">
+            <h2>6. Ground Heat Exchange</h2>
+            <p>Conductive heat transfer through the pool slab and soil to undisturbed earth, modelled as two resistances in series:</p>
+            <pre>Q_ground = −U_bottom × (T_pool − T_ground)
+
+U_bottom = 1 / (R_concrete + R_soil)
+R_concrete = L_slab / k_concrete    [m²K/W]
+R_soil     = d_soil  / k_soil       [m²K/W]</pre>
+            <p class="eq-label">k_concrete ≈ 1.4 W/m/K, L_slab = 0.305 m (1 ft). k_soil varies by location (0.35–1.5 W/m/K). T_ground = annual mean deep-soil temperature (°C).</p>
+        </div>
+
+        <!-- Section 7: Data Sources -->
+        <div class="card">
+            <h2>7. Data Sources</h2>
+            <p>Weather and solar forcing data are fetched automatically once per day from free public APIs:</p>
+            <ul style="color:#ccc; line-height:1.8; font-size:15px;">
+                <li><strong style="color:#fff;">NWS API</strong> — <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> — Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
+                <li><strong style="color:#fff;">Open-Meteo API</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener" style="color:#8db600;">open-meteo.com</a> — Daily total shortwave solar radiation (MJ/m²/day). No API key required.</li>
+            </ul>
+            <p>All retrieved data is stored in a local SQLite database for persistence and used as the thermal model's initial condition on subsequent runs.</p>
+        </div>
+
+        <!-- Section 8: Wetsuit Guide -->
+        <div class="card">
+            <h2>8. Wetsuit Recommendation Guide</h2>
+            <p>Suit recommendations are assigned based on forecasted pool water temperature:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Water Temp (°F)</th>
+                        <th>Recommended Suit</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>≥ 75°F</td>
+                        <td>🩳 Boardshorts</td>
+                        <td>Warm water — no thermal protection needed</td>
+                    </tr>
+                    <tr>
+                        <td>69 – 74°F</td>
+                        <td>👕 Top / Shorty</td>
+                        <td>Light spring suit or rash guard</td>
+                    </tr>
+                    <tr>
+                        <td>63 – 68°F</td>
+                        <td>🩱 2mm Springsuit / 3/2 Full Suit</td>
+                        <td>Moderate thermal protection</td>
+                    </tr>
+                    <tr>
+                        <td>58 – 62°F</td>
+                        <td>🥶 4/3 Full Suit</td>
+                        <td>Cool water — full suit recommended</td>
+                    </tr>
+                    <tr>
+                        <td>52 – 57°F</td>
+                        <td>🥶❄️ 4/3 Full Suit + Booties</td>
+                        <td>Cold water — add booties for foot warmth</td>
+                    </tr>
+                    <tr>
+                        <td>&lt; 52°F</td>
+                        <td>🧊 5/4 Full Suit + Hood + Booties</td>
+                        <td>Very cold — maximum insulation required</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+    <!-- Content ends -->
+
+    <!-- Footer -->
+    <footer>
+        <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
+        <p><a href="https://github.com/dylanelliotttamu/wave_pool_weather" target="_blank" rel="noopener noreferrer">View Source on GitHub</a></p>
+    </footer>
+
+    <script>
+        document.getElementById('copyright').textContent = new Date().getFullYear() + ' Wave Pool Weather. All rights reserved.';
+    </script>
+</body>
+</html>

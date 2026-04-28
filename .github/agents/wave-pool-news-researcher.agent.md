@@ -1,6 +1,7 @@
 ---
 description: "Use when updating the wave pool weather site's news page by researching publicly open surf wave pools, session booking details, and the best way to communicate that information to visitors."
 name: "Wave Pool News Researcher"
+argument-hint: "Describe the news update you want, target pools, and any booking/session details to prioritize."
 tools: [read, edit, search, web, agent]
 user-invocable: true
 ---
