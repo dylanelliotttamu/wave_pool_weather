@@ -314,12 +314,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temps (
 )''')
 
 # Migrate existing databases: add new columns if they are absent
-for col, table in [
-    ('solar_radiation', 'air_temps'),
-    ('heat_fluxes',     'pool_temps'),
+for col, table, col_type in [
+    ('solar_radiation', 'air_temps', 'REAL'),
+    ('heat_fluxes',     'pool_temps', 'TEXT'),
 ]:
     try:
-        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} TEXT')
+        cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
     except Exception:
         pass  # column already exists
 
@@ -332,8 +332,8 @@ for name, coords in locations.items():
 
 conn.commit()
 
-def fetch_json_from_url(url):
-    with urllib.request.urlopen(url) as response:
+def fetch_json_from_url(url, timeout=30):
+    with urllib.request.urlopen(url, timeout=timeout) as response:
         data = json.loads(response.read().decode())
         return data
     
@@ -357,7 +357,7 @@ def request_data(url, retries=3, delay=2):
     hourly_weather_json_data = None
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(url) as response:
+            with urllib.request.urlopen(url, timeout=30) as response:
                 hourly_weather_json_data = json.loads(response.read().decode())
                 return hourly_weather_json_data
         except Exception as e:
@@ -905,14 +905,17 @@ real_data_js = (
     f'        }};'
 )
 
-template_path = os.path.join(SITE_ROOT, 'dashboard.template.html')
-with open(template_path) as _tmpl:
-    _raw = _tmpl.read()
-dashboard_html = (
-    _raw
-    .replace('__LOCATION__', dashboard_location)
-    .replace('// __REAL_DATA__', real_data_js)
-)
+if WRITE_FILES:
+    template_path = os.path.join(SITE_ROOT, 'dashboard.template.html')
+    with open(template_path) as _tmpl:
+        _raw = _tmpl.read()
+    dashboard_html = (
+        _raw
+        .replace('__LOCATION__', dashboard_location)
+        .replace('// __REAL_DATA__', real_data_js)
+    )
+else:
+    dashboard_html = ''
 
 if False:  # dead branch — keeps the old giant f-string out of scope
     dashboard_html = f'''<!DOCTYPE html>
