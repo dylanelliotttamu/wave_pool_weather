@@ -308,13 +308,17 @@
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
-                    const windDirDeg  = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
+                    const windDirDeg   = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
+                    // wind_dir is the direction wind comes FROM (met convention)
+                    // arrow points in the direction wind is travelling TO → add 180°
+                    const arrowRotation = (windDirDeg + 180) % 360;
+                    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+                    const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
                     windHtml = `
-                        <p style="font-size:14px; color:#ccc; margin:6px 0;">
-                            <span style="display:inline-block; transform: rotate(${windDirDeg}deg); font-size:18px;">↑</span>
-                            ${windSpeedMph.toFixed(1)} mph
-                            <span style="color:#aaa; font-size:12px;">Wind</span>
-                        </p>`;
+                        <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0;">
+                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
+                            <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
+                        </div>`;
                 }
 
                 column.innerHTML = `
