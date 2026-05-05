@@ -78,7 +78,7 @@
         <h1>Wave Pool Weather Dashboard - __LOCATION__</h1>
 
         <div class="chart-container">
-            <h2>__LOCATION__ Pool Temperature Forecast</h2>
+            <h2 id="poolTempHeading">__LOCATION__ Pool Temperature Forecast</h2>
             <canvas id="poolTempChart" class="chart"></canvas>
         </div>
 
@@ -148,6 +148,11 @@
         const humiditySplit = splitSeries(visibleHumidities);
         const windSplit = splitSeries(visibleWindSpeeds);
         const solarSplit = splitSeries(visibleSolar);
+        const poolChartLocationLabel = chartLocation === 'Waco' ? 'Waco 🤠' : chartLocation;
+        const poolHeading = document.getElementById('poolTempHeading');
+        if (poolHeading) {
+            poolHeading.textContent = `${poolChartLocationLabel} Pool Temperature Forecast`;
+        }
 
         // Pool Temp Chart
         new Chart(document.getElementById('poolTempChart'), {
@@ -176,7 +181,7 @@
             },
             options: {
                 plugins: {
-                    title: { display: true, text: `${chartLocation} Pool Temperature Forecast (°F)` },
+                    title: { display: true, text: `${poolChartLocationLabel} Pool Temperature Forecast (°F)` },
                     legend: { display: true }
                 },
                 scales: {
