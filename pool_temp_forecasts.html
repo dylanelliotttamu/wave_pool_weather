@@ -356,10 +356,9 @@
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
 
-                    const ciLow = wd.pool_ci_low;
-                    const ciHigh = wd.pool_ci_high;
-                    if (!isNaN(ciLow) && !isNaN(ciHigh)) {
-                        ciHtml = `<p style="font-size:12px; color:#aaa; margin:4px 0 0;">95% CI: ${ciLow.toFixed(1)}–${ciHigh.toFixed(1)} °F</p>`;
+                    // Only show the CI warning when CI data is present; values are temporarily redacted
+                    if (!isNaN(wd.pool_ci_low) && !isNaN(wd.pool_ci_high)) {
+                        ciHtml = `<p style="font-size:12px; color:#f0a500; margin:4px 0 0;" title="95% CI is currently in beta testing">🚧 95% CI in beta testing</p>`;
                     }
                 }
 
