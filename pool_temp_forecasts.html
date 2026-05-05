@@ -181,6 +181,28 @@
             max-width: 300px;
         }
     }
+    /* Bottom navigation buttons */
+    .page-nav-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 30px 20px;
+        background-color: #333;
+    }
+    .cta-btn {
+        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+        color: #fff;
+        text-decoration: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-family: 'Inter', 'Lato', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        transition: opacity 0.3s;
+    }
+    .cta-btn:hover { opacity: 0.85; }
     </style> 
     <script>
     function getTempColor(temp) {
@@ -426,6 +448,11 @@
     <!-- Days Container ends -->
 
     <!-- Footer -->
+    <div class="page-nav-row">
+        <a href="index.html" class="cta-btn">← Back to Home</a>
+        <a href="news.html" class="cta-btn">Read News →</a>
+        <a href="dashboard.html" class="cta-btn">View Dashboard →</a>
+    </div>
     <footer>
         <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
         <p><a href="https://github.com/dylanelliotttamu/wave_pool_weather" target="_blank" rel="noopener noreferrer">View Source on GitHub</a></p>
