@@ -1,0 +1,4 @@
+# Run every hour at minute 0.
+# If you have an existing crontab, add the line below manually with: crontab -e
+# If you have no crontab yet, install this file with: crontab cronjobs/ec2-auto-deploy.cron
+0 * * * * /var/www/html/scripts/auto_deploy_dev.sh

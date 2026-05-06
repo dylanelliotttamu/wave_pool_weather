@@ -305,6 +305,14 @@
                 .filter(row => row.date >= todayString)
                 .sort((left, right) => left.date.localeCompare(right.date));
 
+            if (rows.length === 0) {
+                for (let i = 1; i <= 6; i++) {
+                    const column = document.getElementById(`day${i}`);
+                    if (column) column.innerHTML = '<p>Forecast data is being updated. Check back soon.</p>';
+                }
+                return;
+            }
+
             rows.slice(0, 6).forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
                 if (!column) {
@@ -340,7 +348,7 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
-                let ciHtml = '';
+                let errorHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
@@ -356,9 +364,10 @@
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
 
-                    // Only show the CI warning when CI data is present; values are temporarily redacted
-                    if (!isNaN(wd.pool_ci_low) && !isNaN(wd.pool_ci_high)) {
-                        ciHtml = `<p style="font-size:12px; color:#f0a500; margin:4px 0 0;" title="95% CI is currently in beta testing">🚧 95% CI in beta testing</p>`;
+                    // Show direct plus/minus half-range from provided low/high bounds.
+                    if (!isNaN(wd.pool_ci_low) && !isNaN(wd.pool_ci_high) && wd.pool_ci_high >= wd.pool_ci_low) {
+                        const plusMinusRangeF = (wd.pool_ci_high - wd.pool_ci_low) / 2;
+                        errorHtml = `<p style="font-size:12px; color:#f0a500; margin:4px 0 0;">Error: ±${plusMinusRangeF.toFixed(1)} °F</p>`;
                     }
                 }
 
@@ -366,7 +375,7 @@
                     <h2>${dayLabel}</h2>
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
-                    ${ciHtml}
+                    ${errorHtml}
                     ${windHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
