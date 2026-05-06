@@ -197,7 +197,7 @@ Set `WAVE_POOL_TEST_MODE=1` to run the full pipeline in-memory with no file writ
 
 Set `WAVE_POOL_FORCE_REFRESH=1` to bypass the same-day API cache and re-fetch all external data even when today's rows already exist in the database.  This is useful after a model-parameter change where you want fresh API data on the same calendar day.
 
-Set `WAVE_POOL_MC_SAMPLES=N` (default `100`) to control the number of Monte Carlo uncertainty samples.  Higher values give smoother 95 % confidence intervals at the cost of more CPU time.
+Set `WAVE_POOL_MC_SAMPLES=N` (default `10`) to control the number of Monte Carlo uncertainty samples.  Higher values give smoother 95 % confidence intervals at the cost of more CPU time.
 
 ## ⚙️ CI / CD
 
