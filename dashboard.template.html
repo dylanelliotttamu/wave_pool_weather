@@ -64,6 +64,14 @@
             width: 100%;
             height: 400px;
         }
+        @media (max-width: 600px) {
+            .chart {
+                height: 260px;
+            }
+            .chart-container {
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -114,6 +122,16 @@
 
     <script>
         // __REAL_DATA__
+
+        // Increase axis font sizes on mobile so tick labels and titles remain readable
+        const isMobile = window.innerWidth < 600;
+        const MOBILE_AXIS_TITLE_FONT_SIZE = 11;
+        const DESKTOP_AXIS_TITLE_FONT_SIZE = 13;
+        const MOBILE_TICK_FONT_SIZE = 10;
+        const DESKTOP_TICK_FONT_SIZE = 12;
+        const axisTitleFontSize = isMobile ? MOBILE_AXIS_TITLE_FONT_SIZE : DESKTOP_AXIS_TITLE_FONT_SIZE;
+        const tickFontSize = isMobile ? MOBILE_TICK_FONT_SIZE : DESKTOP_TICK_FONT_SIZE;
+        Chart.defaults.font.size = tickFontSize;
 
         const HISTORY_DAYS = 3;
         const today = new Date();
@@ -189,8 +207,8 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Pool Temperature (°F)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Pool Temperature (°F)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
@@ -226,8 +244,8 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Air Temperature (°F)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Air Temperature (°F)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
@@ -256,8 +274,8 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Humidity (%)' }, min: 0, max: 100 }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Humidity (%)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } }, min: 0, max: 100 }
                 }
             }
         });
@@ -293,8 +311,8 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Wind Speed (m s⁻¹)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Wind Speed (m s⁻¹)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
@@ -323,8 +341,8 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
@@ -354,7 +372,7 @@
                     title: { display: true, text: `${chartLocation} Wind Direction Frequency` }
                 },
                 scales: {
-                    r: { title: { display: true, text: 'Frequency (count)' } }
+                    r: { title: { display: true, text: 'Frequency (count)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
