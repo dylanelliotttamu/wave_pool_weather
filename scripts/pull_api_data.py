@@ -749,7 +749,7 @@ for name, coords in locations.items():
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
     mc_prev_samples = []
-    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '100')))
+    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
     for _ in range(MC_SAMPLES):
         # Start near initial condition with a small spread.
         init_sample = random.gauss(T_pool_init_C, fahrenheit_to_celsius(0.5))
