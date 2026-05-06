@@ -49,3 +49,15 @@ if [ "$stashed" -eq 1 ]; then
     echo "$(date -Iseconds) [WARN] Could not auto-pop stash; leaving stash for manual review." >> "$LOG_FILE"
   fi
 fi
+
+# Regenerate forecast outputs after deploy so stale stashed files do not persist.
+if [ -f "scripts/pull_api_data.py" ]; then
+  if python3 scripts/pull_api_data.py >> "$LOG_FILE" 2>&1; then
+    echo "$(date -Iseconds) [INFO] Forecast data refreshed successfully." >> "$LOG_FILE"
+  else
+    echo "$(date -Iseconds) [ERROR] Forecast refresh failed (scripts/pull_api_data.py)." >> "$LOG_FILE"
+    exit 1
+  fi
+else
+  echo "$(date -Iseconds) [WARN] Forecast script not found at scripts/pull_api_data.py; skipping refresh." >> "$LOG_FILE"
+fi
