@@ -348,7 +348,6 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
-                let errorHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
@@ -363,19 +362,12 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
-
-                    // Show direct plus/minus half-range from provided low/high bounds.
-                    if (!isNaN(wd.pool_ci_low) && !isNaN(wd.pool_ci_high) && wd.pool_ci_high >= wd.pool_ci_low) {
-                        const plusMinusRangeF = (wd.pool_ci_high - wd.pool_ci_low) / 2;
-                        errorHtml = `<p style="font-size:12px; color:#f0a500; margin:4px 0 0;">Error: ±${plusMinusRangeF.toFixed(1)} °F</p>`;
-                    }
                 }
 
                 column.innerHTML = `
                     <h2>${dayLabel}</h2>
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
-                    ${errorHtml}
                     ${windHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
