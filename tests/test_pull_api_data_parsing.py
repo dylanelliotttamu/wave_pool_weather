@@ -17,10 +17,15 @@ def _load_parse_weather_data():
         "parse_weather_data",
     }
     selected_nodes = []
+    needed_assignments = {
+        "direction_map",
+        "WIND_SPEED_RANGE_PATTERN",
+        "WIND_SPEED_SINGLE_PATTERN",
+    }
     for node in tree.body:
         if isinstance(node, ast.Assign):
             for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "direction_map":
+                if isinstance(target, ast.Name) and target.id in needed_assignments:
                     selected_nodes.append(node)
                     break
         elif isinstance(node, ast.FunctionDef) and node.name in needed_functions:

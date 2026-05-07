@@ -19,6 +19,15 @@ print("Starting data pull from NWS API...")
 print(f"Today's date: {todays_date}")
 print(f"Current time: {todays_time}")
 
+# Accept ranges like "5 to 10 mph" / "5-10 mph".
+WIND_SPEED_RANGE_PATTERN = re.compile(
+    r"^\s*(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)\s*([a-z/_-]+)?\s*$"
+)
+# Accept single values like "8 mph" / "10 kmh".
+WIND_SPEED_SINGLE_PATTERN = re.compile(
+    r"^\s*(\d+(?:\.\d+)?)\s*([a-z/_-]+)?\s*$"
+)
+
 # ---------------------------------------------------------------------------
 # Locations dictionary
 #   depth_m: effective thermal-mass depth used in the pool energy balance.
@@ -529,13 +538,17 @@ def parse_weather_data(inputhourlyjsonweather_data):
                     if isinstance(period["relativeHumidity"], dict)
                     else period["relativeHumidity"]
                 )
-                humidity = float(humidity_value) if humidity_value is not None else 0.0
+                if humidity_value is None:
+                    raise ValueError("missing humidity value")
+                humidity = float(humidity_value)
 
                 # ---- Wind speed → m s⁻¹ ------------------------------------
                 wind_speed = period["windSpeed"]
                 if isinstance(wind_speed, dict):
                     ws_value = wind_speed.get("value")
-                    ws_raw = float(ws_value) if ws_value is not None else 0.0
+                    if ws_value is None:
+                        raise ValueError("missing wind speed value")
+                    ws_raw = float(ws_value)
                     ws_unit = wind_speed.get("unitCode", "")
                     if "mph" in ws_unit or "mi_i-h" in ws_unit:
                         wind_speed_ms = mph_to_ms(ws_raw)
@@ -550,9 +563,21 @@ def parse_weather_data(inputhourlyjsonweather_data):
                     if wind_speed_text == "calm":
                         wind_speed_ms = 0.0
                     else:
-                        samples = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", wind_speed_text)]
-                        wind_mag = sum(samples) / len(samples) if samples else 0.0
-                        wind_speed_ms = kmh_to_ms(wind_mag) if "km" in wind_speed_text else mph_to_ms(wind_mag)
+                        range_match = WIND_SPEED_RANGE_PATTERN.match(wind_speed_text)
+                        single_match = WIND_SPEED_SINGLE_PATTERN.match(wind_speed_text)
+                        if range_match:
+                            low = float(range_match.group(1))
+                            high = float(range_match.group(2))
+                            unit_hint = (range_match.group(3) or "").lower()
+                            wind_mag = (low + high) / 2.0
+                        elif single_match:
+                            wind_mag = float(single_match.group(1))
+                            unit_hint = (single_match.group(2) or "").lower()
+                        else:
+                            raise ValueError(f"unparseable wind speed: {wind_speed!r}")
+
+                        uses_kmh = "km" in wind_speed_text or "km" in unit_hint
+                        wind_speed_ms = kmh_to_ms(wind_mag) if uses_kmh else mph_to_ms(wind_mag)
 
                 # ---- Wind direction → degrees ------------------------------
                 wind_direction_str = (
