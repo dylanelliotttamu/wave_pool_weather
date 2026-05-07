@@ -4,6 +4,7 @@ import urllib.request
 import json
 import math
 import random
+import re
 from datetime import datetime, date, timedelta
 import time
 import sqlite3
@@ -499,66 +500,86 @@ def parse_weather_data(inputhourlyjsonweather_data):
         daily_data = {}
 
         for period in periods:
-            start_time = period["startTime"]
-            date_obj   = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z").date()
+            try:
+                start_time = period["startTime"]
+                date_obj   = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z").date()
 
-            # ---- Temperature ------------------------------------------------
-            # NWS can return either:
-            #   dict  {"value": 22.2, "unitCode": "wmoUnit:degC"}  → Celsius
-            #   int/float  72                                        → Fahrenheit
-            if isinstance(period["temperature"], dict):
-                temp_raw      = float(period["temperature"]["value"])
-                unit_code_raw = period["temperature"].get("unitCode", "")
-                # Treat as Celsius if unit says degC, otherwise Fahrenheit
-                if "degC" in unit_code_raw or "cel" in unit_code_raw.lower():
-                    temperature_C = temp_raw
+                # ---- Temperature --------------------------------------------
+                # NWS can return either:
+                #   dict  {"value": 22.2, "unitCode": "wmoUnit:degC"}  → Celsius
+                #   int/float  72                                        → Fahrenheit
+                if isinstance(period["temperature"], dict):
+                    temp_value = period["temperature"].get("value")
+                    if temp_value is None:
+                        raise ValueError("missing temperature value")
+                    temp_raw      = float(temp_value)
+                    unit_code_raw = period["temperature"].get("unitCode", "")
+                    # Treat as Celsius if unit says degC, otherwise Fahrenheit
+                    if "degC" in unit_code_raw or "cel" in unit_code_raw.lower():
+                        temperature_C = temp_raw
+                    else:
+                        temperature_C = fahrenheit_to_celsius(temp_raw)
                 else:
-                    temperature_C = fahrenheit_to_celsius(temp_raw)
-            else:
-                # Plain value → Fahrenheit (NWS text forecast default)
-                temperature_C = fahrenheit_to_celsius(float(period["temperature"]))
+                    # Plain value → Fahrenheit (NWS text forecast default)
+                    temperature_C = fahrenheit_to_celsius(float(period["temperature"]))
 
-            # ---- Humidity ---------------------------------------------------
-            humidity = float(
-                period["relativeHumidity"]["value"]
-                if isinstance(period["relativeHumidity"], dict)
-                else period["relativeHumidity"]
-            )
+                # ---- Humidity -----------------------------------------------
+                humidity_value = (
+                    period["relativeHumidity"]["value"]
+                    if isinstance(period["relativeHumidity"], dict)
+                    else period["relativeHumidity"]
+                )
+                humidity = float(humidity_value) if humidity_value is not None else 0.0
 
-            # ---- Wind speed → m s⁻¹ ----------------------------------------
-            if isinstance(period["windSpeed"], dict):
-                ws_raw = float(period["windSpeed"]["value"])
-                ws_unit = period["windSpeed"].get("unitCode", "")
-                if "mph" in ws_unit or "mi_i-h" in ws_unit:
-                    wind_speed_ms = mph_to_ms(ws_raw)
+                # ---- Wind speed → m s⁻¹ ------------------------------------
+                wind_speed = period["windSpeed"]
+                if isinstance(wind_speed, dict):
+                    ws_value = wind_speed.get("value")
+                    ws_raw = float(ws_value) if ws_value is not None else 0.0
+                    ws_unit = wind_speed.get("unitCode", "")
+                    if "mph" in ws_unit or "mi_i-h" in ws_unit:
+                        wind_speed_ms = mph_to_ms(ws_raw)
+                    elif "m_s" in ws_unit:
+                        wind_speed_ms = ws_raw
+                    else:
+                        # Assume km h⁻¹ (NWS SI default for windSpeed dict)
+                        wind_speed_ms = kmh_to_ms(ws_raw)
                 else:
-                    # Assume km h⁻¹ (NWS SI default for windSpeed dict)
-                    wind_speed_ms = kmh_to_ms(ws_raw)
-            else:
-                # String like "8 mph"
-                wind_mph      = float(period["windSpeed"].split()[0])
-                wind_speed_ms = mph_to_ms(wind_mph)
+                    # Strings may be "8 mph", "5 to 10 mph", or "Calm".
+                    wind_speed_text = str(wind_speed).strip().lower()
+                    if wind_speed_text == "calm":
+                        wind_speed_ms = 0.0
+                    else:
+                        samples = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", wind_speed_text)]
+                        wind_mag = sum(samples) / len(samples) if samples else 0.0
+                        wind_speed_ms = kmh_to_ms(wind_mag) if "km" in wind_speed_text else mph_to_ms(wind_mag)
 
-            # ---- Wind direction → degrees ------------------------------------
-            wind_direction_str = (
-                period["windDirection"]["value"]
-                if isinstance(period["windDirection"], dict)
-                else period["windDirection"]
-            )
-            wind_direction = direction_map.get(str(wind_direction_str), 0)
+                # ---- Wind direction → degrees ------------------------------
+                wind_direction_str = (
+                    period["windDirection"]["value"]
+                    if isinstance(period["windDirection"], dict)
+                    else period["windDirection"]
+                )
+                wind_direction = direction_map.get(str(wind_direction_str), 0)
 
-            if date_obj not in daily_data:
-                daily_data[date_obj] = {
-                    "temperatures":    [],
-                    "humidities":      [],
-                    "wind_speeds":     [],
-                    "wind_directions": [],
-                }
+                if date_obj not in daily_data:
+                    daily_data[date_obj] = {
+                        "temperatures":    [],
+                        "humidities":      [],
+                        "wind_speeds":     [],
+                        "wind_directions": [],
+                    }
 
-            daily_data[date_obj]["temperatures"].append(temperature_C)
-            daily_data[date_obj]["humidities"].append(humidity)
-            daily_data[date_obj]["wind_speeds"].append(wind_speed_ms)
-            daily_data[date_obj]["wind_directions"].append(wind_direction)
+                daily_data[date_obj]["temperatures"].append(temperature_C)
+                daily_data[date_obj]["humidities"].append(humidity)
+                daily_data[date_obj]["wind_speeds"].append(wind_speed_ms)
+                daily_data[date_obj]["wind_directions"].append(wind_direction)
+            except Exception as period_exc:
+                print(
+                    f"Warning: skipping malformed period at "
+                    f"{period.get('startTime', 'unknown')}: {period_exc}"
+                )
+                continue
 
         date_list                = []
         average_temp_list        = []   # °C
