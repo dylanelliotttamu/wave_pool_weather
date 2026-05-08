@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wave Pool Weather Dashboard</title>
-    <link rel="icon" href="favicon.ico">
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -53,6 +57,92 @@
             width: 100%;
             height: 400px;
         }
+        .chart-wrapper {
+            position: relative;
+            display: block;
+        }
+        .tap-hint {
+            display: none;
+        }
+        #chartModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.92);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        #chartModal.open {
+            display: flex;
+        }
+        #modalHeader {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        #modalTitle {
+            color: #4ecdc4;
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+            margin: 0;
+            padding-right: 8px;
+        }
+        #modalClose {
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #modalClose:hover {
+            background: #e74c3c;
+        }
+        #modalCanvasWrap {
+            width: 100%;
+            flex: 1;
+            position: relative;
+        }
+        #modalCanvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        @media (max-width: 600px) {
+            .chart {
+                height: 260px;
+            }
+            .chart-container {
+                padding: 12px;
+            }
+            .tap-hint {
+                display: block;
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                background: rgba(78, 205, 196, 0.85);
+                color: #222;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px 8px;
+                border-radius: 12px;
+                pointer-events: none;
+                letter-spacing: 0.3px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -72,31 +162,105 @@
 
         <div class="chart-container">
             <h2>Pool Temperature Forecast</h2>
-            <canvas id="poolTempChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="poolTempChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>Air Temperature Forecast</h2>
-            <canvas id="airTempChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="airTempChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>Humidity Forecast</h2>
-            <canvas id="humidityChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="humidityChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>Wind Speed Forecast</h2>
-            <canvas id="windChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="windChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>Wind Rose</h2>
-            <canvas id="windRoseChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="windRoseChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen chart modal (mobile expand) -->
+    <div id="chartModal" role="dialog" aria-modal="true" aria-label="Expanded chart">
+        <div id="modalHeader">
+            <p id="modalTitle"></p>
+            <button id="modalClose" aria-label="Close expanded chart">&#x2715;</button>
+        </div>
+        <div id="modalCanvasWrap">
+            <canvas id="modalCanvas"></canvas>
         </div>
     </div>
 
     <script>
+        const chartRegistry = new Map();
+        let modalChartInstance = null;
+
+        function makeChart(id, title, config) {
+            const instance = new Chart(document.getElementById(id), config);
+            chartRegistry.set(id, { title, config });
+            return instance;
+        }
+
+        const modal = document.getElementById('chartModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalClose = document.getElementById('modalClose');
+        const modalCanvas = document.getElementById('modalCanvas');
+        const modalCanvasWrap = document.getElementById('modalCanvasWrap');
+
+        function openModal(id) {
+            const entry = chartRegistry.get(id);
+            if (!entry) return;
+            modalTitle.textContent = entry.title;
+            if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
+            const wrapH = window.innerHeight - 90;
+            modalCanvasWrap.style.height = wrapH + 'px';
+            const clonedConfig = JSON.parse(JSON.stringify(entry.config));
+            modalChartInstance = new Chart(modalCanvas, clonedConfig);
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+            if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
+        }
+
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+        window.addEventListener('resize', function () {
+            if (modal.classList.contains('open') && modalChartInstance) {
+                const openId = [...chartRegistry.keys()].find(id => chartRegistry.get(id).title === modalTitle.textContent);
+                if (openId) openModal(openId);
+            }
+        });
+        document.querySelectorAll('.chart-wrapper canvas').forEach(canvas => {
+            canvas.style.cursor = 'zoom-in';
+            canvas.addEventListener('click', function () { openModal(this.id); });
+        });
+
         const realData = {
             dates: ['2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05', '2026-04-06', '2026-04-07', '2026-04-08'],
             poolTemps: [78.5, 76.5, 75.75, 71.0, 62.0, 59.5, 60.0, 57.0],
@@ -107,7 +271,7 @@
         };
 
         // Pool Temp Chart
-        new Chart(document.getElementById('poolTempChart'), {
+        makeChart('poolTempChart', 'Pool Temperature Forecast', {
             type: 'line',
             data: {
                 labels: realData.dates,
@@ -121,7 +285,7 @@
         });
 
         // Air Temp Chart
-        new Chart(document.getElementById('airTempChart'), {
+        makeChart('airTempChart', 'Air Temperature Forecast', {
             type: 'line',
             data: {
                 labels: realData.dates,
@@ -135,7 +299,7 @@
         });
 
         // Humidity Chart
-        new Chart(document.getElementById('humidityChart'), {
+        makeChart('humidityChart', 'Humidity Forecast', {
             type: 'bar',
             data: {
                 labels: realData.dates,
@@ -148,7 +312,7 @@
         });
 
         // Wind Speed Chart
-        new Chart(document.getElementById('windChart'), {
+        makeChart('windChart', 'Wind Speed Forecast', {
             type: 'line',
             data: {
                 labels: realData.dates,
@@ -162,7 +326,7 @@
         });
 
         // Wind Rose
-        new Chart(document.getElementById('windRoseChart'), {
+        makeChart('windRoseChart', 'Wind Rose', {
             type: 'polarArea',
             data: {
                 labels: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],

@@ -181,6 +181,28 @@
             max-width: 300px;
         }
     }
+    /* Bottom navigation buttons */
+    .page-nav-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 30px 20px;
+        background-color: #333;
+    }
+    .cta-btn {
+        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+        color: #fff;
+        text-decoration: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-family: 'Inter', 'Lato', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        transition: opacity 0.3s;
+    }
+    .cta-btn:hover { opacity: 0.85; }
     </style> 
     <script>
     function getTempColor(temp) {
@@ -246,7 +268,7 @@
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
-            'Waco': 'Waco, Texas',
+            'Waco': 'Waco, Texas 🤠',
             'Palm_Springs': 'Palm Springs, California',
             'Lemoore': 'Lemoore, California',
             'Atlantic_Park_Virginia_Beach': 'Atlantic Park, Virginia Beach',
@@ -283,6 +305,14 @@
                 .filter(row => row.date >= todayString)
                 .sort((left, right) => left.date.localeCompare(right.date));
 
+            if (rows.length === 0) {
+                for (let i = 1; i <= 6; i++) {
+                    const column = document.getElementById(`day${i}`);
+                    if (column) column.innerHTML = '<p>Forecast data is being updated. Check back soon.</p>';
+                }
+                return;
+            }
+
             rows.slice(0, 6).forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
                 if (!column) {
@@ -318,7 +348,6 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
-                let ciHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
@@ -333,19 +362,12 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
-
-                    const ciLow = wd.pool_ci_low;
-                    const ciHigh = wd.pool_ci_high;
-                    if (!isNaN(ciLow) && !isNaN(ciHigh)) {
-                        ciHtml = `<p style="font-size:12px; color:#aaa; margin:4px 0 0;">95% CI: ${ciLow.toFixed(1)}–${ciHigh.toFixed(1)} °F</p>`;
-                    }
                 }
 
                 column.innerHTML = `
                     <h2>${dayLabel}</h2>
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
-                    ${ciHtml}
                     ${windHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
@@ -412,7 +434,7 @@
 
     <!-- Days Container -->
     <div class="content">
-        <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas</h2>
+        <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas 🤠</h2>
         <div class="days-container">
             <div id="day1" class="day-column"></div>
             <div id="day2" class="day-column"></div>
@@ -426,6 +448,11 @@
     <!-- Days Container ends -->
 
     <!-- Footer -->
+    <div class="page-nav-row">
+        <a href="index.html" class="cta-btn">← Back to Home</a>
+        <a href="news.html" class="cta-btn">Read News →</a>
+        <a href="dashboard.html" class="cta-btn">View Dashboard →</a>
+    </div>
     <footer>
         <p id="copyright">2024 Wave Pool Weather. All rights reserved.</p>
         <p><a href="https://github.com/dylanelliotttamu/wave_pool_weather" target="_blank" rel="noopener noreferrer">View Source on GitHub</a></p>

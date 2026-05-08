@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wave Pool Weather Dashboard</title>
-    <link rel="icon" href="favicon.ico">
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -12,7 +16,8 @@
             font-family: 'Inter', 'Lato', sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-color: #333;
+            color: #fff;
         }
         .navbar {
             background-color: #222;
@@ -47,18 +52,111 @@
         }
         h1 {
             text-align: center;
-            color: #333;
+            color: #fff;
         }
         .chart-container {
-            background: white;
+            background: #444;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             margin: 20px 0;
             padding: 20px;
+        }
+        .chart-container h2 {
+            color: #4ecdc4;
         }
         .chart {
             width: 100%;
             height: 400px;
+        }
+        /* Wrapper enables the tap-hint badge to overlay the canvas */
+        .chart-wrapper {
+            position: relative;
+            display: block;
+        }
+        /* "Tap to expand" badge — only shown on mobile */
+        .tap-hint {
+            display: none;
+        }
+        /* ── Fullscreen chart modal ── */
+        #chartModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.92);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        #chartModal.open {
+            display: flex;
+        }
+        #modalHeader {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        #modalTitle {
+            color: #4ecdc4;
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+            margin: 0;
+            padding-right: 8px;
+        }
+        #modalClose {
+            background: #555;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #modalClose:hover {
+            background: #e74c3c;
+        }
+        #modalCanvasWrap {
+            width: 100%;
+            flex: 1;
+            position: relative;
+        }
+        #modalCanvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        @media (max-width: 600px) {
+            .chart {
+                height: 260px;
+            }
+            .chart-container {
+                padding: 12px;
+            }
+            /* Show the tap-hint badge on touch devices */
+            .tap-hint {
+                display: block;
+                position: absolute;
+                bottom: 8px;
+                right: 8px;
+                background: rgba(78, 205, 196, 0.85);
+                color: #222;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px 8px;
+                border-radius: 12px;
+                pointer-events: none;
+                letter-spacing: 0.3px;
+            }
         }
     </style>
 </head>
@@ -78,38 +176,165 @@
         <h1>Wave Pool Weather Dashboard - __LOCATION__</h1>
 
         <div class="chart-container">
-            <h2>__LOCATION__ Pool Temperature Forecast</h2>
-            <canvas id="poolTempChart" class="chart"></canvas>
+            <h2 id="poolTempHeading">__LOCATION__ Pool Temperature Forecast</h2>
+            <div class="chart-wrapper">
+                <canvas id="poolTempChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>__LOCATION__ Air Temperature Forecast</h2>
-            <canvas id="airTempChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="airTempChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>__LOCATION__ Humidity Forecast</h2>
-            <canvas id="humidityChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="humidityChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>__LOCATION__ Wind Speed Forecast</h2>
-            <canvas id="windChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="windChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>__LOCATION__ Solar Radiation Forecast</h2>
-            <canvas id="solarChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="solarChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
         </div>
 
         <div class="chart-container">
             <h2>__LOCATION__ Wind Rose</h2>
-            <canvas id="windRoseChart" class="chart"></canvas>
+            <div class="chart-wrapper">
+                <canvas id="windRoseChart" class="chart"></canvas>
+                <span class="tap-hint">Tap to expand</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen chart modal (mobile expand) -->
+    <div id="chartModal" role="dialog" aria-modal="true" aria-label="Expanded chart">
+        <div id="modalHeader">
+            <p id="modalTitle"></p>
+            <button id="modalClose" aria-label="Close expanded chart">&#x2715;</button>
+        </div>
+        <div id="modalCanvasWrap">
+            <canvas id="modalCanvas"></canvas>
         </div>
     </div>
 
     <script>
         // __REAL_DATA__
+
+        // ── Chart registry: stores config for each chart so the modal can re-render ──
+        const chartRegistry = new Map(); // id → { title, config }
+        let modalChartInstance = null;
+
+        function makeChart(id, title, config) {
+            const instance = new Chart(document.getElementById(id), config);
+            chartRegistry.set(id, { title, config });
+            return instance;
+        }
+
+        // ── Fullscreen modal logic ──
+        const modal = document.getElementById('chartModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalClose = document.getElementById('modalClose');
+        const modalCanvas = document.getElementById('modalCanvas');
+        const modalCanvasWrap = document.getElementById('modalCanvasWrap');
+
+        function openModal(id) {
+            const entry = chartRegistry.get(id);
+            if (!entry) return;
+
+            modalTitle.textContent = entry.title;
+
+            // Destroy any previous modal chart
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+
+            // Size the canvas to fill the available space
+            const wrapH = window.innerHeight - 90; // leave room for header
+            modalCanvasWrap.style.height = wrapH + 'px';
+
+            // Deep-clone config so the modal chart doesn't share state
+            const clonedConfig = JSON.parse(JSON.stringify(entry.config));
+
+            // Use larger fonts in the fullscreen view
+            const fullFontSize = 13;
+            if (clonedConfig.options && clonedConfig.options.scales) {
+                Object.values(clonedConfig.options.scales).forEach(scale => {
+                    if (scale.title && scale.title.font) scale.title.font.size = fullFontSize;
+                    if (scale.ticks && scale.ticks.font) scale.ticks.font.size = fullFontSize;
+                });
+            }
+            Chart.defaults.font.size = fullFontSize;
+
+            modalChartInstance = new Chart(modalCanvas, clonedConfig);
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+        }
+
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Re-render modal chart on orientation change / resize while open
+        window.addEventListener('resize', function () {
+            if (modal.classList.contains('open') && modalChartInstance) {
+                const openId = [...chartRegistry.keys()].find(id => {
+                    const t = chartRegistry.get(id);
+                    return t && modalTitle.textContent === t.title;
+                });
+                if (openId) openModal(openId);
+            }
+        });
+
+        // Attach tap/click listeners to every chart wrapper (always, not just mobile)
+        // so users can expand on desktop too; on mobile the tap-hint badge is shown via CSS
+        document.querySelectorAll('.chart-wrapper canvas').forEach(canvas => {
+            canvas.style.cursor = 'zoom-in';
+            canvas.addEventListener('click', function () {
+                openModal(this.id);
+            });
+        });
+
+        // Increase axis font sizes on mobile so tick labels and titles remain readable
+        const isMobile = window.innerWidth < 600;
+        const MOBILE_AXIS_TITLE_FONT_SIZE = 11;
+        const DESKTOP_AXIS_TITLE_FONT_SIZE = 13;
+        const MOBILE_TICK_FONT_SIZE = 10;
+        const DESKTOP_TICK_FONT_SIZE = 12;
+        const axisTitleFontSize = isMobile ? MOBILE_AXIS_TITLE_FONT_SIZE : DESKTOP_AXIS_TITLE_FONT_SIZE;
+        const tickFontSize = isMobile ? MOBILE_TICK_FONT_SIZE : DESKTOP_TICK_FONT_SIZE;
+        Chart.defaults.font.size = tickFontSize;
 
         const HISTORY_DAYS = 3;
         const today = new Date();
@@ -148,9 +373,14 @@
         const humiditySplit = splitSeries(visibleHumidities);
         const windSplit = splitSeries(visibleWindSpeeds);
         const solarSplit = splitSeries(visibleSolar);
+        const poolChartLocationLabel = chartLocation === 'Waco' ? 'Waco 🤠' : chartLocation;
+        const poolHeading = document.getElementById('poolTempHeading');
+        if (poolHeading) {
+            poolHeading.textContent = `${poolChartLocationLabel} Pool Temperature Forecast`;
+        }
 
         // Pool Temp Chart
-        new Chart(document.getElementById('poolTempChart'), {
+        makeChart('poolTempChart', `${poolChartLocationLabel} Pool Temperature Forecast`, {
             type: 'line',
             data: {
                 labels: visibleDates,
@@ -176,18 +406,18 @@
             },
             options: {
                 plugins: {
-                    title: { display: true, text: `${chartLocation} Pool Temperature Forecast (°F)` },
+                    title: { display: true, text: `${poolChartLocationLabel} Pool Temperature Forecast (°F)` },
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Pool Temperature (°F)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Pool Temperature (°F)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
 
         // Air Temp Chart
-        new Chart(document.getElementById('airTempChart'), {
+        makeChart('airTempChart', `${chartLocation} Air Temperature Forecast`, {
             type: 'line',
             data: {
                 labels: visibleDates,
@@ -217,14 +447,14 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Air Temperature (°F)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Air Temperature (°F)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
 
         // Humidity Chart
-        new Chart(document.getElementById('humidityChart'), {
+        makeChart('humidityChart', `${chartLocation} Humidity Forecast`, {
             type: 'bar',
             data: {
                 labels: visibleDates,
@@ -247,14 +477,14 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Humidity (%)' }, min: 0, max: 100 }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Humidity (%)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } }, min: 0, max: 100 }
                 }
             }
         });
 
         // Wind Speed Chart
-        new Chart(document.getElementById('windChart'), {
+        makeChart('windChart', `${chartLocation} Wind Speed Forecast`, {
             type: 'line',
             data: {
                 labels: visibleDates,
@@ -284,14 +514,14 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Wind Speed (m s⁻¹)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Wind Speed (m s⁻¹)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
 
         // Solar Radiation Chart
-        new Chart(document.getElementById('solarChart'), {
+        makeChart('solarChart', `${chartLocation} Solar Radiation Forecast`, {
             type: 'bar',
             data: {
                 labels: visibleDates,
@@ -314,14 +544,14 @@
                     legend: { display: true }
                 },
                 scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)' } }
+                    x: { title: { display: true, text: 'Date', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } },
+                    y: { title: { display: true, text: 'Solar Radiation (MJ m⁻² day⁻¹)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });
 
         // Wind Rose
-        new Chart(document.getElementById('windRoseChart'), {
+        makeChart('windRoseChart', `${chartLocation} Wind Rose`, {
             type: 'polarArea',
             data: {
                 labels: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
@@ -345,7 +575,7 @@
                     title: { display: true, text: `${chartLocation} Wind Direction Frequency` }
                 },
                 scales: {
-                    r: { title: { display: true, text: 'Frequency (count)' } }
+                    r: { title: { display: true, text: 'Frequency (count)', font: { size: axisTitleFontSize } }, ticks: { font: { size: tickFontSize } } }
                 }
             }
         });

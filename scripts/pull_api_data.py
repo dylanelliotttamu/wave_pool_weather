@@ -114,6 +114,43 @@ def is_plausible_pool_temp_C(temp_C):
 def clamp(value, low, high):
     return max(low, min(high, value))
 
+def coerce_float(value, fallback=0.0, field_name='value'):
+    """Best-effort conversion of API/DB values to finite float."""
+    raw_value = value
+
+    # Some legacy rows may store a single-item sequence; unwrap it.
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return fallback
+        value = value[0]
+
+    # Fast path for numeric values.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        value_f = float(value)
+        return value_f if math.isfinite(value_f) else fallback
+
+    # String inputs may be numeric text or JSON-encoded payloads.
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == '':
+            return fallback
+        try:
+            value_f = float(stripped)
+            return value_f if math.isfinite(value_f) else fallback
+        except ValueError:
+            try:
+                parsed = json.loads(stripped)
+            except (json.JSONDecodeError, TypeError):
+                parsed = None
+            if parsed is not None:
+                return coerce_float(parsed, fallback=fallback, field_name=field_name)
+
+    print(
+        f"  WARNING: could not parse {field_name}: raw={raw_value!r} "
+        f"type={type(raw_value).__name__}; using {fallback}"
+    )
+    return fallback
+
 def percentile(values, pct):
     """Linear-interpolated percentile for a non-empty numeric list."""
     if not values:
@@ -232,6 +269,12 @@ def pool_thermal_balance_step(
     T_pool_new_C  : updated pool temperature (°C)
     heat_fluxes   : dict with individual flux components (W m⁻²) and dT (°C)
     """
+    T_pool_C = coerce_float(T_pool_C, field_name='T_pool_C')
+    T_air_C = coerce_float(T_air_C, field_name='T_air_C')
+    RH_pct = coerce_float(RH_pct, fallback=50.0, field_name='RH_pct')
+    wind_speed_ms = max(0.0, coerce_float(wind_speed_ms, field_name='wind_speed_ms'))
+    solar_MJm2_day = max(0.0, coerce_float(solar_MJm2_day, field_name='solar_MJm2_day'))
+
     T_pool_K = T_pool_C + 273.15
     T_air_K  = T_air_C  + 273.15
     RH       = max(0.0, min(1.0, RH_pct / 100.0))
@@ -303,6 +346,9 @@ direction_map = {
 #              (no file writes, no on-disk DB writes)
 TEST_MODE = os.getenv('WAVE_POOL_TEST_MODE', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 WRITE_FILES = not TEST_MODE
+# Set WAVE_POOL_FORCE_REFRESH=1 to bypass the same-day API-call cache and
+# re-fetch all external data even when today's rows already exist in the DB.
+FORCE_REFRESH = os.getenv('WAVE_POOL_FORCE_REFRESH', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
@@ -392,7 +438,7 @@ for name, coords in locations.items():
 
 conn.commit()
 
-def fetch_json_from_url(url, timeout=30):
+def fetch_json_from_url(url, timeout=15):
     with urllib.request.urlopen(url, timeout=timeout) as response:
         data = json.loads(response.read().decode())
         return data
@@ -413,11 +459,11 @@ def retrieve_the_hourly_url_given_only_lat_and_lon(input_lat, input_lon):
     return hourly_forecast_url
 
 # Use url and return data (returns 7-days of hourly data)
-def request_data(url, retries=3, delay=2):
+def request_data(url, retries=3, delay=1):
     hourly_weather_json_data = None
     for attempt in range(retries):
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
+            with urllib.request.urlopen(url, timeout=15) as response:
                 hourly_weather_json_data = json.loads(response.read().decode())
                 return hourly_weather_json_data
         except Exception as e:
@@ -625,34 +671,71 @@ for name, coords in locations.items():
     cursor.execute('SELECT id FROM locations WHERE name=?', (name,))
     location_id = cursor.fetchone()[0]
 
-    data = pull_api_temp_data_main(lat, lon, 1)
-    if not data:
-        print(f"  Failed to get NWS data for {name}")
-        continue
+    # ------------------------------------------------------------------ #
+    # Decide whether to re-fetch from external APIs.                      #
+    # Skip the network round-trip when today's air-temp rows already      #
+    # exist in the DB and WAVE_POOL_FORCE_REFRESH is not set.  This       #
+    # prevents redundant expensive API calls when the cron or deploy      #
+    # script runs the pipeline more than once in the same calendar day.   #
+    # ------------------------------------------------------------------ #
+    cursor.execute(
+        'SELECT COUNT(*) FROM air_temps WHERE location_id=? AND date=?',
+        (location_id, str(current_date))
+    )
+    todays_air_data_exists = cursor.fetchone()[0] > 0
 
-    # ------------------------------------------------------------------ #
-    # Fetch solar radiation from Open-Meteo                               #
-    # ------------------------------------------------------------------ #
-    solar_map = fetch_solar_radiation_open_meteo(lat, lon, data['date_list'])
-
-    # ------------------------------------------------------------------ #
-    # Store forecasted air temperatures (°C), wind (m s⁻¹), solar        #
-    # ------------------------------------------------------------------ #
-    for i, d in enumerate(data['date_list']):
-        solar_val = solar_map.get(str(d), None)
+    if todays_air_data_exists and not FORCE_REFRESH:
+        print("  Today's air-temp data already in DB; loading from cache (skipping API).")
         cursor.execute(
+            'SELECT date, temp, humidity, wind_speed, wind_direction, solar_radiation '
+            'FROM air_temps WHERE location_id=? AND date >= ? ORDER BY date',
+            (location_id, str(current_date))
+        )
+        db_rows = cursor.fetchall()
+        if not db_rows:
+            print(f"  No cached forecast rows found for {name}; skipping.")
+            continue
+        data = {
+            'date_list':                   [datetime.strptime(r[0], '%Y-%m-%d').date() for r in db_rows],
+            'average_temp_list':           [coerce_float(r[1], field_name='air_temp') for r in db_rows],
+            'average_humidity_list':       [coerce_float(r[2], fallback=50.0, field_name='humidity') for r in db_rows],
+            'average_wind_list':           [coerce_float(r[3], field_name='wind_speed') for r in db_rows],
+            'average_wind_direction_list': [r[4] if r[4] is not None else 0.0  for r in db_rows],
+        }
+        solar_map = {
+            r[0]: coerce_float(r[5], fallback=0.0, field_name='solar_radiation')
+            for r in db_rows if r[5] is not None
+        }
+    else:
+        data = pull_api_temp_data_main(lat, lon, 1)
+        if not data:
+            print(f"  Failed to get NWS data for {name}")
+            continue
+
+        # -------------------------------------------------------------- #
+        # Fetch solar radiation from Open-Meteo                           #
+        # -------------------------------------------------------------- #
+        solar_map = fetch_solar_radiation_open_meteo(lat, lon, data['date_list'])
+
+        # -------------------------------------------------------------- #
+        # Store forecasted air temperatures (°C), wind (m s⁻¹), solar    #
+        # -------------------------------------------------------------- #
+        cursor.executemany(
             'INSERT OR REPLACE INTO air_temps '
             '(location_id, date, temp, humidity, wind_speed, wind_direction, solar_radiation) '
             'VALUES (?, ?, ?, ?, ?, ?, ?)',
-            (
-                location_id,
-                str(d),
-                data['average_temp_list'][i],
-                data['average_humidity_list'][i],
-                data['average_wind_list'][i],
-                data['average_wind_direction_list'][i],
-                solar_val,
-            )
+            [
+                (
+                    location_id,
+                    str(d),
+                    data['average_temp_list'][i],
+                    data['average_humidity_list'][i],
+                    data['average_wind_list'][i],
+                    data['average_wind_direction_list'][i],
+                    solar_map.get(str(d), None),
+                )
+                for i, d in enumerate(data['date_list'])
+            ]
         )
 
     # ------------------------------------------------------------------ #
@@ -661,25 +744,25 @@ for name, coords in locations.items():
     # ------------------------------------------------------------------ #
     # Look for the latest pool temp already in the DB (up to 7 days ago)
     T_pool_init_C = None
-    for days_back in range(1, 8):
-        check_date = current_date - timedelta(days=days_back)
-        cursor.execute(
-            'SELECT temp FROM pool_temps WHERE location_id=? AND date=?',
-            (location_id, str(check_date))
+    lookback_cutoff = str(current_date - timedelta(days=7))
+    cursor.execute(
+        'SELECT date, temp FROM pool_temps '
+        'WHERE location_id=? AND date >= ? AND date < ? '
+        'ORDER BY date DESC LIMIT 7',
+        (location_id, lookback_cutoff, str(current_date))
+    )
+    for seed_row in cursor.fetchall():
+        candidate_pool_temp_C = float(seed_row[1])
+        if is_plausible_pool_temp_C(candidate_pool_temp_C):
+            T_pool_init_C = candidate_pool_temp_C
+            print(f"  Using stored pool temp from {seed_row[0]}: {T_pool_init_C:.2f} °C "
+                  f"({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
+            break
+        print(
+            f"  WARNING: ignoring implausible stored pool temp from {seed_row[0]}: "
+            f"{candidate_pool_temp_C:.2f} °C "
+            f"({celsius_to_fahrenheit(candidate_pool_temp_C):.1f} °F)"
         )
-        row = cursor.fetchone()
-        if row is not None:
-            candidate_pool_temp_C = float(row[0])
-            if is_plausible_pool_temp_C(candidate_pool_temp_C):
-                T_pool_init_C = candidate_pool_temp_C
-                print(f"  Using stored pool temp from {check_date}: {T_pool_init_C:.2f} °C "
-                      f"({celsius_to_fahrenheit(T_pool_init_C):.1f} °F)")
-                break
-            print(
-                f"  WARNING: ignoring implausible stored pool temp from {check_date}: "
-                f"{candidate_pool_temp_C:.2f} °C "
-                f"({celsius_to_fahrenheit(candidate_pool_temp_C):.1f} °F)"
-            )
 
     if T_pool_init_C is None:
         # No plausible pool history: initialise from today's air temp.
@@ -712,7 +795,7 @@ for name, coords in locations.items():
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
     mc_prev_samples = []
-    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '200')))
+    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
     for _ in range(MC_SAMPLES):
         # Start near initial condition with a small spread.
         init_sample = random.gauss(T_pool_init_C, fahrenheit_to_celsius(0.5))
@@ -723,9 +806,11 @@ for name, coords in locations.items():
         T_air_C      = data['average_temp_list'][i]
         RH_pct       = data['average_humidity_list'][i]
         wind_ms      = data['average_wind_list'][i]
-        solar_MJm2   = solar_map.get(str(d), SOLAR_FALLBACK_MJM2)
-        if solar_MJm2 is None:
-            solar_MJm2 = SOLAR_FALLBACK_MJM2
+        solar_MJm2 = coerce_float(
+            solar_map.get(str(d), SOLAR_FALLBACK_MJM2),
+            fallback=SOLAR_FALLBACK_MJM2,
+            field_name=f'solar_MJm2[{d}]'
+        )
 
         # --- simple baseline (pool temp equals daily mean air temp) ---
         T_pool_air_C = T_air_C
