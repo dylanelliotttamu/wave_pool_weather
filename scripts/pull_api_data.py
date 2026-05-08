@@ -114,6 +114,43 @@ def is_plausible_pool_temp_C(temp_C):
 def clamp(value, low, high):
     return max(low, min(high, value))
 
+def coerce_float(value, fallback=0.0, field_name='value'):
+    """Best-effort conversion of API/DB values to finite float."""
+    raw_value = value
+
+    # Some legacy rows may store a single-item sequence; unwrap it.
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return fallback
+        value = value[0]
+
+    # Fast path for numeric values.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        value_f = float(value)
+        return value_f if math.isfinite(value_f) else fallback
+
+    # String inputs may be numeric text or JSON-encoded payloads.
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == '':
+            return fallback
+        try:
+            value_f = float(stripped)
+            return value_f if math.isfinite(value_f) else fallback
+        except ValueError:
+            try:
+                parsed = json.loads(stripped)
+            except (json.JSONDecodeError, TypeError):
+                parsed = None
+            if parsed is not None:
+                return coerce_float(parsed, fallback=fallback, field_name=field_name)
+
+    print(
+        f"  WARNING: could not parse {field_name}: raw={raw_value!r} "
+        f"type={type(raw_value).__name__}; using {fallback}"
+    )
+    return fallback
+
 def percentile(values, pct):
     """Linear-interpolated percentile for a non-empty numeric list."""
     if not values:
@@ -232,6 +269,12 @@ def pool_thermal_balance_step(
     T_pool_new_C  : updated pool temperature (°C)
     heat_fluxes   : dict with individual flux components (W m⁻²) and dT (°C)
     """
+    T_pool_C = coerce_float(T_pool_C, field_name='T_pool_C')
+    T_air_C = coerce_float(T_air_C, field_name='T_air_C')
+    RH_pct = coerce_float(RH_pct, fallback=50.0, field_name='RH_pct')
+    wind_speed_ms = max(0.0, coerce_float(wind_speed_ms, field_name='wind_speed_ms'))
+    solar_MJm2_day = max(0.0, coerce_float(solar_MJm2_day, field_name='solar_MJm2_day'))
+
     T_pool_K = T_pool_C + 273.15
     T_air_K  = T_air_C  + 273.15
     RH       = max(0.0, min(1.0, RH_pct / 100.0))
@@ -642,7 +685,7 @@ for name, coords in locations.items():
     todays_air_data_exists = cursor.fetchone()[0] > 0
 
     if todays_air_data_exists and not FORCE_REFRESH:
-        print(f"  Today's air-temp data already in DB; loading from cache (skipping API).")
+        print("  Today's air-temp data already in DB; loading from cache (skipping API).")
         cursor.execute(
             'SELECT date, temp, humidity, wind_speed, wind_direction, solar_radiation '
             'FROM air_temps WHERE location_id=? AND date >= ? ORDER BY date',
@@ -654,12 +697,15 @@ for name, coords in locations.items():
             continue
         data = {
             'date_list':                   [datetime.strptime(r[0], '%Y-%m-%d').date() for r in db_rows],
-            'average_temp_list':           [r[1] for r in db_rows],
-            'average_humidity_list':       [r[2] if r[2] is not None else 50.0 for r in db_rows],
-            'average_wind_list':           [r[3] if r[3] is not None else 0.0  for r in db_rows],
+            'average_temp_list':           [coerce_float(r[1], field_name='air_temp') for r in db_rows],
+            'average_humidity_list':       [coerce_float(r[2], fallback=50.0, field_name='humidity') for r in db_rows],
+            'average_wind_list':           [coerce_float(r[3], field_name='wind_speed') for r in db_rows],
             'average_wind_direction_list': [r[4] if r[4] is not None else 0.0  for r in db_rows],
         }
-        solar_map = {r[0]: r[5] for r in db_rows if r[5] is not None}
+        solar_map = {
+            r[0]: coerce_float(r[5], fallback=0.0, field_name='solar_radiation')
+            for r in db_rows if r[5] is not None
+        }
     else:
         data = pull_api_temp_data_main(lat, lon, 1)
         if not data:
@@ -760,9 +806,11 @@ for name, coords in locations.items():
         T_air_C      = data['average_temp_list'][i]
         RH_pct       = data['average_humidity_list'][i]
         wind_ms      = data['average_wind_list'][i]
-        solar_MJm2   = solar_map.get(str(d), SOLAR_FALLBACK_MJM2)
-        if solar_MJm2 is None:
-            solar_MJm2 = SOLAR_FALLBACK_MJM2
+        solar_MJm2 = coerce_float(
+            solar_map.get(str(d), SOLAR_FALLBACK_MJM2),
+            fallback=SOLAR_FALLBACK_MJM2,
+            field_name=f'solar_MJm2[{d}]'
+        )
 
         # --- simple baseline (pool temp equals daily mean air temp) ---
         T_pool_air_C = T_air_C
