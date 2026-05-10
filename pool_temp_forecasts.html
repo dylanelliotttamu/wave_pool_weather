@@ -304,13 +304,22 @@
                 .filter(parts => parts.length >= 2)
                 .map(parts => {
                     const date = parts[0].trim();
+                    const [year, month, day] = date.split('-').map(Number);
+                    const dateObj = new Date(year, month - 1, day);
+                    const isValidDate = Number.isInteger(year)
+                        && Number.isInteger(month)
+                        && Number.isInteger(day)
+                        && dateObj.getFullYear() === year
+                        && dateObj.getMonth() === month - 1
+                        && dateObj.getDate() === day;
                     return {
                         date,
                         temp: parts[1],
-                        dateObj: new Date(`${date}T00:00:00`)
+                        dateObj,
+                        isValidDate
                     };
                 })
-                .filter(row => !Number.isNaN(row.dateObj.getTime()) && row.dateObj >= today)
+                .filter(row => row.isValidDate && row.dateObj >= today)
                 .sort((left, right) => left.dateObj - right.dateObj);
 
             if (rows.length === 0) {
