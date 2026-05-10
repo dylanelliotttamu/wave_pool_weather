@@ -393,7 +393,7 @@
             for (let i = visibleRows.length + 1; i <= 6; i++) {
                 const column = document.getElementById(`day${i}`);
                 if (column) {
-                    column.innerHTML = '<p>Not enough forecast data available yet.</p>';
+                    column.innerHTML = '<p>Extended forecast data is not available yet. Check back soon.</p>';
                 }
             }
         } catch (error) {
