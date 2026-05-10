@@ -264,7 +264,6 @@
 
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
-        const todayString = new Date().toLocaleDateString('en-CA');
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
@@ -294,6 +293,8 @@
             }
 
             const text = await response.text();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const rows = text
                 .trim()
                 .split('\n')
@@ -301,9 +302,16 @@
                 .filter(Boolean)
                 .map(line => line.split(','))
                 .filter(parts => parts.length >= 2)
-                .map(parts => ({ date: parts[0], temp: parts[1] }))
-                .filter(row => row.date >= todayString)
-                .sort((left, right) => left.date.localeCompare(right.date));
+                .map(parts => {
+                    const date = parts[0].trim();
+                    return {
+                        date,
+                        temp: parts[1],
+                        dateObj: new Date(`${date}T00:00:00`)
+                    };
+                })
+                .filter(row => !Number.isNaN(row.dateObj.getTime()) && row.dateObj >= today)
+                .sort((left, right) => left.dateObj - right.dateObj);
 
             if (rows.length === 0) {
                 for (let i = 1; i <= 6; i++) {
@@ -313,14 +321,14 @@
                 return;
             }
 
-            rows.slice(0, 6).forEach((row, index) => {
+            const visibleRows = rows.slice(0, 6);
+            visibleRows.forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
                 if (!column) {
                     return;
                 }
 
-                const dateObj = new Date(row.date + 'T00:00:00');
-                const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const dayLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
                 let suitRecommendation = '';
                 const temperature = parseFloat(row.temp);
@@ -372,6 +380,13 @@
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
             });
+
+            for (let i = visibleRows.length + 1; i <= 6; i++) {
+                const column = document.getElementById(`day${i}`);
+                if (column) {
+                    column.innerHTML = '<p>Not enough forecast data available yet.</p>';
+                }
+            }
         } catch (error) {
             for (let i = 1; i <= 6; i++) {
                 const column = document.getElementById(`day${i}`);
@@ -463,4 +478,3 @@
     </script>
 </body>
 </html>
-
