@@ -1,0 +1,13 @@
+# Waco Surf (Waco, TX) historic pool water temperature ranges
+# Source: wacosurf.com FAQ ("What's the water temperature?")
+# Water temp changes with the weather; check wacosurf.com pre-footer for daily updates.
+# Columns: month_range, low_temp_f, high_temp_f
+month_range,low_temp_f,high_temp_f
+Mar-Apr,45,65
+Apr-May,60,75
+May-Jun,75,85
+Jun-Jul,80,90
+Aug-Sep,75,90
+Sep-Oct,65,80
+Oct-Nov,60,75
+Nov-Dec,45,65
