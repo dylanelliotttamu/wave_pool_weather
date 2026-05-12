@@ -264,7 +264,7 @@
 
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
-        const todayString = new Date().toLocaleDateString('en-CA');
+        const forecastDaysToShow = 8;
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
@@ -277,7 +277,7 @@
         displayName = displayMap[poolName] || displayName;
         document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
 
-        for (let i = 1; i <= 6; i++) {
+        for (let i = 1; i <= forecastDaysToShow; i++) {
             const column = document.getElementById(`day${i}`);
             if (column) {
                 column.innerHTML = '<p>Loading...</p>';
@@ -294,6 +294,8 @@
             }
 
             const text = await response.text();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const rows = text
                 .trim()
                 .split('\n')
@@ -301,26 +303,42 @@
                 .filter(Boolean)
                 .map(line => line.split(','))
                 .filter(parts => parts.length >= 2)
-                .map(parts => ({ date: parts[0], temp: parts[1] }))
-                .filter(row => row.date >= todayString)
-                .sort((left, right) => left.date.localeCompare(right.date));
+                .map(parts => {
+                    const date = parts[0].trim();
+                    const [year, month, day] = date.split('-').map(Number);
+                    const dateObj = new Date(year, month - 1, day);
+                    const isValidDate = Number.isInteger(year)
+                        && Number.isInteger(month)
+                        && Number.isInteger(day)
+                        && dateObj.getFullYear() === year
+                        && dateObj.getMonth() === month - 1
+                        && dateObj.getDate() === day;
+                    return {
+                        date,
+                        temp: parts[1],
+                        dateObj,
+                        isValidDate
+                    };
+                })
+                .filter(row => row.isValidDate && row.dateObj >= today)
+                .sort((left, right) => left.dateObj - right.dateObj);
 
             if (rows.length === 0) {
-                for (let i = 1; i <= 6; i++) {
+                for (let i = 1; i <= forecastDaysToShow; i++) {
                     const column = document.getElementById(`day${i}`);
                     if (column) column.innerHTML = '<p>Forecast data is being updated. Check back soon.</p>';
                 }
                 return;
             }
 
-            rows.slice(0, 6).forEach((row, index) => {
+            const visibleRows = rows.slice(0, forecastDaysToShow);
+            visibleRows.forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
                 if (!column) {
                     return;
                 }
 
-                const dateObj = new Date(row.date + 'T00:00:00');
-                const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const dayLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
                 let suitRecommendation = '';
                 const temperature = parseFloat(row.temp);
@@ -372,8 +390,15 @@
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                 `;
             });
+
+            for (let i = visibleRows.length + 1; i <= forecastDaysToShow; i++) {
+                const column = document.getElementById(`day${i}`);
+                if (column) {
+                    column.innerHTML = '<p>Extended forecast data is not available yet. Check back soon.</p>';
+                }
+            }
         } catch (error) {
-            for (let i = 1; i <= 6; i++) {
+            for (let i = 1; i <= forecastDaysToShow; i++) {
                 const column = document.getElementById(`day${i}`);
                 if (column) {
                     column.innerHTML = '<p>Unable to load forecast data.</p>';
@@ -442,7 +467,8 @@
             <div id="day4" class="day-column"></div>
             <div id="day5" class="day-column"></div>
             <div id="day6" class="day-column"></div>
-            <!-- <div id="day7" class="day-column"></div> -->
+            <div id="day7" class="day-column"></div>
+            <div id="day8" class="day-column"></div>
         </div>
     </div>
     <!-- Days Container ends -->
@@ -463,4 +489,3 @@
     </script>
 </body>
 </html>
-
