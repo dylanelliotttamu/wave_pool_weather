@@ -221,6 +221,9 @@
         color: #4ecdc4;
         font-weight: 600;
     }
+    .data-info-row + .data-info-row {
+        margin-top: 8px;
+    }
     </style> 
     <script>
     function getTempColor(temp) {
@@ -526,9 +529,9 @@
 
         <!-- Data timestamps info box -->
         <div class="data-info-box">
-            <div><span class="info-label">🕐 Last data update:</span><br>
+            <div class="data-info-row"><span class="info-label">🕐 Last data update:</span><br>
                 <span id="lastFetchTime">loading…</span></div>
-            <div style="margin-top:8px;"><span class="info-label">🚀 Last code deploy:</span><br>
+            <div class="data-info-row"><span class="info-label">🚀 Last code deploy:</span><br>
                 <span id="lastDeployTime">loading…</span></div>
         </div>
     </div>
