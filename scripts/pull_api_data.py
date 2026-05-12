@@ -1367,6 +1367,16 @@ if WRITE_FILES:
         f.write(dashboard_html)
 else:
     print("TEST MODE: skipped dashboard.html write.")
+
+# Write last-data-fetch timestamp so the frontend info box can display it.
+if WRITE_FILES:
+    fetch_ts_path = os.path.join(DATA_DIR, 'last_data_fetch.txt')
+    with open(fetch_ts_path, 'w') as f:
+        f.write(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') + '\n')
+    print(f"Wrote last_data_fetch timestamp to {fetch_ts_path}")
+else:
+    print("TEST MODE: skipped last_data_fetch.txt write.")
+
 conn.commit()
 conn.close()
 

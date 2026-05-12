@@ -203,6 +203,24 @@
         transition: opacity 0.3s;
     }
     .cta-btn:hover { opacity: 0.85; }
+
+    /* Data info box */
+    .data-info-box {
+        background-color: #3a3a3a;
+        border: 1px solid #555;
+        border-radius: 10px;
+        padding: 16px 24px;
+        margin: 28px auto 4px;
+        max-width: 480px;
+        text-align: center;
+        font-size: 13px;
+        color: #aaa;
+        line-height: 2;
+    }
+    .data-info-box .info-label {
+        color: #4ecdc4;
+        font-weight: 600;
+    }
     </style> 
     <script>
     function getTempColor(temp) {
@@ -424,7 +442,42 @@
                 loadPoolData(this.dataset.pool);
             });
         });
+
+        loadInfoTimestamps();
     });
+
+    async function loadInfoTimestamps() {
+        async function fetchTimestamp(url) {
+            try {
+                const r = await fetch(url, { cache: 'no-store' });
+                if (!r.ok) return null;
+                const text = (await r.text()).trim();
+                if (!text) return null;
+                const d = new Date(text);
+                return isNaN(d.getTime()) ? null : d;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function fmtDate(d) {
+            if (!d) return 'unavailable';
+            return d.toLocaleString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric',
+                hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+            });
+        }
+
+        const [fetchDate, deployDate] = await Promise.all([
+            fetchTimestamp('data/last_data_fetch.txt'),
+            fetchTimestamp('data/last_deploy.txt')
+        ]);
+
+        const fetchEl  = document.getElementById('lastFetchTime');
+        const deployEl = document.getElementById('lastDeployTime');
+        if (fetchEl)  fetchEl.textContent  = fmtDate(fetchDate);
+        if (deployEl) deployEl.textContent = fmtDate(deployDate);
+    }
     </script>
 </head>
 <body>
@@ -469,6 +522,14 @@
             <div id="day6" class="day-column"></div>
             <div id="day7" class="day-column"></div>
             <div id="day8" class="day-column"></div>
+        </div>
+
+        <!-- Data timestamps info box -->
+        <div class="data-info-box">
+            <div><span class="info-label">🕐 Last data update:</span><br>
+                <span id="lastFetchTime">loading…</span></div>
+            <div style="margin-top:8px;"><span class="info-label">🚀 Last code deploy:</span><br>
+                <span id="lastDeployTime">loading…</span></div>
         </div>
     </div>
     <!-- Days Container ends -->
