@@ -39,6 +39,10 @@ git pull --ff-only origin "$BRANCH" >> "$LOG_FILE" 2>&1
 
 echo "$(date -Iseconds) [INFO] Updated to $(git rev-parse --short HEAD)" >> "$LOG_FILE"
 
+# Record deploy timestamp for the frontend info box.
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$REPO_DIR/data/last_deploy.txt"
+echo "$(date -Iseconds) [INFO] Wrote last_deploy.txt" >> "$LOG_FILE"
+
 # If you run a service, uncomment and set the correct unit.
 # systemctl restart wavepool.service >> "$LOG_FILE" 2>&1
 
