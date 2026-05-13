@@ -4,7 +4,7 @@ import urllib.request
 import json
 import math
 import random
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import time
 import sqlite3
 import os
@@ -1372,7 +1372,7 @@ else:
 if WRITE_FILES:
     fetch_ts_path = os.path.join(DATA_DIR, 'last_data_fetch.txt')
     with open(fetch_ts_path, 'w') as f:
-        f.write(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ') + '\n')
+        f.write(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ') + '\n')
     print(f"Wrote last_data_fetch timestamp to {fetch_ts_path}")
 else:
     print("TEST MODE: skipped last_data_fetch.txt write.")
