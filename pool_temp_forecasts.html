@@ -481,8 +481,8 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(ctx) {
-                                    return `${ctx.parsed.y.toFixed(1)} °F`;
+                                label: function(tooltipItem) {
+                                    return `${tooltipItem.parsed.y.toFixed(1)} °F`;
                                 }
                             }
                         }
