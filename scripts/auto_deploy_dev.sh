@@ -26,6 +26,19 @@ remote_sha="$(git rev-parse "origin/$BRANCH")"
 
 if [ "$local_sha" = "$remote_sha" ]; then
   echo "$(date -Iseconds) [INFO] No new commits." >> "$LOG_FILE"
+
+  # Backfill deploy marker when absent so the frontend info box can render.
+  if [ ! -s "$REPO_DIR/data/last_deploy.txt" ]; then
+    mkdir -p "$REPO_DIR/data"
+    commit_ts="$(git show -s --format=%cI HEAD 2>/dev/null || true)"
+    if [ -n "$commit_ts" ]; then
+      echo "$commit_ts" > "$REPO_DIR/data/last_deploy.txt"
+    else
+      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$REPO_DIR/data/last_deploy.txt"
+    fi
+    echo "$(date -Iseconds) [INFO] Backfilled last_deploy.txt on no-update run." >> "$LOG_FILE"
+  fi
+
   exit 0
 fi
 
