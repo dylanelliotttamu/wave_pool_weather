@@ -611,11 +611,11 @@ def parse_weather_data(inputhourlyjsonweather_data):
                     "humidities":           [],
                     "wind_speeds":          [],
                     "wind_directions":      [],
-                    # morning window: midnight–8 AM (hours 0–8 inclusive)
+                    # morning window: midnight–9 AM (hours 0–8 inclusive)
                     "morning_temperatures": [],
                     "morning_humidities":   [],
                     "morning_wind_speeds":  [],
-                    # afternoon window: 9 AM–2 PM (hours 9–14 inclusive)
+                    # afternoon window: 9 AM–3 PM (hours 9–14 inclusive)
                     "afternoon_temperatures": [],
                     "afternoon_humidities":   [],
                     "afternoon_wind_speeds":  [],
