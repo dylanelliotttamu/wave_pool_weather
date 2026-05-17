@@ -10,6 +10,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
     /* CSS styles */
     body {
@@ -224,8 +225,28 @@
     .data-info-row + .data-info-row {
         margin-top: 8px;
     }
+
+    /* Temperature forecast chart */
+    .chart-section {
+        max-width: 900px;
+        margin: 20px auto 0;
+        padding: 20px 24px;
+        background: #444;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .chart-section h3 {
+        text-align: center;
+        color: #4ecdc4;
+        margin: 0 0 16px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
     </style> 
     <script>
+    let tempChartInstance = null;
+
     function getTempColor(temp) {
         if (temp > 88)  return '#cc0000';        // red (very hot)
         if (temp >= 80) return '#ff6600';        // orange
@@ -418,6 +439,67 @@
                     column.innerHTML = '<p>Extended forecast data is not available yet. Check back soon.</p>';
                 }
             }
+
+            // Build temperature chart
+            const chartLabels = visibleRows.map(r => {
+                const d = r.dateObj;
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const chartTemps = visibleRows.map(r => parseFloat(r.temp));
+
+            // Point colors based on temperature value
+            const pointColors = chartTemps.map(t => getTempColor(t));
+
+            if (tempChartInstance) {
+                tempChartInstance.destroy();
+                tempChartInstance = null;
+            }
+
+            const ctx = document.getElementById('tempForecastChart').getContext('2d');
+            tempChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Forecast Pool Temp (°F)',
+                        data: chartTemps,
+                        borderColor: '#ffd166',
+                        backgroundColor: 'rgba(255,209,102,0.12)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: pointColors,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return `${ctx.parsed.y.toFixed(1)} °F`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#ccc', font: { size: 12 } },
+                            grid: { color: 'rgba(255,255,255,0.07)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Temperature (°F)', color: '#ccc', font: { size: 12 } },
+                            ticks: { color: '#ccc', font: { size: 12 } },
+                            grid: { color: 'rgba(255,255,255,0.07)' }
+                        }
+                    }
+                }
+            });
         } catch (error) {
             for (let i = 1; i <= forecastDaysToShow; i++) {
                 const column = document.getElementById(`day${i}`);
@@ -517,6 +599,13 @@
     <!-- Days Container -->
     <div class="content">
         <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas 🤠</h2>
+
+        <!-- Temperature Forecast Chart -->
+        <div class="chart-section">
+            <h3>📈 Temperature Forecast</h3>
+            <canvas id="tempForecastChart" style="width:100%; max-height:280px;"></canvas>
+        </div>
+
         <div class="days-container">
             <div id="day1" class="day-column"></div>
             <div id="day2" class="day-column"></div>
