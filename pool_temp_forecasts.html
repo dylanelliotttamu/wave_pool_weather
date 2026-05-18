@@ -463,12 +463,12 @@
             }
         }
 
-        function fmtDate(d) {
+        function fmtDate(d, timeZone = 'UTC') {
             if (!d) return 'unavailable';
             return d.toLocaleString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric',
                 hour: 'numeric', minute: '2-digit',
-                timeZone: 'UTC', timeZoneName: 'short'
+                timeZone, timeZoneName: 'short'
             });
         }
 
@@ -480,7 +480,7 @@
         const fetchEl  = document.getElementById('lastFetchTime');
         const deployEl = document.getElementById('lastDeployTime');
         if (fetchEl)  fetchEl.textContent  = fmtDate(fetchDate);
-        if (deployEl) deployEl.textContent = fmtDate(deployDate);
+        if (deployEl) deployEl.textContent = fmtDate(deployDate, 'America/Chicago');
     }
     </script>
 </head>
