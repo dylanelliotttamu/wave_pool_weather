@@ -487,39 +487,90 @@
             // Point colors based on temperature value
             const pointColors = chartTemps.map(t => getTempColor(t));
 
+            // Extract 9 AM / 3 PM estimates from weatherMap (null when unavailable)
+            const morningTemps = visibleRows.map(r => {
+                if (!weatherMap || !weatherMap[r.date]) return null;
+                const v = weatherMap[r.date].morning_temp;
+                return isNaN(v) ? null : v;
+            });
+            const afternoonTemps = visibleRows.map(r => {
+                if (!weatherMap || !weatherMap[r.date]) return null;
+                const v = weatherMap[r.date].afternoon_temp;
+                return isNaN(v) ? null : v;
+            });
+            const hasSubdaily = morningTemps.some(v => v !== null);
+
             if (tempChartInstance) {
                 tempChartInstance.destroy();
                 tempChartInstance = null;
             }
 
+            const datasets = [
+                {
+                    label: 'Daily Avg (°F)',
+                    data: chartTemps,
+                    borderColor: '#ffd166',
+                    backgroundColor: 'rgba(255,209,102,0.10)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1.5
+                }
+            ];
+
+            if (hasSubdaily) {
+                datasets.push({
+                    label: '🌅 9 AM (°F)',
+                    data: morningTemps,
+                    borderColor: '#7ad3ff',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.8,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: morningTemps.map(v => v !== null ? getTempColor(v) : 'transparent'),
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                });
+                datasets.push({
+                    label: '☀️ 3 PM (°F)',
+                    data: afternoonTemps,
+                    borderColor: '#ff9a56',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.8,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: afternoonTemps.map(v => v !== null ? getTempColor(v) : 'transparent'),
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                });
+            }
+
             const ctx = document.getElementById('tempForecastChart').getContext('2d');
             tempChartInstance = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        label: 'Forecast Pool Temp (°F)',
-                        data: chartTemps,
-                        borderColor: '#ffd166',
-                        backgroundColor: 'rgba(255,209,102,0.12)',
-                        borderWidth: 2.5,
-                        fill: true,
-                        tension: 0.35,
-                        pointRadius: 6,
-                        pointHoverRadius: 8,
-                        pointBackgroundColor: pointColors,
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 1.5
-                    }]
-                },
+                data: { labels: chartLabels, datasets },
                 options: {
                     responsive: true,
                     plugins: {
-                        legend: { display: false },
+                        legend: {
+                            display: hasSubdaily,
+                            labels: { color: '#ccc', font: { size: 12 } }
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(tooltipItem) {
-                                    return `${tooltipItem.parsed.y.toFixed(1)} °F`;
+                                    const v = tooltipItem.parsed.y;
+                                    return `${tooltipItem.dataset.label}: ${v.toFixed(1)} °F`;
                                 }
                             }
                         }
