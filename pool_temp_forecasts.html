@@ -488,17 +488,20 @@
             const pointColors = chartTemps.map(t => getTempColor(t));
 
             // Extract 9 AM / 3 PM estimates from weatherMap (null when unavailable)
-            const morningTemps = visibleRows.map(r => {
-                if (!weatherMap || !weatherMap[r.date]) return null;
-                const v = weatherMap[r.date].morning_temp;
-                return isNaN(v) ? null : v;
-            });
-            const afternoonTemps = visibleRows.map(r => {
-                if (!weatherMap || !weatherMap[r.date]) return null;
-                const v = weatherMap[r.date].afternoon_temp;
-                return isNaN(v) ? null : v;
-            });
+            function extractSubdailyTemps(field) {
+                return visibleRows.map(r => {
+                    if (!weatherMap || !weatherMap[r.date]) return null;
+                    const v = weatherMap[r.date][field];
+                    return Number.isFinite(v) ? v : null;
+                });
+            }
+            const morningTemps   = extractSubdailyTemps('morning_temp');
+            const afternoonTemps = extractSubdailyTemps('afternoon_temp');
             const hasSubdaily = morningTemps.some(v => v !== null);
+
+            // Pre-compute point colors for sub-daily series
+            const morningPointColors   = morningTemps.map(v   => v !== null ? getTempColor(v)   : 'transparent');
+            const afternoonPointColors = afternoonTemps.map(v => v !== null ? getTempColor(v) : 'transparent');
 
             if (tempChartInstance) {
                 tempChartInstance.destroy();
@@ -534,7 +537,7 @@
                     tension: 0.35,
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: morningTemps.map(v => v !== null ? getTempColor(v) : 'transparent'),
+                    pointBackgroundColor: morningPointColors,
                     pointBorderColor: '#fff',
                     pointBorderWidth: 1
                 });
@@ -549,7 +552,7 @@
                     tension: 0.35,
                     pointRadius: 4,
                     pointHoverRadius: 6,
-                    pointBackgroundColor: afternoonTemps.map(v => v !== null ? getTempColor(v) : 'transparent'),
+                    pointBackgroundColor: afternoonPointColors,
                     pointBorderColor: '#fff',
                     pointBorderWidth: 1
                 });
