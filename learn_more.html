@@ -202,72 +202,38 @@
     <!-- Content -->
     <div class="content">
 
-        <!-- Section 1: Pool Temperature Model -->
+        <!-- Section 1: How It Works -->
         <div class="card">
-            <h2>1. Pool Temperature Model</h2>
-            <p>The pool temperature is advanced in time using a single-layer (well-mixed) energy balance with a forward Euler integration scheme:</p>
-            <div class="eq-block"><p>T<sub>pool,new</sub> = T<sub>pool</sub> + Q<sub>total</sub> × Δt / (ρ × d × c<sub>p</sub>)</p></div>
-            <p class="eq-label">where ρ = 1000 kg/m³ (water density), d = pool effective depth (m), c<sub>p</sub> = 4186 J/kg/K (specific heat), Δt = time step (s)</p>
-            <p>The total surface heat flux combines five components:</p>
-            <div class="eq-block"><p>Q<sub>total</sub> = Q<sub>solar</sub> + Q<sub>lw,net</sub> + Q<sub>conv</sub> + Q<sub>evap</sub> + Q<sub>ground</sub></p></div>
-        </div>
-
-        <!-- Section 2: Solar Radiation -->
-        <div class="card">
-            <h2>2. Absorbed Solar Radiation</h2>
-            <p>Shortwave energy absorbed at the water surface after reflection:</p>
-            <div class="eq-block"><p>Q<sub>solar</sub> = (1 − α) × G<sub>s</sub></p></div>
-            <p class="eq-label">α = 0.06 (shortwave albedo of open water), G<sub>s</sub> = daily mean solar irradiance (W/m²) from Open-Meteo API</p>
-        </div>
-
-        <!-- Section 3: Net Longwave Radiation -->
-        <div class="card">
-            <h2>3. Net Longwave Radiation</h2>
-            <p>Difference between downwelling atmospheric emission and upwelling emission from the pool surface:</p>
-            <div class="eq-block"><p>Q<sub>lw,net</sub> = ε<sub>sky</sub> × σ × T<sub>air</sub><sup>4</sup> − ε<sub>water</sub> × σ × T<sub>pool</sub><sup>4</sup></p></div>
-            <p class="eq-label">σ = 5.67×10⁻⁸ W/m²/K⁴ (Stefan-Boltzmann), ε<sub>water</sub> = 0.97</p>
-            <p>Sky emissivity is estimated using the Brutsaert (1975) formula based on near-surface vapour pressure e<sub>a</sub> (hPa) and air temperature T<sub>air</sub> (K):</p>
-            <div class="eq-block"><p>ε<sub>sky</sub> = 1.24 × (e<sub>a</sub> / T<sub>air</sub>)<sup>1/7</sup> &nbsp;&nbsp;[Brutsaert 1975]</p></div>
-        </div>
-
-        <!-- Section 4: Sensible Heat -->
-        <div class="card">
-            <h2>4. Sensible Heat (Convection)</h2>
-            <p>Turbulent heat exchange between the air and water surface using the McAdams (1954) bulk-transfer coefficient:</p>
-            <div class="eq-block">
-                <p>Q<sub>conv</sub> = h<sub>c</sub> × (T<sub>air</sub> − T<sub>pool</sub>)</p>
-                <p>h<sub>c</sub> = 5.7 + 3.8 × U &nbsp;&nbsp;[W m⁻² K⁻¹]</p>
+            <h2>1. How It Works</h2>
+            <p>Each pool is modelled as a well-mixed body of water whose temperature evolves hour-by-hour based on the net energy exchanged with its surroundings. At every time step the model asks: how much heat is the pool gaining or losing right now, and how does that change the water temperature?</p>
+            <p>That question is answered by a single governing equation:</p>
+            <div class="eq-block" style="font-size:1.15em; padding:20px 24px; text-align:center;">
+                <p style="font-size:1.2em; line-height:2.2;">
+                    T<sub>pool</sub><sup>new</sup> &nbsp;=&nbsp; T<sub>pool</sub> &nbsp;+&nbsp;
+                    <span style="display:inline-block; text-align:center; vertical-align:middle; line-height:1.6;">
+                        <span style="display:block; border-bottom:1px solid #f8f8f2; padding-bottom:2px;">
+                            Q<sub>solar</sub> + Q<sub>longwave</sub> + Q<sub>convection</sub> + Q<sub>evaporation</sub> + Q<sub>ground</sub>
+                        </span>
+                        <span style="display:block; padding-top:2px;">ρ &thinsp;·&thinsp; d &thinsp;·&thinsp; c<sub>p</sub></span>
+                    </span>
+                    &nbsp;·&nbsp; Δt
+                </p>
             </div>
-            <p class="eq-label">U = wind speed (m/s). Positive Q<sub>conv</sub> warms the pool when air is warmer than water.</p>
+            <p class="eq-label">T<sub>pool</sub> = pool water temperature &nbsp;|&nbsp; ρ = water density &nbsp;|&nbsp; d = effective pool depth &nbsp;|&nbsp; c<sub>p</sub> = specific heat of water &nbsp;|&nbsp; Δt = time step</p>
+            <p>The five heat-flux terms in the numerator represent every meaningful energy pathway between the pool and its environment:</p>
+            <ul style="color:#ccc; line-height:2; font-size:15px; margin-top:8px;">
+                <li><strong style="color:#fff;">Solar radiation</strong> — shortwave sunlight absorbed at the water surface</li>
+                <li><strong style="color:#fff;">Longwave radiation</strong> — infrared exchange between the sky and the pool</li>
+                <li><strong style="color:#fff;">Convection</strong> — sensible heat carried by wind across the surface</li>
+                <li><strong style="color:#fff;">Evaporation</strong> — latent heat lost as water evaporates (almost always a cooling term)</li>
+                <li><strong style="color:#fff;">Ground conduction</strong> — slow heat flow through the pool floor into the earth below</li>
+            </ul>
+            <p>Weather inputs (air temperature, humidity, wind speed, solar irradiance) are pulled daily from public APIs and fed into the model as forcing data, giving a site-specific multi-day temperature forecast for each pool.</p>
         </div>
 
-        <!-- Section 5: Evaporative Heat Loss -->
+        <!-- Section 2: Data Sources -->
         <div class="card">
-            <h2>5. Evaporative Heat Loss</h2>
-            <p>Latent heat removed by evaporation using a bulk atmospheric transfer approach (Penman 1948 / Monteith):</p>
-            <div class="eq-block">
-                <p>Q<sub>evap</sub> = −L × f(U) × (e<sub>s</sub>(T<sub>pool</sub>) − e<sub>a</sub>)</p>
-                <p>f(U) ≈ C<sub>E</sub> × U &nbsp;&nbsp;[kg m⁻² s⁻¹ kPa⁻¹]</p>
-            </div>
-            <p class="eq-label">L = 2.45×10⁶ J/kg (latent heat of vaporisation), e<sub>s</sub>(T<sub>pool</sub>) = saturation vapour pressure at pool temperature (kPa), e<sub>a</sub> = actual vapour pressure of air (kPa). This flux is nearly always negative (heat loss).</p>
-        </div>
-
-        <!-- Section 6: Ground Heat Exchange -->
-        <div class="card">
-            <h2>6. Ground Heat Exchange</h2>
-            <p>Conductive heat transfer through the pool slab and soil to undisturbed earth, modelled as two resistances in series:</p>
-            <div class="eq-block">
-                <p>Q<sub>ground</sub> = −U<sub>bottom</sub> × (T<sub>pool</sub> − T<sub>ground</sub>)</p>
-                <p>U<sub>bottom</sub> = 1 / (R<sub>concrete</sub> + R<sub>soil</sub>)</p>
-                <p>R<sub>concrete</sub> = L<sub>slab</sub> / k<sub>concrete</sub> &nbsp;&nbsp;[m²K/W]</p>
-                <p>R<sub>soil</sub> = d<sub>soil</sub> / k<sub>soil</sub> &nbsp;&nbsp;[m²K/W]</p>
-            </div>
-            <p class="eq-label">k<sub>concrete</sub> ≈ 1.4 W/m/K, L<sub>slab</sub> = 0.305 m (1 ft). k<sub>soil</sub> varies by location (0.35–1.5 W/m/K). T<sub>ground</sub> = annual mean deep-soil temperature (°C).</p>
-        </div>
-
-        <!-- Section 7: Data Sources -->
-        <div class="card">
-            <h2>7. Data Sources</h2>
+            <h2>2. Data Sources</h2>
             <p>Weather and solar forcing data are fetched automatically once per day from free public APIs:</p>
             <ul style="color:#ccc; line-height:1.8; font-size:15px;">
                 <li><strong style="color:#fff;">NWS API</strong> — <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> — Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
@@ -278,7 +244,7 @@
 
         <!-- Section 8: Wetsuit Guide -->
         <div class="card">
-            <h2>8. Wetsuit Recommendation Guide</h2>
+            <h2>3. Wetsuit Recommendation Guide</h2>
             <p>Suit recommendations are assigned based on forecasted pool water temperature:</p>
             <table>
                 <thead>

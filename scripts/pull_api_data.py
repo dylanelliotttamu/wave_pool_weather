@@ -4,7 +4,7 @@ import urllib.request
 import json
 import math
 import random
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import time
 import sqlite3
 import os
@@ -349,6 +349,9 @@ WRITE_FILES = not TEST_MODE
 # Set WAVE_POOL_FORCE_REFRESH=1 to bypass the same-day API-call cache and
 # re-fetch all external data even when today's rows already exist in the DB.
 FORCE_REFRESH = os.getenv('WAVE_POOL_FORCE_REFRESH', '0').strip().lower() in ('1', 'true', 'yes', 'on')
+# Minimum number of forecast days (including today) that must exist in cache
+# before we skip API refresh.
+MIN_FORECAST_DAYS = max(1, int(os.getenv('WAVE_POOL_MIN_FORECAST_DAYS', '7')))
 
 if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
@@ -673,10 +676,10 @@ for name, coords in locations.items():
 
     # ------------------------------------------------------------------ #
     # Decide whether to re-fetch from external APIs.                      #
-    # Skip the network round-trip when today's air-temp rows already      #
-    # exist in the DB and WAVE_POOL_FORCE_REFRESH is not set.  This       #
-    # prevents redundant expensive API calls when the cron or deploy      #
-    # script runs the pipeline more than once in the same calendar day.   #
+    # Skip the network round-trip only when today's row exists AND the     #
+    # cached forecast still covers at least MIN_FORECAST_DAYS ahead.       #
+    # This avoids forecast-horizon decay where each day removes one day    #
+    # from cached coverage if we never refresh.                            #
     # ------------------------------------------------------------------ #
     cursor.execute(
         'SELECT COUNT(*) FROM air_temps WHERE location_id=? AND date=?',
@@ -684,8 +687,23 @@ for name, coords in locations.items():
     )
     todays_air_data_exists = cursor.fetchone()[0] > 0
 
-    if todays_air_data_exists and not FORCE_REFRESH:
-        print("  Today's air-temp data already in DB; loading from cache (skipping API).")
+    cursor.execute(
+        'SELECT COUNT(*), MAX(date) FROM air_temps WHERE location_id=? AND date >= ?',
+        (location_id, str(current_date))
+    )
+    cached_count, cached_max_date = cursor.fetchone()
+    target_cache_max_date = str(current_date + timedelta(days=MIN_FORECAST_DAYS - 1))
+    cache_has_required_horizon = (
+        cached_count >= MIN_FORECAST_DAYS
+        and cached_max_date is not None
+        and cached_max_date >= target_cache_max_date
+    )
+
+    if todays_air_data_exists and cache_has_required_horizon and not FORCE_REFRESH:
+        print(
+            "  Today's air-temp data already in DB with sufficient horizon; "
+            "loading from cache (skipping API)."
+        )
         cursor.execute(
             'SELECT date, temp, humidity, wind_speed, wind_direction, solar_radiation '
             'FROM air_temps WHERE location_id=? AND date >= ? ORDER BY date',
@@ -707,6 +725,16 @@ for name, coords in locations.items():
             for r in db_rows if r[5] is not None
         }
     else:
+        if FORCE_REFRESH:
+            print("  Force refresh enabled; fetching fresh API data.")
+        elif not todays_air_data_exists:
+            print("  No cached row for today; fetching fresh API data.")
+        else:
+            print(
+                f"  Cached horizon is short ({cached_count} day(s), max={cached_max_date}); "
+                f"need >= {MIN_FORECAST_DAYS} day(s) through {target_cache_max_date}. "
+                "Fetching fresh API data."
+            )
         data = pull_api_temp_data_main(lat, lon, 1)
         if not data:
             print(f"  Failed to get NWS data for {name}")
@@ -1367,6 +1395,16 @@ if WRITE_FILES:
         f.write(dashboard_html)
 else:
     print("TEST MODE: skipped dashboard.html write.")
+
+# Write last-data-fetch timestamp so the frontend info box can display it.
+if WRITE_FILES:
+    fetch_ts_path = os.path.join(DATA_DIR, 'last_data_fetch.txt')
+    with open(fetch_ts_path, 'w') as f:
+        f.write(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ') + '\n')
+    print(f"Wrote last_data_fetch timestamp to {fetch_ts_path}")
+else:
+    print("TEST MODE: skipped last_data_fetch.txt write.")
+
 conn.commit()
 conn.close()
 

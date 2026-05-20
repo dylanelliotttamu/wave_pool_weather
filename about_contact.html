@@ -56,11 +56,17 @@
         font-weight: 300;
         letter-spacing: 2px;
         font-size: 48px;
+        margin: 0 0 10px 0;
+    }
+    .header p {
         margin: 0;
+        font-size: 15px;
+        color: rgba(255,255,255,0.85);
+        letter-spacing: 1px;
     }
     .content {
         flex: 1;
-        max-width: 820px;
+        max-width: 860px;
         margin: 0 auto;
         padding: 40px 20px 60px;
         width: 100%;
@@ -89,6 +95,135 @@
     .card p:last-child { margin-bottom: 0; }
     .card a { color: #8db600; text-decoration: none; }
     .card a:hover { text-decoration: underline; }
+
+    /* ── What I Do grid ── */
+    .pillars-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+    .pillar {
+        background-color: #3a3a3a;
+        border-radius: 10px;
+        padding: 20px 18px;
+        text-align: center;
+        border-top: 3px solid #4ecdc4;
+    }
+    .pillar .pillar-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    .pillar h3 {
+        margin: 0 0 8px 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #fff;
+    }
+    .pillar p {
+        font-size: 13.5px;
+        color: #bbb;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* ── Timeline ── */
+    .timeline {
+        position: relative;
+        margin: 20px 0 4px 0;
+        padding-left: 32px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: linear-gradient(180deg, #4ecdc4, rgba(78,205,196,0.15));
+        border-radius: 2px;
+    }
+    .tl-item {
+        position: relative;
+        margin-bottom: 28px;
+    }
+    .tl-item:last-child { margin-bottom: 0; }
+    .tl-dot {
+        position: absolute;
+        left: -26px;
+        top: 3px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #4ecdc4;
+        border: 2px solid #333;
+        box-shadow: 0 0 0 2px #4ecdc4;
+        flex-shrink: 0;
+    }
+    .tl-year {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #8db600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+    .tl-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 4px;
+    }
+    .tl-desc {
+        font-size: 14px;
+        color: #bbb;
+        line-height: 1.65;
+        margin: 0;
+    }
+
+    /* ── Learn More callout ── */
+    .callout-card {
+        background: linear-gradient(135deg, rgba(84,58,183,0.25) 0%, rgba(0,172,193,0.2) 100%);
+        border: 1px solid rgba(78,205,196,0.35);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        flex-wrap: wrap;
+    }
+    .callout-card .callout-icon {
+        font-size: 2.6rem;
+        flex-shrink: 0;
+    }
+    .callout-card .callout-body { flex: 1; min-width: 180px; }
+    .callout-card h2 {
+        margin: 0 0 6px 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #4ecdc4;
+    }
+    .callout-card p {
+        color: #ccc;
+        font-size: 14.5px;
+        line-height: 1.65;
+        margin: 0 0 12px 0;
+    }
+    .callout-card .learn-btn {
+        display: inline-block;
+        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+        color: #fff;
+        text-decoration: none;
+        padding: 9px 22px;
+        border-radius: 7px;
+        font-size: 14px;
+        font-weight: 600;
+        transition: opacity 0.25s;
+    }
+    .callout-card .learn-btn:hover { opacity: 0.82; text-decoration: none; }
+
     .photos-row {
         display: flex;
         gap: 20px;
@@ -136,6 +271,11 @@
         .header h1 { font-size: 32px; }
         .card { padding: 20px 16px; }
         .photos-row img { width: 160px; }
+        .callout-card { flex-direction: column; gap: 12px; }
+        .pillars-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 400px) {
+        .pillars-grid { grid-template-columns: 1fr; }
     }
     </style>
 </head>
@@ -154,32 +294,151 @@
     <!-- Header -->
     <div class="header">
         <h1>About / Contact</h1>
+        <p>The story behind Wave Pool Weather</p>
     </div>
 
     <!-- Main Content -->
     <div class="content">
 
+        <!-- ── Why This Site Exists ── -->
         <div class="card">
             <h2>Why This Site Exists</h2>
-            <p>I created Wave Pool Weather with the goal of providing accurate water temperature forecasts for wave pools around the world, beginning with Waco. The weather in Texas can change quickly, and figuring out what equipment to bring can be tricky — because pool water temperature usually does not match the air temperature.</p>
-            <p>This site automatically fetches real-time weather data, runs a physics-based thermal energy balance model, and delivers 7-day pool temperature forecasts so you always know which wetsuit to pack.</p>
+            <p>I created Wave Pool Weather with one goal in mind: give surfers accurate water temperature forecasts for wave pools so they never show up under-dressed (or sweltering in a 5/4 on a warm Texas day). Weather in places like Waco can swing dramatically within a single week, and the pool water temperature rarely tracks the air temperature — it has its own thermal momentum driven by solar radiation, wind, and evaporative cooling.</p>
+            <p>No other resource was filling that gap. So I built one. The site automatically fetches real-time weather data every day, feeds it through a physics-based thermal energy balance model, and delivers 7-day pool temperature forecasts across multiple wave pool venues in the U.S.</p>
         </div>
 
+        <!-- ── About the Creator ── -->
         <div class="card">
             <h2>About the Creator</h2>
-            <p>I'm a master's student at Texas A&amp;M and Data Analyst at Flood Information Systems, eager to apply exceptional programming skills and research experience to solve geoscience problems. I currently work under Dr. Istvan Szunyogh in the Atmospheric Science Department, researching the application of machine learning to numerical weather prediction and data assimilation.</p>
-            <p>In my free time I enjoy surfing, fly fishing, and building personal coding projects like this one. I'm currently looking for a full-time position to apply my skills.</p>
+            <p>Hi — I'm <strong style="color:#fff;">Dylan Elliott</strong>, Data Analyst II at <strong style="color:#fff;">SeekOps</strong> where I perform data science and engineering for drone-based methane detection work, and formerly a master's student in Atmospheric Sciences at Texas A&amp;M University and a Data Analyst at Flood Information Systems. I broadly work in atmospheric data science and engineering, where my core interests lie at the intersection of machine learning and numerical weather prediction.</p>
+            <p>Out of the office I chase wind swell in the Gulf and man made surf in Waco, enjoy hunting, and build personal coding projects. Wave Pool Weather is one of those projects: part data engineering exercise, part physics modelling challenge, and part genuine gift to the wave pool community.</p>
+            <p>Always looking to apply my background in geoscience, data analytics, and scientific software to real-world problems. If that sounds like a fit, feel free to reach out below.</p>
         </div>
 
+        <!-- ── Journey / Timeline ── -->
+        <div class="card">
+            <h2>My Journey</h2>
+            <div class="timeline">
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Early Years</div>
+                    <div class="tl-title">🌊 Caught the Surf Bug</div>
+                    <p class="tl-desc">Grew up drawn to the ocean and the outdoors. Surfing became a core part of life — chasing swells whenever and wherever possible and building a deep appreciation for how weather systems shape wave quality.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Undergraduate</div>
+                    <div class="tl-title">🎓 B.S. — Earth and Planetary Science 21'</div>
+                    <p class="tl-desc">Pursued a degree in EPS to formalise the link between weather curiosity and rigorous science at UC Santa Cruz. Developed strong foundations in thermodynamics, fluid dynamics, meteorological data analysis, and scientific programming in Python and MATLAB.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Graduate School · Texas A&amp;M</div>
+                    <div class="tl-title">🔬 M.S. Atmospheric Science - ML &amp; Data Assimilation in Numerical Weather Prediction 24'</div>
+                    <p class="tl-desc">Joined Dr. Istvan Szunyogh's group at TAMU to research how machine learning can improve data assimilation in atmospheric models. Work spans ensemble Kalman filters, hybrid-reservoir computing, and high-performance computing on TAMU's supercomputing clusters.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Professional</div>
+                    <div class="tl-title">💧 Data Analyst · Flood Information Systems</div>
+                    <p class="tl-desc">Previosuly a R&D Data Analyst who built tools that process hydrological and meteorological data to support flood risk assessment and emergency response decision-making across Texas watersheds.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Current · Professional</div>
+                    <div class="tl-title">🛸 Data Analyst II · SeekOps</div>
+                    <p class="tl-desc">I apply data science and engineering principals to enhance our drone-based methane detection. I create analytical and visual tools that process sensor data from UAV flight operations to detect, quantify, and report methane emissions for the energy sector.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Waco Discovery</div>
+                    <div class="tl-title">🏄 Wave Pool Surfing Begins</div>
+                    <p class="tl-desc">Discovered BSR Surf Resort / Waco Surf in Central Texas — one of the premier wave pools in North America. Quickly noticed that knowing what gear to bring required knowing the water temperature, which no tool reliably predicted.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Side Project</div>
+                    <div class="tl-title">⚙️ Wave Pool Weather Is Born</div>
+                    <p class="tl-desc">Combined atmospheric science training, data engineering skills, and wave pool enthusiasm to build a physics-based pool temperature forecasting site. Starting with Waco, the project has since expanded to cover multiple wave pool venues across the U.S.</p>
+                </div>
+
+                <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-year">Ongoing</div>
+                    <div class="tl-title">📡 Continuous Improvement</div>
+                    <p class="tl-desc">The site grows with each session and each new idea — adding locations, refining the thermal model, building out the data dashboard, and incorporating community feedback. The goal remains the same: show up prepared, surf better.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── What I Do ── -->
+        <div class="card">
+            <h2>What I Do</h2>
+            <p>My work spans three closely-linked domains that all come together in this project:</p>
+            <div class="pillars-grid">
+
+                <div class="pillar">
+                    <div class="pillar-icon">🌤️</div>
+                    <h3>Atmospheric Science Research</h3>
+                    <p>Machine learning for data assimilation and numerical weather prediction at Texas A&amp;M, working to make tomorrow's forecasts more accurate.</p>
+                </div>
+
+                <div class="pillar">
+                    <div class="pillar-icon">🛸</div>
+                    <h3>Drone-Based Emissions Detection</h3>
+                    <p>Data science and engineering at SeekOps for UAV methane detection — building pipelines and tools that quantify emissions from drone sensor data for the energy sector.</p>
+                </div>
+
+                <div class="pillar">
+                    <div class="pillar-icon">💧</div>
+                    <h3>Hydrological Data Analysis</h3>
+                    <p>Built real-time meteorological and hydrological data tools at Flood Information Systems to support flood risk assessment and emergency response across Texas watersheds.</p>
+                </div>
+
+                <div class="pillar">
+                    <div class="pillar-icon">🌊</div>
+                    <h3>Wave Pool Temperature Modelling</h3>
+                    <p>Building and tuning a physics-based energy balance model that forecasts pool water temperatures 7 days ahead across multiple wave pool venues.</p>
+                </div>
+
+                <div class="pillar">
+                    <div class="pillar-icon">🏄</div>
+                    <h3>Surfing &amp; Outdoors</h3>
+                    <p>Active wave pool and open-ocean surfer. Also an avid fly fisherman — both hobbies keep the weather obsession very practical and personal.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Learn More Callout ── -->
+        <div class="callout-card">
+            <div class="callout-icon">🔬</div>
+            <div class="callout-body">
+                <h2>Curious How the Forecasts Actually Work?</h2>
+                <p>The temperature predictions aren't a guess — they're the output of a multi-component physics model driven by live NWS and Open-Meteo weather data. The Learn More page walks through every equation: solar absorption, longwave radiation, evaporative cooling, ground heat exchange, and the full wetsuit recommendation guide.</p>
+                <a href="learn_more.html" class="learn-btn">Explore the Science →</a>
+            </div>
+        </div>
+
+        <!-- ── Contact ── -->
         <div class="card">
             <h2>Contact</h2>
             <p><strong style="color:#fff;">Dylan Elliott</strong></p>
             <p>📧 Email: <a href="mailto:dylanelliott@tamu.edu">dylanelliott@tamu.edu</a></p>
             <p>🌐 Website: <a href="https://dylanelliotttamu.github.io" target="_blank" rel="noopener">dylanelliotttamu.github.io</a></p>
+            <p>Have a question about the model, a bug to report, or want to suggest a new wave pool location? Reach out — I'd love to hear from you. You can also leave a note on the <a href="feedback.html">Feedback &amp; Subscribe</a> page.</p>
             <p>Thank you for visiting Wave Pool Weather!</p>
         </div>
 
-        <!-- Photos -->
+        <!-- ── Photos ── -->
         <div class="card" style="text-align:center;">
             <h2>Photos</h2>
             <div class="photos-row">
@@ -195,6 +454,7 @@
     <div class="page-nav-row">
         <a href="index.html" class="cta-btn">← Back to Home</a>
         <a href="pool_temp_forecasts.html" class="cta-btn">View Forecasts →</a>
+        <a href="learn_more.html" class="cta-btn">Learn More →</a>
         <a href="news.html" class="cta-btn">Read News →</a>
     </div>
     <footer>
