@@ -275,26 +275,42 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
-                if (parts.length >= 8) {
+                if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
-                        pool_temp:    parseFloat(parts[1]),
-                        pool_ci_low:  parseFloat(parts[2]),
-                        pool_ci_high: parseFloat(parts[3]),
-                        air_temp:     parseFloat(parts[4]),
-                        wind_speed:   parseFloat(parts[5]),
-                        wind_dir:     parseFloat(parts[6]),
-                        humidity:     parseFloat(parts[7])
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9])
+                    };
+                } else if (parts.length >= 8) {
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   NaN,
+                        afternoon_temp: NaN
                     };
                 } else if (parts.length >= 6) {
                     // Backward compatibility for older export schema.
                     weatherMap[parts[0]] = {
-                        pool_temp:    parseFloat(parts[1]),
-                        pool_ci_low:  NaN,
-                        pool_ci_high: NaN,
-                        air_temp:     parseFloat(parts[2]),
-                        wind_speed:   parseFloat(parts[3]),
-                        wind_dir:     parseFloat(parts[4]),
-                        humidity:     parseFloat(parts[5])
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    NaN,
+                        pool_ci_high:   NaN,
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   NaN,
+                        afternoon_temp: NaN
                     };
                 }
             });
@@ -408,6 +424,7 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
+                let morningAfternoonHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
@@ -422,6 +439,25 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
+
+                    if (!isNaN(wd.morning_temp) && !isNaN(wd.afternoon_temp)) {
+                        const mColor = getTempColor(wd.morning_temp);
+                        const aColor = getTempColor(wd.afternoon_temp);
+                        morningAfternoonHtml = `
+                        <div style="margin-top:10px; border-top:1px solid #555; padding-top:8px;">
+                            <div style="font-size:12px; color:#aaa; margin-bottom:4px;">Time-of-Day Estimates</div>
+                            <div style="display:flex; justify-content:space-around; gap:4px;">
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px; color:#aaa;">🌅 9 AM</div>
+                                    <div style="font-size:16px; font-weight:700; color:${mColor};">${wd.morning_temp.toFixed(1)}°F</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px; color:#aaa;">☀️ 3 PM</div>
+                                    <div style="font-size:16px; font-weight:700; color:${aColor};">${wd.afternoon_temp.toFixed(1)}°F</div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
                 }
 
                 column.innerHTML = `
@@ -430,6 +466,7 @@
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
+                    ${morningAfternoonHtml}
                 `;
             });
 

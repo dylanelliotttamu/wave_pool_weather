@@ -424,8 +424,18 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temp_ci (
 
 # Migrate existing databases: add new columns if they are absent
 for col, table, col_type in [
-    ('solar_radiation', 'air_temps', 'REAL'),
-    ('heat_fluxes',     'pool_temps', 'TEXT'),
+    ('solar_radiation',  'air_temps',  'REAL'),
+    ('heat_fluxes',      'pool_temps', 'TEXT'),
+    # Morning (midnight–9 AM) and afternoon (9 AM–3 PM) air conditions
+    ('morning_temp',     'air_temps',  'REAL'),
+    ('morning_humidity', 'air_temps',  'REAL'),
+    ('morning_wind',     'air_temps',  'REAL'),
+    ('afternoon_temp',   'air_temps',  'REAL'),
+    ('afternoon_humidity','air_temps', 'REAL'),
+    ('afternoon_wind',   'air_temps',  'REAL'),
+    # Sub-daily pool temperature estimates
+    ('morning_temp_C',   'pool_temps', 'REAL'),
+    ('afternoon_temp_C', 'pool_temps', 'REAL'),
 ]:
     try:
         cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
@@ -549,7 +559,9 @@ def parse_weather_data(inputhourlyjsonweather_data):
 
         for period in periods:
             start_time = period["startTime"]
-            date_obj   = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z").date()
+            period_dt  = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S%z")
+            date_obj   = period_dt.date()
+            hour       = period_dt.hour
 
             # ---- Temperature ------------------------------------------------
             # NWS can return either:
@@ -598,10 +610,18 @@ def parse_weather_data(inputhourlyjsonweather_data):
 
             if date_obj not in daily_data:
                 daily_data[date_obj] = {
-                    "temperatures":    [],
-                    "humidities":      [],
-                    "wind_speeds":     [],
-                    "wind_directions": [],
+                    "temperatures":         [],
+                    "humidities":           [],
+                    "wind_speeds":          [],
+                    "wind_directions":      [],
+                    # morning window: midnight–9 AM (hours 0–8 inclusive)
+                    "morning_temperatures": [],
+                    "morning_humidities":   [],
+                    "morning_wind_speeds":  [],
+                    # afternoon window: 9 AM–3 PM (hours 9–14 inclusive)
+                    "afternoon_temperatures": [],
+                    "afternoon_humidities":   [],
+                    "afternoon_wind_speeds":  [],
                 }
 
             daily_data[date_obj]["temperatures"].append(temperature_C)
@@ -609,11 +629,26 @@ def parse_weather_data(inputhourlyjsonweather_data):
             daily_data[date_obj]["wind_speeds"].append(wind_speed_ms)
             daily_data[date_obj]["wind_directions"].append(wind_direction)
 
-        date_list                = []
-        average_temp_list        = []   # °C
-        average_humidity_list    = []   # %
-        average_wind_list        = []   # m s⁻¹
+            if hour <= 8:
+                daily_data[date_obj]["morning_temperatures"].append(temperature_C)
+                daily_data[date_obj]["morning_humidities"].append(humidity)
+                daily_data[date_obj]["morning_wind_speeds"].append(wind_speed_ms)
+            elif hour <= 14:
+                daily_data[date_obj]["afternoon_temperatures"].append(temperature_C)
+                daily_data[date_obj]["afternoon_humidities"].append(humidity)
+                daily_data[date_obj]["afternoon_wind_speeds"].append(wind_speed_ms)
+
+        date_list                   = []
+        average_temp_list           = []   # °C
+        average_humidity_list       = []   # %
+        average_wind_list           = []   # m s⁻¹
         average_wind_direction_list = []
+        morning_temp_list           = []   # °C, avg over midnight–8 AM
+        morning_humidity_list       = []
+        morning_wind_list           = []
+        afternoon_temp_list         = []   # °C, avg over 9 AM–2 PM
+        afternoon_humidity_list     = []
+        afternoon_wind_list         = []
 
         for date_obj in sorted(daily_data.keys()):
             day = daily_data[date_obj]
@@ -623,18 +658,41 @@ def parse_weather_data(inputhourlyjsonweather_data):
             avg_wind        = sum(day["wind_speeds"])     / len(day["wind_speeds"])
             avg_wind_dir    = sum(day["wind_directions"]) / len(day["wind_directions"])
 
+            # Morning / afternoon means (fall back to daily mean when no data)
+            def _mean(lst, fallback):
+                return sum(lst) / len(lst) if lst else fallback
+
+            m_temp  = _mean(day["morning_temperatures"], avg_temperature)
+            m_hum   = _mean(day["morning_humidities"],   avg_humidity)
+            m_wind  = _mean(day["morning_wind_speeds"],  avg_wind)
+            a_temp  = _mean(day["afternoon_temperatures"], avg_temperature)
+            a_hum   = _mean(day["afternoon_humidities"],   avg_humidity)
+            a_wind  = _mean(day["afternoon_wind_speeds"],  avg_wind)
+
             date_list.append(date_obj)
             average_temp_list.append(avg_temperature)
             average_humidity_list.append(avg_humidity)
             average_wind_list.append(avg_wind)
             average_wind_direction_list.append(avg_wind_dir)
+            morning_temp_list.append(m_temp)
+            morning_humidity_list.append(m_hum)
+            morning_wind_list.append(m_wind)
+            afternoon_temp_list.append(a_temp)
+            afternoon_humidity_list.append(a_hum)
+            afternoon_wind_list.append(a_wind)
 
         return {
-            'date_list':                  date_list,
-            'average_temp_list':          average_temp_list,          # °C
-            'average_humidity_list':      average_humidity_list,      # %
-            'average_wind_list':          average_wind_list,          # m s⁻¹
+            'date_list':                   date_list,
+            'average_temp_list':           average_temp_list,           # °C
+            'average_humidity_list':       average_humidity_list,       # %
+            'average_wind_list':           average_wind_list,           # m s⁻¹
             'average_wind_direction_list': average_wind_direction_list,
+            'morning_temp_list':           morning_temp_list,           # °C
+            'morning_humidity_list':       morning_humidity_list,       # %
+            'morning_wind_list':           morning_wind_list,           # m s⁻¹
+            'afternoon_temp_list':         afternoon_temp_list,         # °C
+            'afternoon_humidity_list':     afternoon_humidity_list,     # %
+            'afternoon_wind_list':         afternoon_wind_list,         # m s⁻¹
         }
     except Exception as exc:
         print(f"Error parsing data: {exc}")
@@ -705,7 +763,9 @@ for name, coords in locations.items():
             "loading from cache (skipping API)."
         )
         cursor.execute(
-            'SELECT date, temp, humidity, wind_speed, wind_direction, solar_radiation '
+            'SELECT date, temp, humidity, wind_speed, wind_direction, solar_radiation, '
+            'morning_temp, morning_humidity, morning_wind, '
+            'afternoon_temp, afternoon_humidity, afternoon_wind '
             'FROM air_temps WHERE location_id=? AND date >= ? ORDER BY date',
             (location_id, str(current_date))
         )
@@ -713,12 +773,22 @@ for name, coords in locations.items():
         if not db_rows:
             print(f"  No cached forecast rows found for {name}; skipping.")
             continue
+        avg_t_list = [coerce_float(r[1], field_name='air_temp') for r in db_rows]
+        avg_h_list = [coerce_float(r[2], fallback=50.0, field_name='humidity') for r in db_rows]
+        avg_w_list = [coerce_float(r[3], field_name='wind_speed') for r in db_rows]
         data = {
             'date_list':                   [datetime.strptime(r[0], '%Y-%m-%d').date() for r in db_rows],
-            'average_temp_list':           [coerce_float(r[1], field_name='air_temp') for r in db_rows],
-            'average_humidity_list':       [coerce_float(r[2], fallback=50.0, field_name='humidity') for r in db_rows],
-            'average_wind_list':           [coerce_float(r[3], field_name='wind_speed') for r in db_rows],
+            'average_temp_list':           avg_t_list,
+            'average_humidity_list':       avg_h_list,
+            'average_wind_list':           avg_w_list,
             'average_wind_direction_list': [r[4] if r[4] is not None else 0.0  for r in db_rows],
+            # Fall back to daily mean when morning/afternoon columns are NULL
+            'morning_temp_list':     [coerce_float(r[6],  fallback=avg_t_list[i], field_name='morning_temp')   for i, r in enumerate(db_rows)],
+            'morning_humidity_list': [coerce_float(r[7],  fallback=avg_h_list[i], field_name='morning_hum')    for i, r in enumerate(db_rows)],
+            'morning_wind_list':     [coerce_float(r[8],  fallback=avg_w_list[i], field_name='morning_wind')   for i, r in enumerate(db_rows)],
+            'afternoon_temp_list':   [coerce_float(r[9],  fallback=avg_t_list[i], field_name='afternoon_temp') for i, r in enumerate(db_rows)],
+            'afternoon_humidity_list':[coerce_float(r[10], fallback=avg_h_list[i], field_name='afternoon_hum') for i, r in enumerate(db_rows)],
+            'afternoon_wind_list':   [coerce_float(r[11], fallback=avg_w_list[i], field_name='afternoon_wind') for i, r in enumerate(db_rows)],
         }
         solar_map = {
             r[0]: coerce_float(r[5], fallback=0.0, field_name='solar_radiation')
@@ -750,8 +820,10 @@ for name, coords in locations.items():
         # -------------------------------------------------------------- #
         cursor.executemany(
             'INSERT OR REPLACE INTO air_temps '
-            '(location_id, date, temp, humidity, wind_speed, wind_direction, solar_radiation) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            '(location_id, date, temp, humidity, wind_speed, wind_direction, solar_radiation, '
+            'morning_temp, morning_humidity, morning_wind, '
+            'afternoon_temp, afternoon_humidity, afternoon_wind) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 (
                     location_id,
@@ -761,6 +833,12 @@ for name, coords in locations.items():
                     data['average_wind_list'][i],
                     data['average_wind_direction_list'][i],
                     solar_map.get(str(d), None),
+                    data['morning_temp_list'][i],
+                    data['morning_humidity_list'][i],
+                    data['morning_wind_list'][i],
+                    data['afternoon_temp_list'][i],
+                    data['afternoon_humidity_list'][i],
+                    data['afternoon_wind_list'][i],
                 )
                 for i, d in enumerate(data['date_list'])
             ]
@@ -819,6 +897,18 @@ for name, coords in locations.items():
     # Default solar irradiation fallback (clear-sky midlatitude estimate)
     SOLAR_FALLBACK_MJM2 = 15.0
 
+    # ---------------------------------------------------------------------------
+    # Sub-daily solar allocation constants
+    # ---------------------------------------------------------------------------
+    # Fraction of daily solar energy falling within each window, estimated from
+    # a half-sine solar curve (sunrise ~6 AM, sunset ~6 PM, 12-hour solar day):
+    #   midnight → 9 AM  ≈ 14.7%  (only the 6–9 AM chunk is sunlit)
+    #   9 AM → 3 PM      ≈ 70.8%  (midday peak)
+    DT_MORNING_DAYS   = 9.0 / 24.0   # midnight → 9 AM (hours)
+    DT_AFTERNOON_DAYS = 6.0 / 24.0   # 9 AM → 3 PM (hours)
+    SOLAR_FRAC_MORNING   = 0.147
+    SOLAR_FRAC_AFTERNOON = 0.708
+
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
@@ -840,6 +930,20 @@ for name, coords in locations.items():
             field_name=f'solar_MJm2[{d}]'
         )
 
+        # Morning / afternoon air conditions (fall back to daily mean if absent)
+        m_T_air = coerce_float(data['morning_temp_list'][i],     fallback=T_air_C)
+        m_RH    = coerce_float(data['morning_humidity_list'][i], fallback=RH_pct)
+        m_wind  = coerce_float(data['morning_wind_list'][i],     fallback=wind_ms)
+        a_T_air = coerce_float(data['afternoon_temp_list'][i],   fallback=T_air_C)
+        a_RH    = coerce_float(data['afternoon_humidity_list'][i], fallback=RH_pct)
+        a_wind  = coerce_float(data['afternoon_wind_list'][i],   fallback=wind_ms)
+
+        # Effective solar for each sub-daily period:
+        #   effective_solar = (energy_during_period / period_duration)
+        # expressed in the same MJ m⁻² day⁻¹ units the model expects.
+        morning_solar   = solar_MJm2 * SOLAR_FRAC_MORNING   / DT_MORNING_DAYS
+        afternoon_solar = solar_MJm2 * SOLAR_FRAC_AFTERNOON / DT_AFTERNOON_DAYS
+
         # --- simple baseline (pool temp equals daily mean air temp) ---
         T_pool_air_C = T_air_C
 
@@ -854,6 +958,9 @@ for name, coords in locations.items():
         )
 
         # --- new physics model (with bottom conduction) ---
+        # Save pool temp at start of this day (= end of previous day) for
+        # sub-daily estimates.
+        T_pool_start_C = T_pool_new_C
         T_pool_new_C, fluxes = pool_thermal_balance_step(
             T_pool_new_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
             depth_m=depth_m,
@@ -861,6 +968,26 @@ for name, coords in locations.items():
             bottom_u_Wm2K=bottom_u_Wm2K,
             include_ground=True,
             dt_days=1.0
+        )
+
+        # --- sub-daily estimates: 9 AM and 3 PM ---
+        # 9 AM: step from start-of-day pool temp for 9 hours using morning conditions
+        T_morning_C, _ = pool_thermal_balance_step(
+            T_pool_start_C, m_T_air, m_RH, m_wind, morning_solar,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=True,
+            dt_days=DT_MORNING_DAYS
+        )
+        # 3 PM: step from 9 AM pool temp for 6 more hours using afternoon conditions
+        T_afternoon_C, _ = pool_thermal_balance_step(
+            T_morning_C, a_T_air, a_RH, a_wind, afternoon_solar,
+            depth_m=depth_m,
+            ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K,
+            include_ground=True,
+            dt_days=DT_AFTERNOON_DAYS
         )
 
         # --- Monte Carlo uncertainty propagation for 95% interval ---
@@ -892,9 +1019,11 @@ for name, coords in locations.items():
 
         # DB and exported files continue to use the new physics model
         cursor.execute(
-            'INSERT OR REPLACE INTO pool_temps (location_id, date, temp, heat_fluxes) '
-            'VALUES (?, ?, ?, ?)',
-            (location_id, str(d), T_pool_new_C, json.dumps(fluxes))
+            'INSERT OR REPLACE INTO pool_temps '
+            '(location_id, date, temp, heat_fluxes, morning_temp_C, afternoon_temp_C) '
+            'VALUES (?, ?, ?, ?, ?, ?)',
+            (location_id, str(d), T_pool_new_C, json.dumps(fluxes),
+             T_morning_C, T_afternoon_C)
         )
         cursor.execute(
             'INSERT OR REPLACE INTO pool_temp_ci '
@@ -906,6 +1035,8 @@ for name, coords in locations.items():
         air_F         = celsius_to_fahrenheit(T_pool_air_C)
         old_F         = celsius_to_fahrenheit(T_pool_old_C)
         new_F         = celsius_to_fahrenheit(T_pool_new_C)
+        morning_F     = celsius_to_fahrenheit(T_morning_C)
+        afternoon_F   = celsius_to_fahrenheit(T_afternoon_C)
         delta_new_old = new_F - old_F
         delta_old_air = old_F - air_F
         delta_new_air = new_F - air_F
@@ -920,7 +1051,8 @@ for name, coords in locations.items():
             fluxes['Q_ground_Wm2']
         ))
 
-        print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F | "
+        print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F "
+              f"9am={morning_F:.1f}°F 3pm={afternoon_F:.1f}°F | "
               f"Δ(new-old)={delta_new_old:+.2f}°F "
               f"Δ(old-air)={delta_old_air:+.2f}°F "
               f"Δ(new-air)={delta_new_air:+.2f}°F "
@@ -994,7 +1126,8 @@ if WRITE_FILES:
         weather_name = name.replace(" ", "_")
         cursor.execute(
             'SELECT pt.date, pt.temp, ci.p025_C, ci.p975_C, '
-            'at.temp, at.wind_speed, at.wind_direction, at.humidity '
+            'at.temp, at.wind_speed, at.wind_direction, at.humidity, '
+            'pt.morning_temp_C, pt.afternoon_temp_C '
             'FROM pool_temps pt '
             'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
             'LEFT JOIN pool_temp_ci ci ON pt.location_id = ci.location_id AND pt.date = ci.date '
@@ -1008,16 +1141,19 @@ if WRITE_FILES:
         )
         with open(weather_filename, 'w') as wf:
             for wrow in weather_rows:
-                pool_temp_F = celsius_to_fahrenheit(wrow[1])
-                ci_low_F    = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else pool_temp_F
-                ci_high_F   = celsius_to_fahrenheit(wrow[3]) if wrow[3] is not None else pool_temp_F
-                air_temp_F  = celsius_to_fahrenheit(wrow[4]) if wrow[4] is not None else 0.0
-                wind_mph    = (wrow[5] / 0.44704) if wrow[5] is not None else 0.0
-                wind_dir    = wrow[6] if wrow[6] is not None else 0.0
-                humidity    = wrow[7] if wrow[7] is not None else 0.0
+                pool_temp_F  = celsius_to_fahrenheit(wrow[1])
+                ci_low_F     = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else pool_temp_F
+                ci_high_F    = celsius_to_fahrenheit(wrow[3]) if wrow[3] is not None else pool_temp_F
+                air_temp_F   = celsius_to_fahrenheit(wrow[4]) if wrow[4] is not None else 0.0
+                wind_mph     = (wrow[5] / 0.44704) if wrow[5] is not None else 0.0
+                wind_dir     = wrow[6] if wrow[6] is not None else 0.0
+                humidity     = wrow[7] if wrow[7] is not None else 0.0
+                morning_F    = celsius_to_fahrenheit(wrow[8])  if wrow[8]  is not None else pool_temp_F
+                afternoon_F  = celsius_to_fahrenheit(wrow[9])  if wrow[9]  is not None else pool_temp_F
                 wf.write(
                     f"{wrow[0]},{pool_temp_F:.2f},{ci_low_F:.2f},{ci_high_F:.2f},{air_temp_F:.2f},"
-                    f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f}\n"
+                    f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f},"
+                    f"{morning_F:.2f},{afternoon_F:.2f}\n"
                 )
 
     # Keep the legacy Waco file for backward compatibility
