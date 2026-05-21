@@ -194,6 +194,101 @@ def mc_sigma_schedule(day_index):
     }
 
 # ---------------------------------------------------------------------------
+# Wind rating helpers for air wind and barrel wind conditions
+# ---------------------------------------------------------------------------
+
+def calculate_angular_distance(angle1, angle2):
+    """Calculate shortest distance between two angles on a 360° circle."""
+    diff = abs(angle1 - angle2)
+    return min(diff, 360 - diff)
+
+def load_waco_breaks_config():
+    """Load break configuration from JSON file."""
+    config_path = os.path.join(os.path.dirname(__file__), 'waco_breaks_config.json')
+    try:
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+        return data.get('Waco', {})
+    except Exception as e:
+        print(f"Warning: Could not load waco_breaks_config.json: {e}")
+        return {}
+
+def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
+    """
+    Calculate barrel and air wind ratings for a break.
+
+    Args:
+        wind_direction: int, degrees 0-360
+        break_name: str, "Rights" or "Lefts"
+        location: str, default "Waco"
+
+    Returns:
+        dict {
+            'barrel_score': 0-100,
+            'barrel_rating': 'Excellent' or None (not displayed if not Excellent),
+            'air_score': 0-100,
+            'air_rating': 'Excellent' | 'Fair' or None (not displayed if Poor),
+        }
+    """
+    config = load_waco_breaks_config()
+
+    if break_name not in config:
+        return {
+            'barrel_score': 0,
+            'barrel_rating': None,
+            'air_score': 0,
+            'air_rating': None,
+        }
+
+    break_config = config[break_name]
+
+    # BARREL WIND SCORING
+    barrel_ideal = break_config['barrel_ideal_angle']
+    barrel_tol = break_config['barrel_tolerance_degrees']
+    angle_diff = calculate_angular_distance(wind_direction, barrel_ideal)
+
+    if angle_diff <= barrel_tol:
+        barrel_score = 100 - (angle_diff / barrel_tol * 30)  # 100 to 70
+        barrel_rating = 'Excellent'
+    else:
+        barrel_score = max(0, 70 - ((angle_diff - barrel_tol) / 150 * 70))
+        barrel_rating = None  # Don't display Fair/Poor
+
+    # AIR WIND SCORING (can be disabled for testing)
+    if DISABLE_AIR_WIND_VALIDATION:
+        air_score = 0
+        air_rating = None
+    else:
+        air_range_min, air_range_max = break_config['air_excellent_range']
+        air_peak = break_config['air_peak_angle']
+
+        # Check if in excellent range
+        if air_range_min <= wind_direction <= air_range_max:
+            distance_to_peak = abs(wind_direction - air_peak)
+            air_score = 100 - (distance_to_peak / 90 * 30)  # 100 to 70
+            air_rating = 'Excellent'
+        else:
+            # Calculate distance to nearest boundary of excellent range
+            if wind_direction < air_range_min:
+                distance_to_range = air_range_min - wind_direction
+            else:
+                distance_to_range = wind_direction - air_range_max
+
+            if distance_to_range <= 45:  # Fair range (±45° beyond excellent)
+                air_score = 70 - (distance_to_range / 45 * 30)  # 70 to 40
+                air_rating = 'Fair'
+            else:  # Poor (hidden in UI)
+                air_score = max(0, 40 - ((distance_to_range - 45) / 135 * 40))
+                air_rating = None  # Don't display Poor
+
+    return {
+        'barrel_score': round(barrel_score),
+        'barrel_rating': barrel_rating,
+        'air_score': round(air_score),
+        'air_rating': air_rating,
+    }
+
+# ---------------------------------------------------------------------------
 # Atmospheric / thermodynamic helpers
 # ---------------------------------------------------------------------------
 def saturation_vapor_pressure_kPa(T_C):
@@ -352,6 +447,9 @@ FORCE_REFRESH = os.getenv('WAVE_POOL_FORCE_REFRESH', '0').strip().lower() in ('1
 # Minimum number of forecast days (including today) that must exist in cache
 # before we skip API refresh.
 MIN_FORECAST_DAYS = max(1, int(os.getenv('WAVE_POOL_MIN_FORECAST_DAYS', '7')))
+# Developer toggle to disable air wind validation (for testing)
+# Set WAVE_POOL_DISABLE_AIR_WIND_VALIDATION=0 to show air wind ratings to users
+DISABLE_AIR_WIND_VALIDATION = os.getenv('WAVE_POOL_DISABLE_AIR_WIND_VALIDATION', '1').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
@@ -385,7 +483,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS locations (
 )''')
 
 # air_temps: temperatures stored in °C, wind speed in m s⁻¹,
-#            solar_radiation in MJ m⁻² day⁻¹
+#            solar_radiation in MJ m⁻² day⁻¹,
+#            thunder_prob in % (0-100)
 cursor.execute('''CREATE TABLE IF NOT EXISTS air_temps (
     location_id      INTEGER,
     date             TEXT,
@@ -394,6 +493,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS air_temps (
     wind_speed       REAL,
     wind_direction   REAL,
     solar_radiation  REAL,
+    thunder_prob     REAL,
     FOREIGN KEY(location_id) REFERENCES locations(id),
     UNIQUE(location_id, date)
 )''')
@@ -436,6 +536,8 @@ for col, table, col_type in [
     # Sub-daily pool temperature estimates
     ('morning_temp_C',   'pool_temps', 'REAL'),
     ('afternoon_temp_C', 'pool_temps', 'REAL'),
+    # Thunder probability
+    ('thunder_prob',     'air_temps',  'REAL'),
 ]:
     try:
         cursor.execute(f'ALTER TABLE {table} ADD COLUMN {col} {col_type}')
@@ -520,6 +622,82 @@ def fetch_solar_radiation_open_meteo(lat, lon, date_list):
         return result
     except Exception as exc:
         print(f"  Warning: could not fetch solar radiation from Open-Meteo: {exc}")
+        return {}
+
+# ---------------------------------------------------------------------------
+# NWS thunder probability retrieval  (no API key required)
+# ---------------------------------------------------------------------------
+def fetch_thunder_probability_nws(lat, lon, date_list):
+    """
+    Retrieve daily maximum thunder probability from the NWS API gridData endpoint.
+
+    Returns a dict mapping date objects to daily max thunder probability (%).
+    Returns an empty dict on any failure so the caller can fall back gracefully.
+    """
+    if not date_list:
+        return {}
+    try:
+        # Get grid URL from points endpoint
+        points_url = f'https://api.weather.gov/points/{lat},{lon}'
+        points_data = fetch_json_from_url(points_url, timeout=15)
+        if not points_data or 'properties' not in points_data:
+            print(f"  Warning: could not fetch NWS points data for thunder probability")
+            return {}
+
+        grid_url = points_data['properties'].get('forecastGridData')
+        if not grid_url:
+            print(f"  Warning: no forecastGridData URL in NWS points response")
+            return {}
+
+        # Fetch grid data
+        grid_data = fetch_json_from_url(grid_url, timeout=15)
+        if not grid_data or 'properties' not in grid_data:
+            print(f"  Warning: could not fetch NWS grid data for thunder probability")
+            return {}
+
+        thunder_data = grid_data['properties'].get('probabilityOfThunder')
+        if not thunder_data or 'values' not in thunder_data:
+            print(f"  Info: no probabilityOfThunder data available in NWS grid response")
+            return {}
+
+        thunder_values = thunder_data['values']
+
+        # Parse into daily max values
+        daily_thunder = {}
+        for entry in thunder_values:
+            if not entry or 'validTime' not in entry:
+                continue
+
+            # Parse ISO 8601 validTime (format: "2026-05-20T05:00:00+00:00/PT1H")
+            time_str = entry['validTime'].split('/')[0]
+            try:
+                date_obj = datetime.strptime(time_str, '%Y-%m-%dT%H:%M:%S%z').date()
+            except ValueError:
+                # Try without timezone if the format is different
+                try:
+                    date_obj = datetime.strptime(time_str[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    continue
+
+            value = entry.get('value')
+            if value is None:
+                continue
+
+            # Convert to float and take max probability for the day
+            try:
+                value_f = float(value)
+                if date_obj not in daily_thunder:
+                    daily_thunder[date_obj] = value_f
+                else:
+                    daily_thunder[date_obj] = max(daily_thunder[date_obj], value_f)
+            except (TypeError, ValueError):
+                continue
+
+        print(f"  Fetched thunder probability for {len(daily_thunder)} days from NWS")
+        return daily_thunder
+
+    except Exception as exc:
+        print(f"  Warning: could not fetch thunder probability from NWS: {exc}")
         return {}
 
 # Main function to pull data from NWS api
@@ -649,6 +827,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
         afternoon_temp_list         = []   # °C, avg over 9 AM–2 PM
         afternoon_humidity_list     = []
         afternoon_wind_list         = []
+        rights_barrel_rating_list   = []
+        rights_air_rating_list      = []
+        lefts_barrel_rating_list    = []
+        lefts_air_rating_list       = []
 
         for date_obj in sorted(daily_data.keys()):
             day = daily_data[date_obj]
@@ -669,6 +851,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             a_hum   = _mean(day["afternoon_humidities"],   avg_humidity)
             a_wind  = _mean(day["afternoon_wind_speeds"],  avg_wind)
 
+            # Calculate wind ratings for both breaks
+            rights_ratings = calculate_wind_ratings(avg_wind_dir, 'Rights')
+            lefts_ratings = calculate_wind_ratings(avg_wind_dir, 'Lefts')
+
             date_list.append(date_obj)
             average_temp_list.append(avg_temperature)
             average_humidity_list.append(avg_humidity)
@@ -680,6 +866,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             afternoon_temp_list.append(a_temp)
             afternoon_humidity_list.append(a_hum)
             afternoon_wind_list.append(a_wind)
+            rights_barrel_rating_list.append(rights_ratings['barrel_rating'])
+            rights_air_rating_list.append(rights_ratings['air_rating'])
+            lefts_barrel_rating_list.append(lefts_ratings['barrel_rating'])
+            lefts_air_rating_list.append(lefts_ratings['air_rating'])
 
         return {
             'date_list':                   date_list,
@@ -693,6 +883,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             'afternoon_temp_list':         afternoon_temp_list,         # °C
             'afternoon_humidity_list':     afternoon_humidity_list,     # %
             'afternoon_wind_list':         afternoon_wind_list,         # m s⁻¹
+            'rights_barrel_rating_list':   rights_barrel_rating_list,
+            'rights_air_rating_list':      rights_air_rating_list,
+            'lefts_barrel_rating_list':    lefts_barrel_rating_list,
+            'lefts_air_rating_list':       lefts_air_rating_list,
         }
     except Exception as exc:
         print(f"Error parsing data: {exc}")
@@ -816,14 +1010,20 @@ for name, coords in locations.items():
         solar_map = fetch_solar_radiation_open_meteo(lat, lon, data['date_list'])
 
         # -------------------------------------------------------------- #
-        # Store forecasted air temperatures (°C), wind (m s⁻¹), solar    #
+        # Fetch thunder probability from NWS                              #
+        # -------------------------------------------------------------- #
+        thunder_map = fetch_thunder_probability_nws(lat, lon, data['date_list'])
+
+        # -------------------------------------------------------------- #
+        # Store forecasted air temperatures (°C), wind (m s⁻¹), solar,   #
+        # thunder probability                                             #
         # -------------------------------------------------------------- #
         cursor.executemany(
             'INSERT OR REPLACE INTO air_temps '
             '(location_id, date, temp, humidity, wind_speed, wind_direction, solar_radiation, '
             'morning_temp, morning_humidity, morning_wind, '
-            'afternoon_temp, afternoon_humidity, afternoon_wind) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'afternoon_temp, afternoon_humidity, afternoon_wind, thunder_prob) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 (
                     location_id,
@@ -839,6 +1039,7 @@ for name, coords in locations.items():
                     data['afternoon_temp_list'][i],
                     data['afternoon_humidity_list'][i],
                     data['afternoon_wind_list'][i],
+                    thunder_map.get(d, None),  # NEW: thunder probability
                 )
                 for i, d in enumerate(data['date_list'])
             ]
@@ -1122,12 +1323,12 @@ if WRITE_FILES:
                 temp_F = celsius_to_fahrenheit(row[1])
                 f.write(f"{row[0]},{temp_F:.2f}\n")
 
-        # Write extended weather forecast file (pool temp + air met data)
+        # Write extended weather forecast file (pool temp + air met data + thunder)
         weather_name = name.replace(" ", "_")
         cursor.execute(
             'SELECT pt.date, pt.temp, ci.p025_C, ci.p975_C, '
             'at.temp, at.wind_speed, at.wind_direction, at.humidity, '
-            'pt.morning_temp_C, pt.afternoon_temp_C '
+            'pt.morning_temp_C, pt.afternoon_temp_C, at.thunder_prob '
             'FROM pool_temps pt '
             'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
             'LEFT JOIN pool_temp_ci ci ON pt.location_id = ci.location_id AND pt.date = ci.date '
@@ -1150,10 +1351,22 @@ if WRITE_FILES:
                 humidity     = wrow[7] if wrow[7] is not None else 0.0
                 morning_F    = celsius_to_fahrenheit(wrow[8])  if wrow[8]  is not None else pool_temp_F
                 afternoon_F  = celsius_to_fahrenheit(wrow[9])  if wrow[9]  is not None else pool_temp_F
+                thunder_prob = wrow[10] if wrow[10] is not None else 0.0  # NEW
+
+                # Calculate wind ratings for both breaks
+                rights_ratings = calculate_wind_ratings(int(wind_dir), 'Rights')
+                lefts_ratings = calculate_wind_ratings(int(wind_dir), 'Lefts')
+
+                rights_barrel_rating = rights_ratings['barrel_rating'] or ''
+                rights_air_rating = rights_ratings['air_rating'] or ''
+                lefts_barrel_rating = lefts_ratings['barrel_rating'] or ''
+                lefts_air_rating = lefts_ratings['air_rating'] or ''
+
                 wf.write(
                     f"{wrow[0]},{pool_temp_F:.2f},{ci_low_F:.2f},{ci_high_F:.2f},{air_temp_F:.2f},"
                     f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f},"
-                    f"{morning_F:.2f},{afternoon_F:.2f}\n"
+                    f"{morning_F:.2f},{afternoon_F:.2f},{thunder_prob:.0f},"
+                    f"{rights_barrel_rating},{rights_air_rating},{lefts_barrel_rating},{lefts_air_rating}\n"
                 )
 
     # Keep the legacy Waco file for backward compatibility
