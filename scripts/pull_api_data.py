@@ -254,28 +254,32 @@ def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
         barrel_score = max(0, 70 - ((angle_diff - barrel_tol) / 150 * 70))
         barrel_rating = None  # Don't display Fair/Poor
 
-    # AIR WIND SCORING
-    air_range_min, air_range_max = break_config['air_excellent_range']
-    air_peak = break_config['air_peak_angle']
-
-    # Check if in excellent range
-    if air_range_min <= wind_direction <= air_range_max:
-        distance_to_peak = abs(wind_direction - air_peak)
-        air_score = 100 - (distance_to_peak / 90 * 30)  # 100 to 70
-        air_rating = 'Excellent'
+    # AIR WIND SCORING (can be disabled for testing)
+    if DISABLE_AIR_WIND_VALIDATION:
+        air_score = 0
+        air_rating = None
     else:
-        # Calculate distance to nearest boundary of excellent range
-        if wind_direction < air_range_min:
-            distance_to_range = air_range_min - wind_direction
-        else:
-            distance_to_range = wind_direction - air_range_max
+        air_range_min, air_range_max = break_config['air_excellent_range']
+        air_peak = break_config['air_peak_angle']
 
-        if distance_to_range <= 45:  # Fair range (±45° beyond excellent)
-            air_score = 70 - (distance_to_range / 45 * 30)  # 70 to 40
-            air_rating = 'Fair'
-        else:  # Poor (hidden in UI)
-            air_score = max(0, 40 - ((distance_to_range - 45) / 135 * 40))
-            air_rating = None  # Don't display Poor
+        # Check if in excellent range
+        if air_range_min <= wind_direction <= air_range_max:
+            distance_to_peak = abs(wind_direction - air_peak)
+            air_score = 100 - (distance_to_peak / 90 * 30)  # 100 to 70
+            air_rating = 'Excellent'
+        else:
+            # Calculate distance to nearest boundary of excellent range
+            if wind_direction < air_range_min:
+                distance_to_range = air_range_min - wind_direction
+            else:
+                distance_to_range = wind_direction - air_range_max
+
+            if distance_to_range <= 45:  # Fair range (±45° beyond excellent)
+                air_score = 70 - (distance_to_range / 45 * 30)  # 70 to 40
+                air_rating = 'Fair'
+            else:  # Poor (hidden in UI)
+                air_score = max(0, 40 - ((distance_to_range - 45) / 135 * 40))
+                air_rating = None  # Don't display Poor
 
     return {
         'barrel_score': round(barrel_score),
@@ -443,6 +447,9 @@ FORCE_REFRESH = os.getenv('WAVE_POOL_FORCE_REFRESH', '0').strip().lower() in ('1
 # Minimum number of forecast days (including today) that must exist in cache
 # before we skip API refresh.
 MIN_FORECAST_DAYS = max(1, int(os.getenv('WAVE_POOL_MIN_FORECAST_DAYS', '7')))
+# Developer toggle to disable air wind validation (for testing)
+# Set WAVE_POOL_DISABLE_AIR_WIND_VALIDATION=0 to show air wind ratings to users
+DISABLE_AIR_WIND_VALIDATION = os.getenv('WAVE_POOL_DISABLE_AIR_WIND_VALIDATION', '1').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
