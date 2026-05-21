@@ -266,6 +266,30 @@
         return '🧊 ';
     }
 
+    function getRatingColor(rating) {
+        if (!rating) return '#999';
+        if (rating === 'Excellent') return '#00cc00';
+        if (rating === 'Fair') return '#ffaa00';
+        return '#ff3333';  // Poor
+    }
+
+    function getRatingEmoji(rating) {
+        if (!rating) return '';
+        if (rating === 'Excellent') return '🟢';
+        if (rating === 'Fair') return '🟡';
+        return '🔴';  // Poor
+    }
+
+    function createRatingHtml(label, icon, rating) {
+        if (!rating) return '';
+        const color = getRatingColor(rating);
+        const emoji = getRatingEmoji(rating);
+        return `<div style="margin: 6px 0; font-size: 12px;">
+            <span>${icon} ${label}:</span>
+            <span style="color: ${color}; font-weight: 700; margin-left: 4px;">${emoji} ${rating}</span>
+        </div>`;
+    }
+
     async function loadWeatherData(poolName) {
         const weatherFilename = `data/forecasts/forecasted_weather_${poolName}.txt`;
         try {
@@ -275,8 +299,8 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
-                if (parts.length >= 11) {
-                    // New format with thunder probability
+                if (parts.length >= 15) {
+                    // New format with wind ratings
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
                         pool_ci_low:    parseFloat(parts[2]),
@@ -287,7 +311,29 @@
                         humidity:       parseFloat(parts[7]),
                         morning_temp:   parseFloat(parts[8]),
                         afternoon_temp: parseFloat(parts[9]),
-                        thunder_prob:   parseFloat(parts[10])  // NEW
+                        thunder_prob:   parseFloat(parts[10]),
+                        rights_barrel_rating: parts[11] || null,
+                        rights_air_rating:    parts[12] || null,
+                        lefts_barrel_rating:  parts[13] || null,
+                        lefts_air_rating:     parts[14] || null
+                    };
+                } else if (parts.length >= 11) {
+                    // Format without wind ratings (older format)
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   parseFloat(parts[10]),
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 } else if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
@@ -299,21 +345,12 @@
                         wind_dir:       parseFloat(parts[6]),
                         humidity:       parseFloat(parts[7]),
                         morning_temp:   parseFloat(parts[8]),
-                        afternoon_temp: parseFloat(parts[9])
-                    };
-                } else if (parts.length >= 10) {
-                    // Format without thunder probability
-                    weatherMap[parts[0]] = {
-                        pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
-                        air_temp:       parseFloat(parts[4]),
-                        wind_speed:     parseFloat(parts[5]),
-                        wind_dir:       parseFloat(parts[6]),
-                        humidity:       parseFloat(parts[7]),
-                        morning_temp:   parseFloat(parts[8]),
                         afternoon_temp: parseFloat(parts[9]),
-                        thunder_prob:   0  // Default to 0 for old format
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 } else if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
@@ -326,7 +363,11 @@
                         humidity:       parseFloat(parts[7]),
                         morning_temp:   NaN,
                         afternoon_temp: NaN,
-                        thunder_prob:   0  // Default to 0 for old format
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 } else if (parts.length >= 6) {
                     // Backward compatibility for older export schema.
@@ -340,7 +381,11 @@
                         humidity:       parseFloat(parts[5]),
                         morning_temp:   NaN,
                         afternoon_temp: NaN,
-                        thunder_prob:   0  // Default to 0 for old format
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 }
             });
@@ -455,6 +500,7 @@
                 // Build wind row if weather data available
                 let windHtml = '';
                 let thunderHtml = '';
+                let ratingsHtml = '';
                 let morningAfternoonHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
@@ -470,6 +516,36 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
+
+                    // Build wind ratings HTML (only show if ratings are available)
+                    let ratingsContent = '';
+                    let rightsRatings = '';
+                    let leftsRatings = '';
+
+                    rightsRatings += createRatingHtml('Barrel wind', '🌊', wd.rights_barrel_rating);
+                    rightsRatings += createRatingHtml('Air wind', '✈️', wd.rights_air_rating);
+
+                    leftsRatings += createRatingHtml('Barrel wind', '🌊', wd.lefts_barrel_rating);
+                    leftsRatings += createRatingHtml('Air wind', '✈️', wd.lefts_air_rating);
+
+                    if (rightsRatings || leftsRatings) {
+                        let ratingsHtmlParts = [];
+                        if (rightsRatings) {
+                            ratingsHtmlParts.push(`
+                            <div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
+                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">RIGHTS</div>
+                                ${rightsRatings}
+                            </div>`);
+                        }
+                        if (leftsRatings) {
+                            ratingsHtmlParts.push(`
+                            <div style="padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
+                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">LEFTS</div>
+                                ${leftsRatings}
+                            </div>`);
+                        }
+                        ratingsHtml = `<div style="margin-top: 8px;">${ratingsHtmlParts.join('')}</div>`;
+                    }
 
                     // Thunder probability - only show if > 0%
                     const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
@@ -516,6 +592,7 @@
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
+                    ${ratingsHtml}
                     ${thunderHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                     ${morningAfternoonHtml}
@@ -717,7 +794,6 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="learn_more.html">Learn More</a>
         <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 

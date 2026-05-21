@@ -194,6 +194,97 @@ def mc_sigma_schedule(day_index):
     }
 
 # ---------------------------------------------------------------------------
+# Wind rating helpers for air wind and barrel wind conditions
+# ---------------------------------------------------------------------------
+
+def calculate_angular_distance(angle1, angle2):
+    """Calculate shortest distance between two angles on a 360° circle."""
+    diff = abs(angle1 - angle2)
+    return min(diff, 360 - diff)
+
+def load_waco_breaks_config():
+    """Load break configuration from JSON file."""
+    config_path = os.path.join(os.path.dirname(__file__), 'waco_breaks_config.json')
+    try:
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+        return data.get('Waco', {})
+    except Exception as e:
+        print(f"Warning: Could not load waco_breaks_config.json: {e}")
+        return {}
+
+def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
+    """
+    Calculate barrel and air wind ratings for a break.
+
+    Args:
+        wind_direction: int, degrees 0-360
+        break_name: str, "Rights" or "Lefts"
+        location: str, default "Waco"
+
+    Returns:
+        dict {
+            'barrel_score': 0-100,
+            'barrel_rating': 'Excellent' or None (not displayed if not Excellent),
+            'air_score': 0-100,
+            'air_rating': 'Excellent' | 'Fair' or None (not displayed if Poor),
+        }
+    """
+    config = load_waco_breaks_config()
+
+    if break_name not in config:
+        return {
+            'barrel_score': 0,
+            'barrel_rating': None,
+            'air_score': 0,
+            'air_rating': None,
+        }
+
+    break_config = config[break_name]
+
+    # BARREL WIND SCORING
+    barrel_ideal = break_config['barrel_ideal_angle']
+    barrel_tol = break_config['barrel_tolerance_degrees']
+    angle_diff = calculate_angular_distance(wind_direction, barrel_ideal)
+
+    if angle_diff <= barrel_tol:
+        barrel_score = 100 - (angle_diff / barrel_tol * 30)  # 100 to 70
+        barrel_rating = 'Excellent'
+    else:
+        barrel_score = max(0, 70 - ((angle_diff - barrel_tol) / 150 * 70))
+        barrel_rating = None  # Don't display Fair/Poor
+
+    # AIR WIND SCORING
+    air_range_min, air_range_max = break_config['air_excellent_range']
+    air_peak = break_config['air_peak_angle']
+
+    # Check if in excellent range
+    if air_range_min <= wind_direction <= air_range_max:
+        distance_to_peak = abs(wind_direction - air_peak)
+        air_score = 100 - (distance_to_peak / 90 * 30)  # 100 to 70
+        air_rating = 'Excellent'
+    else:
+        # Calculate distance to nearest boundary of excellent range
+        if wind_direction < air_range_min:
+            distance_to_range = air_range_min - wind_direction
+        else:
+            distance_to_range = wind_direction - air_range_max
+
+        if distance_to_range <= 45:  # Fair range (±45° beyond excellent)
+            air_score = 70 - (distance_to_range / 45 * 30)  # 70 to 40
+            air_rating = 'Fair'
+        else:  # Poor (hidden in UI)
+            air_score = max(0, 40 - ((distance_to_range - 45) / 135 * 40))
+            air_rating = None  # Don't display Poor
+
+    return {
+        'barrel_score': round(barrel_score),
+        'barrel_rating': barrel_rating,
+        'air_score': round(air_score),
+        'air_rating': air_rating,
+    }
+
+# ---------------------------------------------------------------------------
 # Atmospheric / thermodynamic helpers
 # ---------------------------------------------------------------------------
 def saturation_vapor_pressure_kPa(T_C):
@@ -729,6 +820,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
         afternoon_temp_list         = []   # °C, avg over 9 AM–2 PM
         afternoon_humidity_list     = []
         afternoon_wind_list         = []
+        rights_barrel_rating_list   = []
+        rights_air_rating_list      = []
+        lefts_barrel_rating_list    = []
+        lefts_air_rating_list       = []
 
         for date_obj in sorted(daily_data.keys()):
             day = daily_data[date_obj]
@@ -749,6 +844,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             a_hum   = _mean(day["afternoon_humidities"],   avg_humidity)
             a_wind  = _mean(day["afternoon_wind_speeds"],  avg_wind)
 
+            # Calculate wind ratings for both breaks
+            rights_ratings = calculate_wind_ratings(avg_wind_dir, 'Rights')
+            lefts_ratings = calculate_wind_ratings(avg_wind_dir, 'Lefts')
+
             date_list.append(date_obj)
             average_temp_list.append(avg_temperature)
             average_humidity_list.append(avg_humidity)
@@ -760,6 +859,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             afternoon_temp_list.append(a_temp)
             afternoon_humidity_list.append(a_hum)
             afternoon_wind_list.append(a_wind)
+            rights_barrel_rating_list.append(rights_ratings['barrel_rating'])
+            rights_air_rating_list.append(rights_ratings['air_rating'])
+            lefts_barrel_rating_list.append(lefts_ratings['barrel_rating'])
+            lefts_air_rating_list.append(lefts_ratings['air_rating'])
 
         return {
             'date_list':                   date_list,
@@ -773,6 +876,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             'afternoon_temp_list':         afternoon_temp_list,         # °C
             'afternoon_humidity_list':     afternoon_humidity_list,     # %
             'afternoon_wind_list':         afternoon_wind_list,         # m s⁻¹
+            'rights_barrel_rating_list':   rights_barrel_rating_list,
+            'rights_air_rating_list':      rights_air_rating_list,
+            'lefts_barrel_rating_list':    lefts_barrel_rating_list,
+            'lefts_air_rating_list':       lefts_air_rating_list,
         }
     except Exception as exc:
         print(f"Error parsing data: {exc}")
@@ -1238,10 +1345,21 @@ if WRITE_FILES:
                 morning_F    = celsius_to_fahrenheit(wrow[8])  if wrow[8]  is not None else pool_temp_F
                 afternoon_F  = celsius_to_fahrenheit(wrow[9])  if wrow[9]  is not None else pool_temp_F
                 thunder_prob = wrow[10] if wrow[10] is not None else 0.0  # NEW
+
+                # Calculate wind ratings for both breaks
+                rights_ratings = calculate_wind_ratings(int(wind_dir), 'Rights')
+                lefts_ratings = calculate_wind_ratings(int(wind_dir), 'Lefts')
+
+                rights_barrel_rating = rights_ratings['barrel_rating'] or ''
+                rights_air_rating = rights_ratings['air_rating'] or ''
+                lefts_barrel_rating = lefts_ratings['barrel_rating'] or ''
+                lefts_air_rating = lefts_ratings['air_rating'] or ''
+
                 wf.write(
                     f"{wrow[0]},{pool_temp_F:.2f},{ci_low_F:.2f},{ci_high_F:.2f},{air_temp_F:.2f},"
                     f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f},"
-                    f"{morning_F:.2f},{afternoon_F:.2f},{thunder_prob:.0f}\n"  # Added thunder_prob as 11th field
+                    f"{morning_F:.2f},{afternoon_F:.2f},{thunder_prob:.0f},"
+                    f"{rights_barrel_rating},{rights_air_rating},{lefts_barrel_rating},{lefts_air_rating}\n"
                 )
 
     # Keep the legacy Waco file for backward compatibility
