@@ -275,7 +275,21 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
-                if (parts.length >= 10) {
+                if (parts.length >= 11) {
+                    // New format with thunder probability
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   parseFloat(parts[10])  // NEW
+                    };
+                } else if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
                         pool_ci_low:    parseFloat(parts[2]),
@@ -287,6 +301,20 @@
                         morning_temp:   parseFloat(parts[8]),
                         afternoon_temp: parseFloat(parts[9])
                     };
+                } else if (parts.length >= 10) {
+                    // Format without thunder probability
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   0  // Default to 0 for old format
+                    };
                 } else if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
@@ -297,7 +325,8 @@
                         wind_dir:       parseFloat(parts[6]),
                         humidity:       parseFloat(parts[7]),
                         morning_temp:   NaN,
-                        afternoon_temp: NaN
+                        afternoon_temp: NaN,
+                        thunder_prob:   0  // Default to 0 for old format
                     };
                 } else if (parts.length >= 6) {
                     // Backward compatibility for older export schema.
@@ -310,7 +339,8 @@
                         wind_dir:       parseFloat(parts[4]),
                         humidity:       parseFloat(parts[5]),
                         morning_temp:   NaN,
-                        afternoon_temp: NaN
+                        afternoon_temp: NaN,
+                        thunder_prob:   0  // Default to 0 for old format
                     };
                 }
             });
@@ -322,7 +352,7 @@
 
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
-        const forecastDaysToShow = 8;
+        const forecastDaysToShow = 7;
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
@@ -424,6 +454,7 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
+                let thunderHtml = '';
                 let morningAfternoonHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
@@ -439,6 +470,26 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
+
+                    // Thunder probability - only show if > 0%
+                    const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
+                    if (thunderProb > 0) {
+                        // Color code based on probability
+                        let thunderColor = '#ffff66';  // Default yellow (low risk)
+                        if (thunderProb >= 60) {
+                            thunderColor = '#ff3333';  // High risk - red
+                        } else if (thunderProb >= 30) {
+                            thunderColor = '#ffaa00';  // Moderate - orange
+                        }
+
+                        thunderHtml = `
+                        <div style="margin-top:8px; padding:6px; background:rgba(255,255,255,0.05); border-radius:6px;">
+                            <div style="font-size:11px; color:#aaa; margin-bottom:2px;">⚡ Thunder Risk</div>
+                            <div style="font-size:16px; font-weight:700; color:${thunderColor};">
+                                ${thunderProb.toFixed(0)}%
+                            </div>
+                        </div>`;
+                    }
 
                     if (!isNaN(wd.morning_temp) && !isNaN(wd.afternoon_temp)) {
                         const mColor = getTempColor(wd.morning_temp);
@@ -465,6 +516,7 @@
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
+                    ${thunderHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
                     ${morningAfternoonHtml}
                 `;
@@ -705,7 +757,6 @@
             <div id="day5" class="day-column"></div>
             <div id="day6" class="day-column"></div>
             <div id="day7" class="day-column"></div>
-            <div id="day8" class="day-column"></div>
         </div>
 
         <!-- Data timestamps info box -->
