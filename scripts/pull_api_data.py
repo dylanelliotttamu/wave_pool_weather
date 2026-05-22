@@ -448,8 +448,8 @@ FORCE_REFRESH = os.getenv('WAVE_POOL_FORCE_REFRESH', '0').strip().lower() in ('1
 # before we skip API refresh.
 MIN_FORECAST_DAYS = max(1, int(os.getenv('WAVE_POOL_MIN_FORECAST_DAYS', '7')))
 # Developer toggle to disable air wind validation (for testing)
-# Set WAVE_POOL_DISABLE_AIR_WIND_VALIDATION=0 to show air wind ratings to users
-DISABLE_AIR_WIND_VALIDATION = os.getenv('WAVE_POOL_DISABLE_AIR_WIND_VALIDATION', '1').strip().lower() in ('1', 'true', 'yes', 'on')
+# Set WAVE_POOL_DISABLE_AIR_WIND_VALIDATION=1 to hide air wind ratings from users
+DISABLE_AIR_WIND_VALIDATION = os.getenv('WAVE_POOL_DISABLE_AIR_WIND_VALIDATION', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if WRITE_FILES:
     BASE_OUTPUT_DIR = '/var/www/html'
