@@ -2,14 +2,14 @@
   "Waco": {
     "Rights": {
       "wave_vector": 330,
-      "barrel_ideal_angle": 150,
+      "barrel_ideal_angle": 45,
       "barrel_tolerance_degrees": 30,
       "air_excellent_range": [90, 180],
       "air_peak_angle": 90
     },
     "Lefts": {
       "wave_vector": 225,
-      "barrel_ideal_angle": 45,
+      "barrel_ideal_angle": 150,
       "barrel_tolerance_degrees": 30,
       "air_excellent_range": [0, 90],
       "air_peak_angle": 90
