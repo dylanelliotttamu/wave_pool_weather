@@ -1,0 +1,103 @@
+name: Auto Tag Main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-tag-main-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tag-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create or reuse main tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          existing_head_tag="$(git tag --points-at HEAD | head -n 1)"
+
+          if [ -n "$existing_head_tag" ]; then
+            echo "tag=$existing_head_tag" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            echo "HEAD already has tag: $existing_head_tag"
+            exit 0
+          fi
+
+          base_tag="$(date -u +'%y.%-m.%-d')"
+          candidate_tag="$base_tag"
+          suffix=1
+
+          while git rev-parse "$candidate_tag" >/dev/null 2>&1; do
+            candidate_tag="${base_tag}.${suffix}"
+            suffix=$((suffix + 1))
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$candidate_tag" -m "Release $candidate_tag"
+          git push origin "$candidate_tag"
+
+          echo "tag=$candidate_tag" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "Created tag: $candidate_tag"
+
+      - name: Create or update GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_name="${{ steps.tag.outputs.tag }}"
+          pr_title="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].title' 2>/dev/null || true)"
+
+          if [ -n "$pr_title" ] && [ "$pr_title" != "null" ]; then
+            source_title="$pr_title"
+          else
+            source_title="${{ github.event.head_commit.message }}"
+          fi
+
+          source_title="$(printf '%s\n' "$source_title" | head -n 1)"
+          normalized_title="$(printf '%s' "$source_title" | sed -E 's/^[[:space:]]*[^:]+:[[:space:]]*//' | tr '/_-' '   ' | sed -E 's/[^[:alnum:] ]+/ /g' | awk '{$1=$1; print}')"
+          release_title="$(SOURCE_TITLE="$normalized_title" python3 - <<'PY'
+import os
+
+words = os.environ.get("SOURCE_TITLE", "").split()
+summary = words[:3]
+if not summary:
+    summary = ["Site", "Update", "Release"]
+elif len(summary) == 1:
+    summary += ["Update", "Release"]
+elif len(summary) == 2:
+    summary += ["Release"]
+print(" ".join(word.capitalize() for word in summary))
+PY
+          )"
+
+          if gh release view "$tag_name" >/dev/null 2>&1; then
+            gh release edit "$tag_name" --title "$release_title"
+            echo "Release already exists for $tag_name; title ensured."
+          else
+            gh release create "$tag_name" \
+              --title "$release_title" \
+              --generate-notes
+            echo "Created GitHub release for $tag_name"
+          fi

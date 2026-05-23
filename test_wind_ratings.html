@@ -103,12 +103,12 @@
         border-radius: 3px;
     }
     .rating-excellent {
-        background: rgba(0, 204, 0, 0.2);
-        color: #00cc00;
+        background: rgba(124, 58, 237, 0.2);
+        color: #7c3aed;
     }
     .rating-fair {
-        background: rgba(255, 170, 0, 0.2);
-        color: #ffaa00;
+        background: rgba(0, 204, 0, 0.2);
+        color: #00cc00;
     }
     .rating-poor {
         background: rgba(255, 51, 51, 0.2);
@@ -149,13 +149,13 @@
 
         <div class="test-info">
             <strong>Test Data Scenarios:</strong><br>
-            May 21: E winds (90°) - Perfect for air on both breaks<br>
-            May 22: SSE winds (150°) - Perfect barrel for Rights, good air for both<br>
-            May 23: NE winds (45°) - Perfect barrel for Lefts, excellent air for Lefts<br>
-            May 24: S winds (180°) - Good for both barrel and air on Rights<br>
-            May 25: N winds (0°) - Good air for Lefts<br>
+            May 21: E winds (90°) - Epic air on both breaks<br>
+            May 22: SSE winds (150°) - Good air on both breaks<br>
+            May 23: NE winds (45°) - Epic air for Lefts, good air for Rights<br>
+            May 24: S winds (180°) - Good barrel for Lefts, good air for Rights<br>
+            May 25: N winds (0°) - Good barrel for Rights, good air for Lefts<br>
             May 26: W winds (270°) - Poor conditions for both<br>
-            May 27: WSW winds (240°) - Worst air for Rights (on-shore perpendicular)
+            May 27: WSW winds (240°) - Good barrel for Lefts, poor air for both
         </div>
 
         <div class="days-container" id="daysContainer">
@@ -166,10 +166,10 @@
             <h3>📋 Legend</h3>
             <div class="legend-item"><strong>Barrel wind:</strong> How offshore/favorable is wind for barreling waves</div>
             <div class="legend-item">
-                <span class="rating-badge rating-excellent">🟢 Excellent</span> - Wind is ±30° from ideal offshore angle
+                <span class="rating-badge rating-excellent">🟢 Epic</span> - Wind is within ±15° of ideal offshore angle
             </div>
             <div class="legend-item">
-                <span class="rating-badge rating-fair">🟡 Fair</span> - Wind is somewhat useful but not optimal (only shown if not Poor)
+                <span class="rating-badge rating-fair">🟡 Good</span> - Wind is within ±45° of ideal offshore angle
             </div>
             <div class="legend-item">
                 <span class="rating-badge rating-poor">🔴 Poor</span> - Wind is unhelpful (not displayed)
@@ -177,16 +177,16 @@
             <hr style="border: none; border-top: 1px solid #555; margin: 15px 0;">
             <div class="legend-item"><strong>Air wind:</strong> How favorable for launching airs</div>
             <div class="legend-item">
-                <span class="rating-badge rating-excellent">🟢 Excellent</span> - E winds (90°) or near-perpendicular offshore
+                <span class="rating-badge rating-excellent">🟢 Epic</span> - Peak launch direction for the break
             </div>
             <div class="legend-item">
-                <span class="rating-badge rating-fair">🟡 Fair</span> - Aligned with wave or partially favorable (only shown if not Poor)
+                <span class="rating-badge rating-fair">🟡 Good</span> - Near the peak launch direction (only shown if not Poor)
             </div>
             <div class="legend-item">
                 <span class="rating-badge rating-poor">🔴 Poor</span> - On-shore or unfavorable (not displayed)
             </div>
             <hr style="border: none; border-top: 1px solid #555; margin: 15px 0;">
-            <div class="legend-item" style="color: #aaa;"><em>Only positive ratings (Excellent or Fair) are displayed on forecast cards for a clean view of what's good today.</em></div>
+            <div class="legend-item" style="color: #aaa;"><em>Only positive ratings (Epic or Good) are displayed on forecast cards for a clean view of what's good today.</em></div>
         </div>
     </div>
 
@@ -200,9 +200,9 @@
             windSpeed: 8.5,
             windDir: 90,
             rightsBrrel: null,
-            rightsAir: 'Excellent',
+            rightsAir: 'Epic',
             leftsBrrel: null,
-            leftsAir: 'Excellent'
+            leftsAir: 'Epic'
         },
         {
             date: '2026-05-22',
@@ -210,10 +210,10 @@
             temp: 79.2,
             windSpeed: 7.2,
             windDir: 150,
-            rightsBrrel: 'Excellent',
-            rightsAir: 'Excellent',
+            rightsBrrel: null,
+            rightsAir: 'Good',
             leftsBrrel: null,
-            leftsAir: null
+            leftsAir: 'Good'
         },
         {
             date: '2026-05-23',
@@ -222,9 +222,9 @@
             windSpeed: 6.8,
             windDir: 45,
             rightsBrrel: null,
-            rightsAir: 'Fair',
-            leftsBrrel: 'Excellent',
-            leftsAir: 'Excellent'
+            rightsAir: 'Good',
+            leftsBrrel: null,
+            leftsAir: 'Epic'
         },
         {
             date: '2026-05-24',
@@ -232,9 +232,9 @@
             temp: 77.8,
             windSpeed: 9.2,
             windDir: 180,
-            rightsBrrel: 'Excellent',
-            rightsAir: 'Excellent',
-            leftsBrrel: null,
+            rightsBrrel: null,
+            rightsAir: 'Good',
+            leftsBrrel: 'Good',
             leftsAir: null
         },
         {
@@ -243,10 +243,10 @@
             temp: 76.4,
             windSpeed: 10.1,
             windDir: 0,
-            rightsBrrel: null,
+            rightsBrrel: 'Good',
             rightsAir: null,
             leftsBrrel: null,
-            leftsAir: 'Excellent'
+            leftsAir: 'Good'
         },
         {
             date: '2026-05-26',
@@ -267,7 +267,7 @@
             windDir: 240,
             rightsBrrel: null,
             rightsAir: null,
-            leftsBrrel: null,
+            leftsBrrel: 'Good',
             leftsAir: null
         }
     ];
@@ -283,18 +283,25 @@
 
     function getRatingClass(rating) {
         if (!rating) return '';
-        if (rating === 'Excellent') return 'rating-excellent';
-        if (rating === 'Fair') return 'rating-fair';
+        if (rating === 'Epic' || rating === 'Excellent') return 'rating-excellent';
+        if (rating === 'Good' || rating === 'Fair') return 'rating-fair';
         return 'rating-poor';
+    }
+
+    function getRatingEmoji(rating) {
+        if (rating === 'Epic' || rating === 'Excellent') return '🟣';
+        if (rating === 'Good' || rating === 'Fair') return '🟢';
+        return '🔴';
     }
 
     function createRatingRow(label, icon, rating) {
         if (!rating) return '';
         const badgeClass = getRatingClass(rating);
+        const emoji = getRatingEmoji(rating);
         return `
             <div class="rating-row">
                 <span class="rating-label">${icon} ${label}:</span>
-                <span class="rating-badge ${badgeClass}">🟢 ${rating}</span>
+                <span class="rating-badge ${badgeClass}">${emoji} ${rating}</span>
             </div>`;
     }
 

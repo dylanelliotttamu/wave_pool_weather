@@ -266,27 +266,40 @@
         return '🧊 ';
     }
 
+    function normalizeRating(rating) {
+        const normalized = (rating || '').trim().toLowerCase();
+        if (!normalized) return '';
+        if (normalized === 'epic' || normalized === 'excellent') return 'Epic';
+        if (normalized === 'good' || normalized === 'fair') return 'Good';
+        return rating.trim();
+    }
+
     function getRatingColor(rating) {
-        if (!rating) return '#999';
-        if (rating === 'Excellent') return '#00cc00';
-        if (rating === 'Fair') return '#ffaa00';
+        const normalized = normalizeRating(rating);
+        if (!normalized) return '#999';
+        if (normalized === 'Excellent') return '#7c3aed';
+        if (normalized === 'Epic') return '#7c3aed';
+        if (normalized === 'Good') return '#00cc00';
         return '#ff3333';  // Poor
     }
 
     function getRatingEmoji(rating) {
-        if (!rating) return '';
-        if (rating === 'Excellent') return '🟢';
-        if (rating === 'Fair') return '🟡';
+        const normalized = normalizeRating(rating);
+        if (!normalized) return '';
+        if (normalized === 'Excellent') return '🟣';
+        if (normalized === 'Epic') return '🟣';
+        if (normalized === 'Good') return '🟢';
         return '🔴';  // Poor
     }
 
     function createRatingHtml(label, icon, rating) {
-        if (!rating) return '';
-        const color = getRatingColor(rating);
-        const emoji = getRatingEmoji(rating);
+        const normalized = normalizeRating(rating);
+        if (!normalized) return '';
+        const color = getRatingColor(normalized);
+        const emoji = getRatingEmoji(normalized);
         return `<div style="margin: 6px 0; font-size: 12px;">
             <span>${icon} ${label}:</span>
-            <span style="color: ${color}; font-weight: 700; margin-left: 4px;">${emoji} ${rating}</span>
+            <span style="color: ${color}; font-weight: 700; margin-left: 4px;">${emoji} ${normalized}</span>
         </div>`;
     }
 
@@ -299,6 +312,10 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
+                const parseRating = (value) => {
+                    const normalized = (value || '').trim();
+                    return normalized || null;
+                };
                 if (parts.length >= 15) {
                     // New format with wind ratings
                     weatherMap[parts[0]] = {
@@ -312,10 +329,10 @@
                         morning_temp:   parseFloat(parts[8]),
                         afternoon_temp: parseFloat(parts[9]),
                         thunder_prob:   parseFloat(parts[10]),
-                        rights_barrel_rating: parts[11] || null,
-                        rights_air_rating:    parts[12] || null,
-                        lefts_barrel_rating:  parts[13] || null,
-                        lefts_air_rating:     parts[14] || null
+                        rights_barrel_rating: parseRating(parts[11]),
+                        rights_air_rating:    parseRating(parts[12]),
+                        lefts_barrel_rating:  parseRating(parts[13]),
+                        lefts_air_rating:     parseRating(parts[14])
                     };
                 } else if (parts.length >= 11) {
                     // Format without wind ratings (older format)
@@ -505,6 +522,7 @@
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
+                    const windSpeedKt = windSpeedMph * 0.868976;
                     const windDirDeg   = isNaN(wd.wind_dir)   ? 0 : wd.wind_dir;
                     // wind_dir is the direction wind comes FROM (met convention)
                     // arrow points in the direction wind is travelling TO → add 180°
@@ -514,7 +532,7 @@
                     windHtml = `
                         <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0;">
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
-                            <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
+                            <span style="font-size:14px; color:#ccc;">${windSpeedKt.toFixed(1)} kt <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
 
                     // Build wind ratings HTML (only show if ratings are available)
@@ -560,7 +578,7 @@
 
                         thunderHtml = `
                         <div style="margin-top:8px; padding:6px; background:rgba(255,255,255,0.05); border-radius:6px;">
-                            <div style="font-size:11px; color:#aaa; margin-bottom:2px;">⚡ Thunder Risk</div>
+                            <div style="font-size:11px; color:#aaa; margin-bottom:2px;">⚡ Lightning Risk</div>
                             <div style="font-size:16px; font-weight:700; color:${thunderColor};">
                                 ${thunderProb.toFixed(0)}%
                             </div>
