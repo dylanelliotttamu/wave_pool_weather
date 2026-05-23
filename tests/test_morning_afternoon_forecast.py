@@ -85,6 +85,21 @@ class TestParseWeatherDataMorningAfternoon(unittest.TestCase):
         avg = result['average_temp_list'][0]
         self.assertAlmostEqual(result['morning_temp_list'][0], avg, places=3)
 
+    def test_daily_wind_and_direction_use_daytime_hours_only(self):
+        periods = []
+        for hour in range(0, 7):
+            periods.append(_make_period(hour, 70.0, 1, 60, wind_dir='N'))
+        for hour in range(7, 20):
+            periods.append(_make_period(hour, 80.0, 10, 45, wind_dir='E'))
+        for hour in range(20, 24):
+            periods.append(_make_period(hour, 68.0, 1, 70, wind_dir='N'))
+
+        result = parse_weather_data({"properties": {"periods": periods}})
+
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result['average_wind_list'][0], pull_api_data.mph_to_ms(10), places=3)
+        self.assertEqual(result['average_wind_direction_list'][0], 90.0)
+
 
 class TestSubDailyThermalBalance(unittest.TestCase):
     """Verify that the 3 PM pool temp is higher than the 9 AM pool temp on a

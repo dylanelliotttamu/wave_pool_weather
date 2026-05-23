@@ -91,7 +91,7 @@ When pipeline runs normally, wind ratings will automatically:
 - Show per-break ratings only if positive
 
 ### To Customize:
-Edit `scripts/waco_breaks_config.json`:
+Edit `scripts/breaks_config.json`:
 - Change wave vectors if geography differs
 - Adjust barrel tolerance (currently ±30°)
 - Modify air excellent range

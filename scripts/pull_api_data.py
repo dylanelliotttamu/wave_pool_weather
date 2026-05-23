@@ -202,15 +202,133 @@ def calculate_angular_distance(angle1, angle2):
     diff = abs(angle1 - angle2)
     return min(diff, 360 - diff)
 
-def load_waco_breaks_config():
-    """Load break configuration from JSON file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'waco_breaks_config.json')
+def normalize_wind_direction(angle):
+    """Normalize any angle to [0, 360) so 360° and 0° are treated identically."""
+    return angle % 360
+
+def is_direction_in_range(angle, range_min, range_max):
+    """Return True when angle lies in an inclusive circular range."""
+    angle = normalize_wind_direction(angle)
+    range_min = normalize_wind_direction(range_min)
+    range_max = normalize_wind_direction(range_max)
+
+    if range_min <= range_max:
+        return range_min <= angle <= range_max
+    # Wrapped range, e.g. [315, 45]
+    return angle >= range_min or angle <= range_max
+
+def angular_distance_to_range(angle, range_min, range_max):
+    """Shortest circular distance from an angle to an inclusive circular range."""
+    if is_direction_in_range(angle, range_min, range_max):
+        return 0.0
+    return min(
+        calculate_angular_distance(angle, range_min),
+        calculate_angular_distance(angle, range_max),
+    )
+
+def build_angular_range(center_angle, half_width_degrees):
+    """Build an inclusive circular range around a center angle."""
+    center_angle = normalize_wind_direction(center_angle)
+    return [
+        normalize_wind_direction(center_angle - half_width_degrees),
+        normalize_wind_direction(center_angle + half_width_degrees),
+    ]
+
+def infer_break_side(break_name, break_config):
+    """Infer whether a break is left or right for derived-angle rules."""
+    explicit_side = (break_config.get('break_side') or break_config.get('side') or '').strip().lower()
+    if explicit_side in ('left', 'right'):
+        return explicit_side
+
+    break_name_lower = break_name.strip().lower()
+    if 'left' in break_name_lower:
+        return 'left'
+    if 'right' in break_name_lower:
+        return 'right'
+
+    raise ValueError(f"Cannot infer break side for {break_name!r}")
+
+def derive_break_config(break_name, break_config, pool_defaults=None):
+    """Derive scoring angles from a compact break config, with explicit overrides."""
+    pool_defaults = pool_defaults or {}
+
+    wave_vector = break_config.get('wave_vector')
+    if wave_vector is not None:
+        wave_vector = normalize_wind_direction(float(wave_vector))
+
+    side = infer_break_side(break_name, break_config)
+    barrel_offset = float(break_config.get(
+        'barrel_offset_degrees',
+        pool_defaults.get('barrel_offset_degrees', 180),
+    ))
+    air_offset = float(break_config.get(
+        'air_offset_degrees',
+        pool_defaults.get('air_offset_degrees', 135),
+    ))
+    air_half_width = float(break_config.get(
+        'air_excellent_half_width_degrees',
+        pool_defaults.get('air_excellent_half_width_degrees', 30),
+    ))
+    barrel_tolerance = float(break_config.get(
+        'barrel_tolerance_degrees',
+        pool_defaults.get('barrel_tolerance_degrees', 30),
+    ))
+
+    derived_barrel_ideal = None
+    derived_air_peak = None
+    derived_air_range = None
+    if wave_vector is not None:
+        side_sign = 1 if side == 'left' else -1
+        derived_barrel_ideal = normalize_wind_direction(wave_vector + barrel_offset)
+        derived_air_peak = normalize_wind_direction(wave_vector + side_sign * air_offset)
+        derived_air_range = build_angular_range(derived_air_peak, air_half_width)
+
+    barrel_ideal = break_config.get('barrel_ideal_angle', derived_barrel_ideal)
+    air_peak = break_config.get(
+        'air_peak_angle',
+        break_config.get('air_ideal_angle', derived_air_peak),
+    )
+    air_range = break_config.get('air_excellent_range', derived_air_range)
+
+    if barrel_ideal is None or air_peak is None or air_range is None:
+        raise ValueError(
+            f"Break {break_name!r} is missing required rating geometry; "
+            "provide wave_vector or explicit override angles"
+        )
+
+    air_range_min, air_range_max = air_range
+    return {
+        'break_side': side,
+        'wave_vector': wave_vector,
+        'barrel_ideal_angle': normalize_wind_direction(float(barrel_ideal)),
+        'barrel_tolerance_degrees': barrel_tolerance,
+        'air_peak_angle': normalize_wind_direction(float(air_peak)),
+        'air_excellent_range': [
+            normalize_wind_direction(float(air_range_min)),
+            normalize_wind_direction(float(air_range_max)),
+        ],
+    }
+
+def load_breaks_config(location="Waco"):
+    """Load and derive break configuration from JSON file."""
+    config_path = os.path.join(os.path.dirname(__file__), 'breaks_config.json')
     try:
         with open(config_path, 'r') as f:
             data = json.load(f)
-        return data.get('Waco', {})
+        location_config = data.get(location, {})
+        pool_defaults = location_config.get('_defaults', {})
+        derived_config = {}
+        for break_name, break_config in location_config.items():
+            if break_name.startswith('_'):
+                continue
+            derived_config[break_name] = derive_break_config(
+                break_name,
+                break_config,
+                pool_defaults,
+            )
+        return derived_config
     except Exception as e:
-        print(f"Warning: Could not load waco_breaks_config.json: {e}")
+        print(f"Warning: Could not load breaks_config.json: {e}")
         return {}
 
 def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
@@ -225,12 +343,13 @@ def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
     Returns:
         dict {
             'barrel_score': 0-100,
-            'barrel_rating': 'Excellent' or None (not displayed if not Excellent),
+            'barrel_rating': 'Epic' | 'Good' or None (not displayed if Poor),
             'air_score': 0-100,
-            'air_rating': 'Excellent' | 'Fair' or None (not displayed if Poor),
+            'air_rating': 'Epic' | 'Good' or None (not displayed if Poor),
         }
     """
-    config = load_waco_breaks_config()
+    config = load_breaks_config(location)
+    wind_direction = normalize_wind_direction(wind_direction)
 
     if break_name not in config:
         return {
@@ -244,15 +363,19 @@ def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
 
     # BARREL WIND SCORING
     barrel_ideal = break_config['barrel_ideal_angle']
-    barrel_tol = break_config['barrel_tolerance_degrees']
+    barrel_epic_tol = 15
+    barrel_good_tol = 60
     angle_diff = calculate_angular_distance(wind_direction, barrel_ideal)
 
-    if angle_diff <= barrel_tol:
-        barrel_score = 100 - (angle_diff / barrel_tol * 30)  # 100 to 70
-        barrel_rating = 'Excellent'
+    if angle_diff <= barrel_epic_tol:
+        barrel_score = 100 - (angle_diff / barrel_epic_tol * 20)  # 100 to 80
+        barrel_rating = 'Epic'
+    elif angle_diff <= barrel_good_tol:
+        barrel_score = 80 - ((angle_diff - barrel_epic_tol) / (barrel_good_tol - barrel_epic_tol) * 40)  # 80 to 40
+        barrel_rating = 'Good'
     else:
-        barrel_score = max(0, 70 - ((angle_diff - barrel_tol) / 150 * 70))
-        barrel_rating = None  # Don't display Fair/Poor
+        barrel_score = max(0, 40 - ((angle_diff - barrel_good_tol) / 135 * 40))
+        barrel_rating = None  # Don't display Poor
 
     # AIR WIND SCORING (can be disabled for testing)
     if DISABLE_AIR_WIND_VALIDATION:
@@ -262,21 +385,20 @@ def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
         air_range_min, air_range_max = break_config['air_excellent_range']
         air_peak = break_config['air_peak_angle']
 
-        # Check if in excellent range
-        if air_range_min <= wind_direction <= air_range_max:
+        # Check if in excellent range (supports wrapped ranges and 360° == 0°)
+        if is_direction_in_range(wind_direction, air_range_min, air_range_max):
             distance_to_peak = abs(wind_direction - air_peak)
             air_score = 100 - (distance_to_peak / 90 * 30)  # 100 to 70
-            air_rating = 'Excellent'
+            air_rating = 'Epic'
         else:
-            # Calculate distance to nearest boundary of excellent range
-            if wind_direction < air_range_min:
-                distance_to_range = air_range_min - wind_direction
-            else:
-                distance_to_range = wind_direction - air_range_max
+            # Calculate circular distance to nearest boundary of excellent range
+            distance_to_range = angular_distance_to_range(
+                wind_direction, air_range_min, air_range_max
+            )
 
             if distance_to_range <= 45:  # Fair range (±45° beyond excellent)
                 air_score = 70 - (distance_to_range / 45 * 30)  # 70 to 40
-                air_rating = 'Fair'
+                air_rating = 'Good'
             else:  # Poor (hidden in UI)
                 air_score = max(0, 40 - ((distance_to_range - 45) / 135 * 40))
                 air_rating = None  # Don't display Poor
@@ -452,7 +574,7 @@ MIN_FORECAST_DAYS = max(1, int(os.getenv('WAVE_POOL_MIN_FORECAST_DAYS', '7')))
 DISABLE_AIR_WIND_VALIDATION = os.getenv('WAVE_POOL_DISABLE_AIR_WIND_VALIDATION', '0').strip().lower() in ('1', 'true', 'yes', 'on')
 
 if WRITE_FILES:
-    BASE_OUTPUT_DIR = '/var/www/html'
+    BASE_OUTPUT_DIR = os.getenv('WAVE_POOL_BASE_OUTPUT_DIR', '/var/www/html').strip() or '/var/www/html'
     DATA_DIR      = os.path.join(BASE_OUTPUT_DIR, 'data')
     FORECASTS_DIR = os.path.join(DATA_DIR, 'forecasts')
     SITE_ROOT     = BASE_OUTPUT_DIR
@@ -701,7 +823,7 @@ def fetch_thunder_probability_nws(lat, lon, date_list):
         return {}
 
 # Main function to pull data from NWS api
-def pull_api_temp_data_main(lat, lon, timestep_in_hours):
+def pull_api_temp_data_main(lat, lon, timestep_in_hours, location_name="Waco"):
     try:
         # pull data from NWS api
         if timestep_in_hours == 1:
@@ -709,14 +831,14 @@ def pull_api_temp_data_main(lat, lon, timestep_in_hours):
             if hourly_forecast_url:
                 hourly_weather_json_data = request_data(hourly_forecast_url)
                 if hourly_weather_json_data:
-                    return parse_weather_data(hourly_weather_json_data)
+                    return parse_weather_data(hourly_weather_json_data, location_name)
         else:
             print('Invalid timestep')
     except Exception as e:
         print(f"Error pulling data from NWS api: {e}")
     return None
 
-def parse_weather_data(inputhourlyjsonweather_data):
+def parse_weather_data(inputhourlyjsonweather_data, location_name="Waco"):
     """
     Parse the NWS hourly forecast JSON.
 
@@ -734,6 +856,8 @@ def parse_weather_data(inputhourlyjsonweather_data):
             return None
 
         daily_data = {}
+        daytime_wind_start_hour = 7
+        daytime_wind_end_hour = 19
 
         for period in periods:
             start_time = period["startTime"]
@@ -792,6 +916,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
                     "humidities":           [],
                     "wind_speeds":          [],
                     "wind_directions":      [],
+                    # daytime window used for daily wind UI + wind rating inputs
+                    # includes hours 7:00 through 19:00 local forecast time
+                    "daytime_wind_speeds":     [],
+                    "daytime_wind_directions": [],
                     # morning window: midnight–9 AM (hours 0–8 inclusive)
                     "morning_temperatures": [],
                     "morning_humidities":   [],
@@ -806,6 +934,10 @@ def parse_weather_data(inputhourlyjsonweather_data):
             daily_data[date_obj]["humidities"].append(humidity)
             daily_data[date_obj]["wind_speeds"].append(wind_speed_ms)
             daily_data[date_obj]["wind_directions"].append(wind_direction)
+
+            if daytime_wind_start_hour <= hour <= daytime_wind_end_hour:
+                daily_data[date_obj]["daytime_wind_speeds"].append(wind_speed_ms)
+                daily_data[date_obj]["daytime_wind_directions"].append(wind_direction)
 
             if hour <= 8:
                 daily_data[date_obj]["morning_temperatures"].append(temperature_C)
@@ -837,13 +969,20 @@ def parse_weather_data(inputhourlyjsonweather_data):
             # Daily mean temperature: average of hourly max and min
             avg_temperature = (max(day["temperatures"]) + min(day["temperatures"])) / 2.0
             avg_humidity    = sum(day["humidities"])      / len(day["humidities"])
-            avg_wind        = sum(day["wind_speeds"])     / len(day["wind_speeds"])
-            avg_wind_dir    = sum(day["wind_directions"]) / len(day["wind_directions"])
 
-            # Morning / afternoon means (fall back to daily mean when no data)
             def _mean(lst, fallback):
                 return sum(lst) / len(lst) if lst else fallback
 
+            avg_wind = _mean(
+                day["daytime_wind_speeds"],
+                _mean(day["wind_speeds"], 0.0)
+            )
+            avg_wind_dir = _mean(
+                day["daytime_wind_directions"],
+                _mean(day["wind_directions"], 0.0)
+            )
+
+            # Morning / afternoon means (fall back to daily mean when no data)
             m_temp  = _mean(day["morning_temperatures"], avg_temperature)
             m_hum   = _mean(day["morning_humidities"],   avg_humidity)
             m_wind  = _mean(day["morning_wind_speeds"],  avg_wind)
@@ -852,8 +991,8 @@ def parse_weather_data(inputhourlyjsonweather_data):
             a_wind  = _mean(day["afternoon_wind_speeds"],  avg_wind)
 
             # Calculate wind ratings for both breaks
-            rights_ratings = calculate_wind_ratings(avg_wind_dir, 'Rights')
-            lefts_ratings = calculate_wind_ratings(avg_wind_dir, 'Lefts')
+            rights_ratings = calculate_wind_ratings(avg_wind_dir, 'Rights', location_name)
+            lefts_ratings = calculate_wind_ratings(avg_wind_dir, 'Lefts', location_name)
 
             date_list.append(date_obj)
             average_temp_list.append(avg_temperature)
@@ -999,7 +1138,7 @@ for name, coords in locations.items():
                 f"need >= {MIN_FORECAST_DAYS} day(s) through {target_cache_max_date}. "
                 "Fetching fresh API data."
             )
-        data = pull_api_temp_data_main(lat, lon, 1)
+        data = pull_api_temp_data_main(lat, lon, 1, name)
         if not data:
             print(f"  Failed to get NWS data for {name}")
             continue
@@ -1354,8 +1493,8 @@ if WRITE_FILES:
                 thunder_prob = wrow[10] if wrow[10] is not None else 0.0  # NEW
 
                 # Calculate wind ratings for both breaks
-                rights_ratings = calculate_wind_ratings(int(wind_dir), 'Rights')
-                lefts_ratings = calculate_wind_ratings(int(wind_dir), 'Lefts')
+                rights_ratings = calculate_wind_ratings(int(wind_dir), 'Rights', name)
+                lefts_ratings = calculate_wind_ratings(int(wind_dir), 'Lefts', name)
 
                 rights_barrel_rating = rights_ratings['barrel_rating'] or ''
                 rights_air_rating = rights_ratings['air_rating'] or ''
