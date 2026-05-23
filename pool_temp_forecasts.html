@@ -10,6 +10,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
     /* CSS styles */
     body {
@@ -224,8 +225,28 @@
     .data-info-row + .data-info-row {
         margin-top: 8px;
     }
+
+    /* Temperature forecast chart */
+    .chart-section {
+        max-width: 900px;
+        margin: 20px auto 0;
+        padding: 20px 24px;
+        background: #444;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .chart-section h3 {
+        text-align: center;
+        color: #4ecdc4;
+        margin: 0 0 16px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
     </style> 
     <script>
+    let tempChartInstance = null;
+
     function getTempColor(temp) {
         if (temp > 88)  return '#cc0000';        // red (very hot)
         if (temp >= 80) return '#ff6600';        // orange
@@ -245,6 +266,30 @@
         return '🧊 ';
     }
 
+    function getRatingColor(rating) {
+        if (!rating) return '#999';
+        if (rating === 'Excellent') return '#00cc00';
+        if (rating === 'Fair') return '#ffaa00';
+        return '#ff3333';  // Poor
+    }
+
+    function getRatingEmoji(rating) {
+        if (!rating) return '';
+        if (rating === 'Excellent') return '🟢';
+        if (rating === 'Fair') return '🟡';
+        return '🔴';  // Poor
+    }
+
+    function createRatingHtml(label, icon, rating) {
+        if (!rating) return '';
+        const color = getRatingColor(rating);
+        const emoji = getRatingEmoji(rating);
+        return `<div style="margin: 6px 0; font-size: 12px;">
+            <span>${icon} ${label}:</span>
+            <span style="color: ${color}; font-weight: 700; margin-left: 4px;">${emoji} ${rating}</span>
+        </div>`;
+    }
+
     async function loadWeatherData(poolName) {
         const weatherFilename = `data/forecasts/forecasted_weather_${poolName}.txt`;
         try {
@@ -254,26 +299,93 @@
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
-                if (parts.length >= 8) {
+                if (parts.length >= 15) {
+                    // New format with wind ratings
                     weatherMap[parts[0]] = {
-                        pool_temp:    parseFloat(parts[1]),
-                        pool_ci_low:  parseFloat(parts[2]),
-                        pool_ci_high: parseFloat(parts[3]),
-                        air_temp:     parseFloat(parts[4]),
-                        wind_speed:   parseFloat(parts[5]),
-                        wind_dir:     parseFloat(parts[6]),
-                        humidity:     parseFloat(parts[7])
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   parseFloat(parts[10]),
+                        rights_barrel_rating: parts[11] || null,
+                        rights_air_rating:    parts[12] || null,
+                        lefts_barrel_rating:  parts[13] || null,
+                        lefts_air_rating:     parts[14] || null
+                    };
+                } else if (parts.length >= 11) {
+                    // Format without wind ratings (older format)
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   parseFloat(parts[10]),
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
+                    };
+                } else if (parts.length >= 10) {
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   parseFloat(parts[8]),
+                        afternoon_temp: parseFloat(parts[9]),
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
+                    };
+                } else if (parts.length >= 8) {
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    parseFloat(parts[2]),
+                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[4]),
+                        wind_speed:     parseFloat(parts[5]),
+                        wind_dir:       parseFloat(parts[6]),
+                        humidity:       parseFloat(parts[7]),
+                        morning_temp:   NaN,
+                        afternoon_temp: NaN,
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 } else if (parts.length >= 6) {
                     // Backward compatibility for older export schema.
                     weatherMap[parts[0]] = {
-                        pool_temp:    parseFloat(parts[1]),
-                        pool_ci_low:  NaN,
-                        pool_ci_high: NaN,
-                        air_temp:     parseFloat(parts[2]),
-                        wind_speed:   parseFloat(parts[3]),
-                        wind_dir:     parseFloat(parts[4]),
-                        humidity:     parseFloat(parts[5])
+                        pool_temp:      parseFloat(parts[1]),
+                        pool_ci_low:    NaN,
+                        pool_ci_high:   NaN,
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   NaN,
+                        afternoon_temp: NaN,
+                        thunder_prob:   0,
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
                     };
                 }
             });
@@ -285,7 +397,7 @@
 
     async function loadPoolData(poolName) {
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
-        const forecastDaysToShow = 8;
+        const forecastDaysToShow = 7;
         let displayName = poolName.replace(/_/g, ' ');
         // Special handling for display names
         const displayMap = {
@@ -387,6 +499,9 @@
 
                 // Build wind row if weather data available
                 let windHtml = '';
+                let thunderHtml = '';
+                let ratingsHtml = '';
+                let morningAfternoonHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
                     const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
@@ -401,6 +516,75 @@
                             <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
                             <span style="font-size:14px; color:#ccc;">${windSpeedMph.toFixed(1)} mph <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
                         </div>`;
+
+                    // Build wind ratings HTML (only show if ratings are available)
+                    let ratingsContent = '';
+                    let rightsRatings = '';
+                    let leftsRatings = '';
+
+                    rightsRatings += createRatingHtml('Barrel wind', '🌊', wd.rights_barrel_rating);
+                    rightsRatings += createRatingHtml('Air wind', '✈️', wd.rights_air_rating);
+
+                    leftsRatings += createRatingHtml('Barrel wind', '🌊', wd.lefts_barrel_rating);
+                    leftsRatings += createRatingHtml('Air wind', '✈️', wd.lefts_air_rating);
+
+                    if (rightsRatings || leftsRatings) {
+                        let ratingsHtmlParts = [];
+                        if (rightsRatings) {
+                            ratingsHtmlParts.push(`
+                            <div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
+                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">RIGHTS</div>
+                                ${rightsRatings}
+                            </div>`);
+                        }
+                        if (leftsRatings) {
+                            ratingsHtmlParts.push(`
+                            <div style="padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
+                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">LEFTS</div>
+                                ${leftsRatings}
+                            </div>`);
+                        }
+                        ratingsHtml = `<div style="margin-top: 8px;">${ratingsHtmlParts.join('')}</div>`;
+                    }
+
+                    // Thunder probability - only show if > 0%
+                    const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
+                    if (thunderProb > 0) {
+                        // Color code based on probability
+                        let thunderColor = '#ffff66';  // Default yellow (low risk)
+                        if (thunderProb >= 60) {
+                            thunderColor = '#ff3333';  // High risk - red
+                        } else if (thunderProb >= 30) {
+                            thunderColor = '#ffaa00';  // Moderate - orange
+                        }
+
+                        thunderHtml = `
+                        <div style="margin-top:8px; padding:6px; background:rgba(255,255,255,0.05); border-radius:6px;">
+                            <div style="font-size:11px; color:#aaa; margin-bottom:2px;">⚡ Thunder Risk</div>
+                            <div style="font-size:16px; font-weight:700; color:${thunderColor};">
+                                ${thunderProb.toFixed(0)}%
+                            </div>
+                        </div>`;
+                    }
+
+                    if (!isNaN(wd.morning_temp) && !isNaN(wd.afternoon_temp)) {
+                        const mColor = getTempColor(wd.morning_temp);
+                        const aColor = getTempColor(wd.afternoon_temp);
+                        morningAfternoonHtml = `
+                        <div style="margin-top:10px; border-top:1px solid #555; padding-top:8px;">
+                            <div style="font-size:12px; color:#aaa; margin-bottom:4px;">Time-of-Day Estimates</div>
+                            <div style="display:flex; justify-content:space-around; gap:4px;">
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px; color:#aaa;">🌅 9 AM</div>
+                                    <div style="font-size:16px; font-weight:700; color:${mColor};">${wd.morning_temp.toFixed(1)}°F</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px; color:#aaa;">☀️ 3 PM</div>
+                                    <div style="font-size:16px; font-weight:700; color:${aColor};">${wd.afternoon_temp.toFixed(1)}°F</div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
                 }
 
                 column.innerHTML = `
@@ -408,7 +592,10 @@
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
+                    ${ratingsHtml}
+                    ${thunderHtml}
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
+                    ${morningAfternoonHtml}
                 `;
             });
 
@@ -418,6 +605,121 @@
                     column.innerHTML = '<p>Extended forecast data is not available yet. Check back soon.</p>';
                 }
             }
+
+            // Build temperature chart
+            const chartLabels = visibleRows.map(r => {
+                const d = r.dateObj;
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const chartTemps = visibleRows.map(r => parseFloat(r.temp));
+
+            // Point colors based on temperature value
+            const pointColors = chartTemps.map(t => getTempColor(t));
+
+            // Extract 9 AM / 3 PM estimates from weatherMap (null when unavailable)
+            function extractSubdailyTemps(field) {
+                return visibleRows.map(r => {
+                    if (!weatherMap || !weatherMap[r.date]) return null;
+                    const v = weatherMap[r.date][field];
+                    return Number.isFinite(v) ? v : null;
+                });
+            }
+            const morningTemps   = extractSubdailyTemps('morning_temp');
+            const afternoonTemps = extractSubdailyTemps('afternoon_temp');
+            const hasSubdaily = morningTemps.some(v => v !== null);
+
+            // Pre-compute point colors for sub-daily series
+            const morningPointColors   = morningTemps.map(v   => v !== null ? getTempColor(v)   : 'transparent');
+            const afternoonPointColors = afternoonTemps.map(v => v !== null ? getTempColor(v) : 'transparent');
+
+            if (tempChartInstance) {
+                tempChartInstance.destroy();
+                tempChartInstance = null;
+            }
+
+            const datasets = [
+                {
+                    label: 'Daily Avg (°F)',
+                    data: chartTemps,
+                    borderColor: '#ffd166',
+                    backgroundColor: 'rgba(255,209,102,0.10)',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1.5
+                }
+            ];
+
+            if (hasSubdaily) {
+                datasets.push({
+                    label: '🌅 9 AM (°F)',
+                    data: morningTemps,
+                    borderColor: '#7ad3ff',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.8,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: morningPointColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                });
+                datasets.push({
+                    label: '☀️ 3 PM (°F)',
+                    data: afternoonTemps,
+                    borderColor: '#ff9a56',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.8,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: afternoonPointColors,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1
+                });
+            }
+
+            const ctx = document.getElementById('tempForecastChart').getContext('2d');
+            tempChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: chartLabels, datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: hasSubdaily,
+                            labels: { color: '#ccc', font: { size: 12 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    const v = tooltipItem.parsed.y;
+                                    return `${tooltipItem.dataset.label}: ${v.toFixed(1)} °F`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#ccc', font: { size: 12 } },
+                            grid: { color: 'rgba(255,255,255,0.07)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Temperature (°F)', color: '#ccc', font: { size: 12 } },
+                            ticks: { color: '#ccc', font: { size: 12 } },
+                            grid: { color: 'rgba(255,255,255,0.07)' }
+                        }
+                    }
+                }
+            });
         } catch (error) {
             for (let i = 1; i <= forecastDaysToShow; i++) {
                 const column = document.getElementById(`day${i}`);
@@ -463,12 +765,12 @@
             }
         }
 
-        function fmtDate(d) {
+        function fmtDate(d, timeZone = 'UTC') {
             if (!d) return 'unavailable';
             return d.toLocaleString('en-US', {
                 month: 'short', day: 'numeric', year: 'numeric',
                 hour: 'numeric', minute: '2-digit',
-                timeZone: 'UTC', timeZoneName: 'short'
+                timeZone, timeZoneName: 'short'
             });
         }
 
@@ -480,7 +782,7 @@
         const fetchEl  = document.getElementById('lastFetchTime');
         const deployEl = document.getElementById('lastDeployTime');
         if (fetchEl)  fetchEl.textContent  = fmtDate(fetchDate);
-        if (deployEl) deployEl.textContent = fmtDate(deployDate);
+        if (deployEl) deployEl.textContent = fmtDate(deployDate, 'America/Chicago');
     }
     </script>
 </head>
@@ -492,7 +794,6 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="learn_more.html">Learn More</a>
         <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 
@@ -517,6 +818,13 @@
     <!-- Days Container -->
     <div class="content">
         <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas 🤠</h2>
+
+        <!-- Temperature Forecast Chart -->
+        <div class="chart-section">
+            <h3>📈 Temperature Forecast</h3>
+            <canvas id="tempForecastChart" style="width:100%; max-height:280px;"></canvas>
+        </div>
+
         <div class="days-container">
             <div id="day1" class="day-column"></div>
             <div id="day2" class="day-column"></div>
@@ -525,7 +833,6 @@
             <div id="day5" class="day-column"></div>
             <div id="day6" class="day-column"></div>
             <div id="day7" class="day-column"></div>
-            <div id="day8" class="day-column"></div>
         </div>
 
         <!-- Data timestamps info box -->

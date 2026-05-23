@@ -1,0 +1,111 @@
+VISUAL MOCKUP - Thunder Probability Display
+===========================================
+
+BEFORE (Current forecast card):
+┌─────────────────────┐
+│     Tuesday         │
+│     May 21          │
+│                     │
+│     78.5 °F         │
+│                     │
+│  ↑  8.5 mph NW      │
+│                     │
+│ 🩳 Great for surf!  │
+└─────────────────────┘
+
+
+AFTER - Option A (Simple, Recommended):
+┌─────────────────────┐
+│     Tuesday         │
+│     May 21          │
+│                     │
+│     78.5 °F         │
+│                     │
+│  ↑  8.5 mph NW      │
+│ ┌─────────────────┐ │
+│ │ ⚡ Thunder Risk  │ │
+│ │      45%        │ │  ← Orange color (30-60%)
+│ └─────────────────┘ │
+│                     │
+│ 🩳 Great for surf!  │
+└─────────────────────┘
+
+
+AFTER - Option B (Risk Level):
+┌─────────────────────┐
+│     Tuesday         │
+│     May 21          │
+│                     │
+│     78.5 °F         │
+│                     │
+│  ↑  8.5 mph NW      │
+│ ┌─────────────────┐ │
+│ │⚡ Moderate Risk  │ │  ← Orange background
+│ │  45% chance     │ │
+│ └─────────────────┘ │
+│                     │
+│ 🩳 Great for surf!  │
+└─────────────────────┘
+
+
+COLOR CODING:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  0-9%:   #666 (gray)   - Minimal risk
+ 10-29%:  #ffff66       - Low risk (yellow)
+ 30-59%:  #ffaa00       - Moderate risk (orange)
+ 60-100%: #ff3333       - High risk (red)
+
+
+CHART INTEGRATION (Optional):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Temperature Chart with Thunder Overlay:
+
+°F                                            Thunder %
+90 ┤                                          100
+85 ┤    ●─────●                               80
+80 ┤  ●         ●─────●                       60  ⚡
+75 ┤●                   ●                     40     ●
+70 ┤                      ●                   20       ●─●─●
+65 ┤                                          0
+   └──────────────────────────────────
+   Mon  Tue  Wed  Thu  Fri  Sat  Sun
+
+   ─── Pool Temp (°F)    Left Y-axis
+   ─⚡─ Thunder % (Right Y-axis, gold color)
+
+
+MOBILE VIEW:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+┌──────────┐
+│ Tuesday  │
+│  May 21  │
+│          │
+│  78.5°F  │
+│          │
+│ ↑ 8.5mph │
+│          │
+│ ⚡ 45%    │  ← Compact display
+│          │
+│ 🩳 Great! │
+└──────────┘
+
+
+DATA FLOW:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NWS API
+  │ probabilityOfThunder: [26, 18, 10, ...]
+  ▼
+Database (air_temps table)
+  │ thunder_prob column
+  ▼
+Forecast file (forecasted_weather_Waco.txt)
+  │ date,pool,ci_low,ci_high,air,wind,dir,humid,thunder
+  ▼
+Frontend (pool_temp_forecasts.html)
+  │ Parse & display with color coding
+  ▼
+User sees: ⚡ 45% (orange)

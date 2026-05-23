@@ -95,6 +95,61 @@
     .card p:last-child { margin-bottom: 0; }
     .card a { color: #8db600; text-decoration: none; }
     .card a:hover { text-decoration: underline; }
+    pre, code {
+        background-color: #2a2a2a;
+        color: #f8f8f2;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+    }
+    pre {
+        padding: 14px 18px;
+        overflow-x: auto;
+        line-height: 1.6;
+        margin: 12px 0;
+    }
+    code {
+        padding: 2px 6px;
+    }
+    .eq-label {
+        color: #aaa;
+        font-size: 13px;
+        margin-top: -4px;
+        margin-bottom: 10px;
+    }
+    .eq-block {
+        background-color: #2a2a2a;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin: 12px 0;
+    }
+    .eq-block p {
+        margin: 4px 0;
+        color: #f8f8f2;
+        font-size: 15px;
+        letter-spacing: 0;
+        line-height: 1.9;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 14px;
+        font-size: 14px;
+    }
+    th {
+        background-color: #333;
+        color: #4ecdc4;
+        padding: 10px 14px;
+        text-align: left;
+        font-weight: 600;
+    }
+    td {
+        padding: 9px 14px;
+        border-bottom: 1px solid #555;
+        color: #ccc;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background-color: #3a3a3a; }
 
     /* ── What I Do grid ── */
     .pillars-grid {
@@ -181,49 +236,6 @@
         margin: 0;
     }
 
-    /* ── Learn More callout ── */
-    .callout-card {
-        background: linear-gradient(135deg, rgba(84,58,183,0.25) 0%, rgba(0,172,193,0.2) 100%);
-        border: 1px solid rgba(78,205,196,0.35);
-        border-radius: 12px;
-        padding: 24px 28px;
-        margin-bottom: 24px;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
-        flex-wrap: wrap;
-    }
-    .callout-card .callout-icon {
-        font-size: 2.6rem;
-        flex-shrink: 0;
-    }
-    .callout-card .callout-body { flex: 1; min-width: 180px; }
-    .callout-card h2 {
-        margin: 0 0 6px 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #4ecdc4;
-    }
-    .callout-card p {
-        color: #ccc;
-        font-size: 14.5px;
-        line-height: 1.65;
-        margin: 0 0 12px 0;
-    }
-    .callout-card .learn-btn {
-        display: inline-block;
-        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
-        color: #fff;
-        text-decoration: none;
-        padding: 9px 22px;
-        border-radius: 7px;
-        font-size: 14px;
-        font-weight: 600;
-        transition: opacity 0.25s;
-    }
-    .callout-card .learn-btn:hover { opacity: 0.82; text-decoration: none; }
-
     .photos-row {
         display: flex;
         gap: 20px;
@@ -287,7 +299,6 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html" class="active">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="learn_more.html">Learn More</a>
         <a href="feedback.html">Feedback &amp; Subscribe</a>
     </div>
 
@@ -300,131 +311,134 @@
     <!-- Main Content -->
     <div class="content">
 
-        <!-- ── Why This Site Exists ── -->
+        <!-- ── Science and Engineering ── -->
         <div class="card">
-            <h2>Why This Site Exists</h2>
-            <p>I created Wave Pool Weather with one goal in mind: give surfers accurate water temperature forecasts for wave pools so they never show up under-dressed (or sweltering in a 5/4 on a warm Texas day). Weather in places like Waco can swing dramatically within a single week, and the pool water temperature rarely tracks the air temperature — it has its own thermal momentum driven by solar radiation, wind, and evaporative cooling.</p>
-            <p>No other resource was filling that gap. So I built one. The site automatically fetches real-time weather data every day, feeds it through a physics-based thermal energy balance model, and delivers 7-day pool temperature forecasts across multiple wave pool venues in the U.S.</p>
+            <h2>How the Forecasts Work</h2>
+            <p>Each pool is modelled as a well-mixed body of water whose temperature evolves hour by hour based on the net energy exchanged with its surroundings. At every time step the model asks: how much heat is the pool gaining or losing right now, and how does that change the water temperature?</p>
+            <p>That question is answered by a single governing equation:</p>
+            <div class="eq-block" style="font-size:1.15em; padding:20px 24px; text-align:center;">
+                <p style="font-size:1.2em; line-height:2.2; font-weight:500;">
+                    T<sub>pool</sub><sup>new</sup> = T<sub>pool</sub> +
+                    <span style="display:inline-block; border-top:1px solid #f8f8f2; border-bottom:1px solid #f8f8f2; padding:0 8px;">
+                        <span style="display:block; text-align:center; padding:4px 0;">
+                            Q<sub>solar</sub> + Q<sub>longwave</sub> + Q<sub>convection</sub> + Q<sub>evaporation</sub> + Q<sub>ground</sub>
+                        </span>
+                        <span style="display:block; text-align:center; padding:4px 0;">
+                            ρ · d · c<sub>p</sub>
+                        </span>
+                    </span>
+                    · Δt
+                </p>
+            </div>
+            <p class="eq-label">T<sub>pool</sub> = pool water temperature &nbsp;|&nbsp; ρ = water density &nbsp;|&nbsp; d = effective pool depth &nbsp;|&nbsp; c<sub>p</sub> = specific heat of water &nbsp;|&nbsp; Δt = time step</p>
+            <p>The five heat-flux terms in the numerator represent every meaningful energy pathway between the pool and its environment:</p>
+            <ul style="color:#ccc; line-height:2; font-size:15px; margin-top:8px;">
+                <li><strong style="color:#fff;">Solar radiation</strong> — shortwave sunlight absorbed at the water surface</li>
+                <li><strong style="color:#fff;">Longwave radiation</strong> — infrared exchange between the sky and the pool</li>
+                <li><strong style="color:#fff;">Convection</strong> — sensible heat carried by wind across the surface</li>
+                <li><strong style="color:#fff;">Evaporation</strong> — latent heat lost as water evaporates (almost always a cooling term)</li>
+                <li><strong style="color:#fff;">Ground conduction</strong> — slow heat flow through the pool floor into the earth below</li>
+            </ul>
+            <p>Weather inputs such as air temperature, humidity, wind speed, and solar irradiance are pulled daily from public APIs and fed into the model as forcing data, giving a site-specific multi-day temperature forecast for each pool.</p>
+        </div>
+
+        <div class="card">
+            <h2>Data Sources</h2>
+            <p>Weather and solar forcing data are fetched automatically once per day from free public APIs:</p>
+            <ul style="color:#ccc; line-height:1.8; font-size:15px;">
+                <li><strong style="color:#fff;">NWS API</strong> — <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> — Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
+                <li><strong style="color:#fff;">Open-Meteo API</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener" style="color:#8db600;">open-meteo.com</a> — Daily total shortwave solar radiation (MJ/m²/day). No API key required.</li>
+            </ul>
+            <p>All retrieved data is stored in a local SQLite database for persistence and used as WAVE-FEST's initial condition on subsequent runs.</p>
+        </div>
+
+        <div class="card">
+            <h2>Wetsuit Recommendation Guide</h2>
+            <p>Suit recommendations are assigned based on forecasted pool water temperature:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Water Temp (°F)</th>
+                        <th>Recommended Suit</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>≥ 75°F</td>
+                        <td>🩳 Boardshorts</td>
+                        <td>Warm water — no thermal protection needed</td>
+                    </tr>
+                    <tr>
+                        <td>69 – 74°F</td>
+                        <td>👕 Top / Shorty</td>
+                        <td>Light spring suit or rash guard</td>
+                    </tr>
+                    <tr>
+                        <td>63 – 68°F</td>
+                        <td>🩱 2mm Springsuit / 3/2 Full Suit</td>
+                        <td>Moderate thermal protection</td>
+                    </tr>
+                    <tr>
+                        <td>58 – 62°F</td>
+                        <td>🥶 4/3 Full Suit</td>
+                        <td>Cool water — full suit recommended</td>
+                    </tr>
+                    <tr>
+                        <td>52 – 57°F</td>
+                        <td>🥶❄️ 4/3 Full Suit + Booties</td>
+                        <td>Cold water — add booties for foot warmth</td>
+                    </tr>
+                    <tr>
+                        <td>&lt; 52°F</td>
+                        <td>🧊 5/4 Full Suit + Hood + Booties</td>
+                        <td>Very cold — maximum insulation required</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ── Motivation ── -->
+        <div class="card">
+            <h2>Motivation</h2>
+            <p>Wave pool water temperature rarely tracks air temperature — it's driven by solar radiation, wind, and evaporative cooling. I built this site to give surfers accurate 7-day temperature forecasts so they can dress appropriately, powered by real-time weather data and the thermal energy balance model WAVE-FEST.</p>
         </div>
 
         <!-- ── About the Creator ── -->
         <div class="card">
             <h2>About the Creator</h2>
-            <p>Hi — I'm <strong style="color:#fff;">Dylan Elliott</strong>, Data Analyst II at <strong style="color:#fff;">SeekOps</strong> where I perform data science and engineering for drone-based methane detection work, and formerly a master's student in Atmospheric Sciences at Texas A&amp;M University and a Data Analyst at Flood Information Systems. I broadly work in atmospheric data science and engineering, where my core interests lie at the intersection of machine learning and numerical weather prediction.</p>
-            <p>Out of the office I chase wind swell in the Gulf and man made surf in Waco, enjoy hunting, and build personal coding projects. Wave Pool Weather is one of those projects: part data engineering exercise, part physics modelling challenge, and part genuine gift to the wave pool community.</p>
-            <p>Always looking to apply my background in geoscience, data analytics, and scientific software to real-world problems. If that sounds like a fit, feel free to reach out below.</p>
-        </div>
-
-        <!-- ── Journey / Timeline ── -->
-        <div class="card">
-            <h2>My Journey</h2>
-            <div class="timeline">
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Early Years</div>
-                    <div class="tl-title">🌊 Caught the Surf Bug</div>
-                    <p class="tl-desc">Grew up drawn to the ocean and the outdoors. Surfing became a core part of life — chasing swells whenever and wherever possible and building a deep appreciation for how weather systems shape wave quality.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Undergraduate</div>
-                    <div class="tl-title">🎓 B.S. — Earth and Planetary Science 21'</div>
-                    <p class="tl-desc">Pursued a degree in EPS to formalise the link between weather curiosity and rigorous science at UC Santa Cruz. Developed strong foundations in thermodynamics, fluid dynamics, meteorological data analysis, and scientific programming in Python and MATLAB.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Graduate School · Texas A&amp;M</div>
-                    <div class="tl-title">🔬 M.S. Atmospheric Science - ML &amp; Data Assimilation in Numerical Weather Prediction 24'</div>
-                    <p class="tl-desc">Joined Dr. Istvan Szunyogh's group at TAMU to research how machine learning can improve data assimilation in atmospheric models. Work spans ensemble Kalman filters, hybrid-reservoir computing, and high-performance computing on TAMU's supercomputing clusters.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Professional</div>
-                    <div class="tl-title">💧 Data Analyst · Flood Information Systems</div>
-                    <p class="tl-desc">Previosuly a R&D Data Analyst who built tools that process hydrological and meteorological data to support flood risk assessment and emergency response decision-making across Texas watersheds.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Current · Professional</div>
-                    <div class="tl-title">🛸 Data Analyst II · SeekOps</div>
-                    <p class="tl-desc">I apply data science and engineering principals to enhance our drone-based methane detection. I create analytical and visual tools that process sensor data from UAV flight operations to detect, quantify, and report methane emissions for the energy sector.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Waco Discovery</div>
-                    <div class="tl-title">🏄 Wave Pool Surfing Begins</div>
-                    <p class="tl-desc">Discovered BSR Surf Resort / Waco Surf in Central Texas — one of the premier wave pools in North America. Quickly noticed that knowing what gear to bring required knowing the water temperature, which no tool reliably predicted.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Side Project</div>
-                    <div class="tl-title">⚙️ Wave Pool Weather Is Born</div>
-                    <p class="tl-desc">Combined atmospheric science training, data engineering skills, and wave pool enthusiasm to build a physics-based pool temperature forecasting site. Starting with Waco, the project has since expanded to cover multiple wave pool venues across the U.S.</p>
-                </div>
-
-                <div class="tl-item">
-                    <div class="tl-dot"></div>
-                    <div class="tl-year">Ongoing</div>
-                    <div class="tl-title">📡 Continuous Improvement</div>
-                    <p class="tl-desc">The site grows with each session and each new idea — adding locations, refining the thermal model, building out the data dashboard, and incorporating community feedback. The goal remains the same: show up prepared, surf better.</p>
-                </div>
-
-            </div>
+            <p>I'm <strong style="color:#fff;">Dylan Elliott</strong>, Data Analyst II at <strong style="color:#fff;">SeekOps</strong> working on drone-based methane detection, and a former master's student in Atmospheric Sciences. I build projects at the intersection of data science, physics modelling, and real-world problems. Outside of work, I chase wind swell and build personal coding projects like this one.</p>
         </div>
 
         <!-- ── What I Do ── -->
         <div class="card">
             <h2>What I Do</h2>
-            <p>My work spans three closely-linked domains that all come together in this project:</p>
             <div class="pillars-grid">
 
                 <div class="pillar">
                     <div class="pillar-icon">🌤️</div>
-                    <h3>Atmospheric Science Research</h3>
-                    <p>Machine learning for data assimilation and numerical weather prediction at Texas A&amp;M, working to make tomorrow's forecasts more accurate.</p>
+                    <h3>Atmospheric Science</h3>
+                    <p>ML for weather prediction and data assimilation.</p>
                 </div>
 
                 <div class="pillar">
                     <div class="pillar-icon">🛸</div>
-                    <h3>Drone-Based Emissions Detection</h3>
-                    <p>Data science and engineering at SeekOps for UAV methane detection — building pipelines and tools that quantify emissions from drone sensor data for the energy sector.</p>
+                    <h3>Emissions Detection</h3>
+                    <p>Data science for drone-based methane sensing.</p>
                 </div>
 
                 <div class="pillar">
                     <div class="pillar-icon">💧</div>
-                    <h3>Hydrological Data Analysis</h3>
-                    <p>Built real-time meteorological and hydrological data tools at Flood Information Systems to support flood risk assessment and emergency response across Texas watersheds.</p>
+                    <h3>Hydrology</h3>
+                    <p>Real-time flood risk and water monitoring tools.</p>
                 </div>
 
                 <div class="pillar">
                     <div class="pillar-icon">🌊</div>
-                    <h3>Wave Pool Temperature Modelling</h3>
-                    <p>Building and tuning a physics-based energy balance model that forecasts pool water temperatures 7 days ahead across multiple wave pool venues.</p>
+                    <h3>Pool Temperature Modelling</h3>
+                    <p>Physics-based 7-day thermal forecasts.</p>
                 </div>
 
-                <div class="pillar">
-                    <div class="pillar-icon">🏄</div>
-                    <h3>Surfing &amp; Outdoors</h3>
-                    <p>Active wave pool and open-ocean surfer. Also an avid fly fisherman — both hobbies keep the weather obsession very practical and personal.</p>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ── Learn More Callout ── -->
-        <div class="callout-card">
-            <div class="callout-icon">🔬</div>
-            <div class="callout-body">
-                <h2>Curious How the Forecasts Actually Work?</h2>
-                <p>The temperature predictions aren't a guess — they're the output of a multi-component physics model driven by live NWS and Open-Meteo weather data. The Learn More page walks through every equation: solar absorption, longwave radiation, evaporative cooling, ground heat exchange, and the full wetsuit recommendation guide.</p>
-                <a href="learn_more.html" class="learn-btn">Explore the Science →</a>
             </div>
         </div>
 
@@ -454,7 +468,6 @@
     <div class="page-nav-row">
         <a href="index.html" class="cta-btn">← Back to Home</a>
         <a href="pool_temp_forecasts.html" class="cta-btn">View Forecasts →</a>
-        <a href="learn_more.html" class="cta-btn">Learn More →</a>
         <a href="news.html" class="cta-btn">Read News →</a>
     </div>
     <footer>

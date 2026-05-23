@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wind Ratings Test</title>
+    <style>
+    body {
+        font-family: 'Inter', 'Lato', sans-serif;
+        background-color: #333;
+        color: #fff;
+        padding: 20px;
+        margin: 0;
+    }
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    h1 {
+        text-align: center;
+        font-size: 36px;
+        margin-bottom: 30px;
+    }
+    .test-info {
+        background: rgba(0, 172, 193, 0.1);
+        border-left: 4px solid #4ecdc4;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+    }
+    .days-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: flex-start;
+    }
+    .day-column {
+        flex: 0 0 calc(33.333% - 14px);
+        background-color: #444;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        min-width: 280px;
+    }
+    .day-column h2 {
+        margin: 0 0 5px 0;
+        font-size: 24px;
+    }
+    .day-column h3 {
+        margin: 0 0 15px 0;
+        font-size: 14px;
+        color: #aaa;
+        font-weight: 400;
+    }
+    .temp-display {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.05);
+    }
+    .wind-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 12px 0;
+        font-size: 14px;
+    }
+    .wind-arrow {
+        display: inline-block;
+        font-size: 20px;
+        color: #4ecdc4;
+    }
+    .ratings-section {
+        margin-top: 15px;
+        padding: 12px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 6px;
+        border-left: 3px solid #4ecdc4;
+    }
+    .ratings-section h4 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: #888;
+        letter-spacing: 1px;
+    }
+    .rating-row {
+        margin: 6px 0;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .rating-label {
+        flex: 1;
+    }
+    .rating-badge {
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 3px;
+    }
+    .rating-excellent {
+        background: rgba(0, 204, 0, 0.2);
+        color: #00cc00;
+    }
+    .rating-fair {
+        background: rgba(255, 170, 0, 0.2);
+        color: #ffaa00;
+    }
+    .rating-poor {
+        background: rgba(255, 51, 51, 0.2);
+        color: #ff3333;
+    }
+    .legend {
+        margin-top: 30px;
+        padding: 15px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 6px;
+    }
+    .legend h3 {
+        margin-top: 0;
+    }
+    .legend-item {
+        margin: 8px 0;
+        font-size: 14px;
+    }
+    .no-rating {
+        color: #666;
+        font-style: italic;
+    }
+    @media (max-width: 1200px) {
+        .day-column {
+            flex: 0 0 calc(50% - 10px);
+        }
+    }
+    @media (max-width: 768px) {
+        .day-column {
+            flex: 0 0 100%;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 Wind Ratings Test</h1>
+
+        <div class="test-info">
+            <strong>Test Data Scenarios:</strong><br>
+            May 21: E winds (90°) - Perfect for air on both breaks<br>
+            May 22: SSE winds (150°) - Perfect barrel for Rights, good air for both<br>
+            May 23: NE winds (45°) - Perfect barrel for Lefts, excellent air for Lefts<br>
+            May 24: S winds (180°) - Good for both barrel and air on Rights<br>
+            May 25: N winds (0°) - Good air for Lefts<br>
+            May 26: W winds (270°) - Poor conditions for both<br>
+            May 27: WSW winds (240°) - Worst air for Rights (on-shore perpendicular)
+        </div>
+
+        <div class="days-container" id="daysContainer">
+            <!-- Days will be inserted here -->
+        </div>
+
+        <div class="legend">
+            <h3>📋 Legend</h3>
+            <div class="legend-item"><strong>Barrel wind:</strong> How offshore/favorable is wind for barreling waves</div>
+            <div class="legend-item">
+                <span class="rating-badge rating-excellent">🟢 Excellent</span> - Wind is ±30° from ideal offshore angle
+            </div>
+            <div class="legend-item">
+                <span class="rating-badge rating-fair">🟡 Fair</span> - Wind is somewhat useful but not optimal (only shown if not Poor)
+            </div>
+            <div class="legend-item">
+                <span class="rating-badge rating-poor">🔴 Poor</span> - Wind is unhelpful (not displayed)
+            </div>
+            <hr style="border: none; border-top: 1px solid #555; margin: 15px 0;">
+            <div class="legend-item"><strong>Air wind:</strong> How favorable for launching airs</div>
+            <div class="legend-item">
+                <span class="rating-badge rating-excellent">🟢 Excellent</span> - E winds (90°) or near-perpendicular offshore
+            </div>
+            <div class="legend-item">
+                <span class="rating-badge rating-fair">🟡 Fair</span> - Aligned with wave or partially favorable (only shown if not Poor)
+            </div>
+            <div class="legend-item">
+                <span class="rating-badge rating-poor">🔴 Poor</span> - On-shore or unfavorable (not displayed)
+            </div>
+            <hr style="border: none; border-top: 1px solid #555; margin: 15px 0;">
+            <div class="legend-item" style="color: #aaa;"><em>Only positive ratings (Excellent or Fair) are displayed on forecast cards for a clean view of what's good today.</em></div>
+        </div>
+    </div>
+
+    <script>
+    // Test data - manually embedded for local testing
+    const testData = [
+        {
+            date: '2026-05-21',
+            dayLabel: 'Wednesday',
+            temp: 78.5,
+            windSpeed: 8.5,
+            windDir: 90,
+            rightsBrrel: null,
+            rightsAir: 'Excellent',
+            leftsBrrel: null,
+            leftsAir: 'Excellent'
+        },
+        {
+            date: '2026-05-22',
+            dayLabel: 'Thursday',
+            temp: 79.2,
+            windSpeed: 7.2,
+            windDir: 150,
+            rightsBrrel: 'Excellent',
+            rightsAir: 'Excellent',
+            leftsBrrel: null,
+            leftsAir: null
+        },
+        {
+            date: '2026-05-23',
+            dayLabel: 'Friday',
+            temp: 80.1,
+            windSpeed: 6.8,
+            windDir: 45,
+            rightsBrrel: null,
+            rightsAir: 'Fair',
+            leftsBrrel: 'Excellent',
+            leftsAir: 'Excellent'
+        },
+        {
+            date: '2026-05-24',
+            dayLabel: 'Saturday',
+            temp: 77.8,
+            windSpeed: 9.2,
+            windDir: 180,
+            rightsBrrel: 'Excellent',
+            rightsAir: 'Excellent',
+            leftsBrrel: null,
+            leftsAir: null
+        },
+        {
+            date: '2026-05-25',
+            dayLabel: 'Sunday',
+            temp: 76.4,
+            windSpeed: 10.1,
+            windDir: 0,
+            rightsBrrel: null,
+            rightsAir: null,
+            leftsBrrel: null,
+            leftsAir: 'Excellent'
+        },
+        {
+            date: '2026-05-26',
+            dayLabel: 'Monday',
+            temp: 75.9,
+            windSpeed: 5.5,
+            windDir: 270,
+            rightsBrrel: null,
+            rightsAir: null,
+            leftsBrrel: null,
+            leftsAir: null
+        },
+        {
+            date: '2026-05-27',
+            dayLabel: 'Tuesday',
+            temp: 79.3,
+            windSpeed: 8.9,
+            windDir: 240,
+            rightsBrrel: null,
+            rightsAir: null,
+            leftsBrrel: null,
+            leftsAir: null
+        }
+    ];
+
+    function getTempColor(temp) {
+        if (temp > 88)  return '#cc0000';
+        if (temp >= 80) return '#ff6600';
+        if (temp >= 73) return '#ffd700';
+        if (temp >= 66) return '#4caf50';
+        if (temp >= 55) return '#1e88e5';
+        return '#b3e5fc';
+    }
+
+    function getRatingClass(rating) {
+        if (!rating) return '';
+        if (rating === 'Excellent') return 'rating-excellent';
+        if (rating === 'Fair') return 'rating-fair';
+        return 'rating-poor';
+    }
+
+    function createRatingRow(label, icon, rating) {
+        if (!rating) return '';
+        const badgeClass = getRatingClass(rating);
+        return `
+            <div class="rating-row">
+                <span class="rating-label">${icon} ${label}:</span>
+                <span class="rating-badge ${badgeClass}">🟢 ${rating}</span>
+            </div>`;
+    }
+
+    function windDirToCompass(deg) {
+        const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+        return dirs[Math.round(deg / 22.5) % 16];
+    }
+
+    function renderDay(day) {
+        const tempColor = getTempColor(day.temp);
+        const arrowRotation = (day.windDir + 180) % 360;
+        const compass = windDirToCompass(day.windDir);
+
+        let ratingsHtml = '';
+        let rightsRatings = '';
+        let leftsRatings = '';
+
+        rightsRatings += createRatingRow('Barrel wind', '🌊', day.rightsBrrel);
+        rightsRatings += createRatingRow('Air wind', '✈️', day.rightsAir);
+
+        leftsRatings += createRatingRow('Barrel wind', '🌊', day.leftsBrrel);
+        leftsRatings += createRatingRow('Air wind', '✈️', day.leftsAir);
+
+        if (rightsRatings) {
+            ratingsHtml += `
+                <div class="ratings-section">
+                    <h4>RIGHTS</h4>
+                    ${rightsRatings}
+                </div>`;
+        }
+
+        if (leftsRatings) {
+            ratingsHtml += `
+                <div class="ratings-section">
+                    <h4>LEFTS</h4>
+                    ${leftsRatings}
+                </div>`;
+        }
+
+        if (!rightsRatings && !leftsRatings) {
+            ratingsHtml = '<div class="no-rating" style="padding: 12px; text-align: center;">No positive conditions</div>';
+        }
+
+        return `
+            <div class="day-column">
+                <h2>${day.dayLabel}</h2>
+                <h3>${day.date}</h3>
+                <div class="temp-display" style="color: ${tempColor};">${day.temp}°F</div>
+                <div class="wind-display">
+                    <span class="wind-arrow" style="transform: rotate(${arrowRotation}deg);">↑</span>
+                    <span>${day.windSpeed.toFixed(1)} mph ${compass}</span>
+                </div>
+                ${ratingsHtml}
+            </div>`;
+    }
+
+    document.getElementById('daysContainer').innerHTML = testData.map(renderDay).join('');
+    </script>
+</body>
+</html>
