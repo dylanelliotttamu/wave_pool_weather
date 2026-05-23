@@ -171,7 +171,7 @@ Days with no positive ratings show minimal or blank ratings section.
 
 ### Calculation discrepancies  
 - Run `python3 scripts/test_wind_ratings.py` to verify
-- Check waco_breaks_config.json has correct wave vectors
+- Check breaks_config.json has correct wave vectors
 - Verify tolerance values (currently +/- 30 degrees)
 
 ### Visual issues

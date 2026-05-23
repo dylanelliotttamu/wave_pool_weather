@@ -111,25 +111,6 @@
     code {
         padding: 2px 6px;
     }
-    .eq-label {
-        color: #aaa;
-        font-size: 13px;
-        margin-top: -4px;
-        margin-bottom: 10px;
-    }
-    .eq-block {
-        background-color: #2a2a2a;
-        border-radius: 6px;
-        padding: 14px 18px;
-        margin: 12px 0;
-    }
-    .eq-block p {
-        margin: 4px 0;
-        color: #f8f8f2;
-        font-size: 15px;
-        letter-spacing: 0;
-        line-height: 1.9;
-    }
     table {
         width: 100%;
         border-collapse: collapse;
@@ -315,29 +296,13 @@
         <div class="card">
             <h2>How the Forecasts Work</h2>
             <p>Each pool is modelled as a well-mixed body of water whose temperature evolves hour by hour based on the net energy exchanged with its surroundings. At every time step the model asks: how much heat is the pool gaining or losing right now, and how does that change the water temperature?</p>
-            <p>That question is answered by a single governing equation:</p>
-            <div class="eq-block" style="font-size:1.15em; padding:20px 24px; text-align:center;">
-                <p style="font-size:1.2em; line-height:2.2; font-weight:500;">
-                    T<sub>pool</sub><sup>new</sup> = T<sub>pool</sub> +
-                    <span style="display:inline-block; border-top:1px solid #f8f8f2; border-bottom:1px solid #f8f8f2; padding:0 8px;">
-                        <span style="display:block; text-align:center; padding:4px 0;">
-                            Q<sub>solar</sub> + Q<sub>longwave</sub> + Q<sub>convection</sub> + Q<sub>evaporation</sub> + Q<sub>ground</sub>
-                        </span>
-                        <span style="display:block; text-align:center; padding:4px 0;">
-                            ρ · d · c<sub>p</sub>
-                        </span>
-                    </span>
-                    · Δt
-                </p>
-            </div>
-            <p class="eq-label">T<sub>pool</sub> = pool water temperature &nbsp;|&nbsp; ρ = water density &nbsp;|&nbsp; d = effective pool depth &nbsp;|&nbsp; c<sub>p</sub> = specific heat of water &nbsp;|&nbsp; Δt = time step</p>
             <p>The five heat-flux terms in the numerator represent every meaningful energy pathway between the pool and its environment:</p>
             <ul style="color:#ccc; line-height:2; font-size:15px; margin-top:8px;">
-                <li><strong style="color:#fff;">Solar radiation</strong> — shortwave sunlight absorbed at the water surface</li>
-                <li><strong style="color:#fff;">Longwave radiation</strong> — infrared exchange between the sky and the pool</li>
-                <li><strong style="color:#fff;">Convection</strong> — sensible heat carried by wind across the surface</li>
-                <li><strong style="color:#fff;">Evaporation</strong> — latent heat lost as water evaporates (almost always a cooling term)</li>
-                <li><strong style="color:#fff;">Ground conduction</strong> — slow heat flow through the pool floor into the earth below</li>
+                <li><strong style="color:#fff;">Solar radiation</strong> - shortwave sunlight absorbed at the water surface</li>
+                <li><strong style="color:#fff;">Longwave radiation</strong> - infrared exchange between the sky and the pool</li>
+                <li><strong style="color:#fff;">Convection</strong> - sensible heat carried by wind across the surface</li>
+                <li><strong style="color:#fff;">Evaporation</strong> - latent heat lost as water evaporates (almost always a cooling term)</li>
+                <li><strong style="color:#fff;">Ground conduction</strong> - slow heat flow through the pool floor into the earth below</li>
             </ul>
             <p>Weather inputs such as air temperature, humidity, wind speed, and solar irradiance are pulled daily from public APIs and fed into the model as forcing data, giving a site-specific multi-day temperature forecast for each pool.</p>
         </div>
@@ -346,10 +311,10 @@
             <h2>Data Sources</h2>
             <p>Weather and solar forcing data are fetched automatically once per day from free public APIs:</p>
             <ul style="color:#ccc; line-height:1.8; font-size:15px;">
-                <li><strong style="color:#fff;">NWS API</strong> — <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> — Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
-                <li><strong style="color:#fff;">Open-Meteo API</strong> — <a href="https://open-meteo.com" target="_blank" rel="noopener" style="color:#8db600;">open-meteo.com</a> — Daily total shortwave solar radiation (MJ/m²/day). No API key required.</li>
+                <li><strong style="color:#fff;">NWS API</strong> - <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> - Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
+                <li><strong style="color:#fff;">Open-Meteo API</strong> - <a href="https://open-meteo.com" target="_blank" rel="noopener" style="color:#8db600;">open-meteo.com</a> - Daily total shortwave solar radiation (MJ/m²/day).</li>
             </ul>
-            <p>All retrieved data is stored in a local SQLite database for persistence and used as WAVE-FEST's initial condition on subsequent runs.</p>
+            <p>All retrieved data is stored in a local SQLite database for knowledge of the previous state estimate and used as WAVE-FEST's initial condition on subsequent runs. Retrieving NWS data daily acts as a pseudo data assimilation step, updating the model with the latest observations.</p>
         </div>
 
         <div class="card">
@@ -367,7 +332,7 @@
                     <tr>
                         <td>≥ 75°F</td>
                         <td>🩳 Boardshorts</td>
-                        <td>Warm water — no thermal protection needed</td>
+                        <td>Warm water - no thermal protection needed</td>
                     </tr>
                     <tr>
                         <td>69 – 74°F</td>
@@ -382,17 +347,17 @@
                     <tr>
                         <td>58 – 62°F</td>
                         <td>🥶 4/3 Full Suit</td>
-                        <td>Cool water — full suit recommended</td>
+                        <td>Cool water - full suit recommended</td>
                     </tr>
                     <tr>
                         <td>52 – 57°F</td>
                         <td>🥶❄️ 4/3 Full Suit + Booties</td>
-                        <td>Cold water — add booties for foot warmth</td>
+                        <td>Cold water - add booties for foot warmth</td>
                     </tr>
                     <tr>
                         <td>&lt; 52°F</td>
                         <td>🧊 5/4 Full Suit + Hood + Booties</td>
-                        <td>Very cold — maximum insulation required</td>
+                        <td>Very cold - maximum insulation required</td>
                     </tr>
                 </tbody>
             </table>
@@ -401,13 +366,14 @@
         <!-- ── Motivation ── -->
         <div class="card">
             <h2>Motivation</h2>
-            <p>Wave pool water temperature rarely tracks air temperature — it's driven by solar radiation, wind, and evaporative cooling. I built this site to give surfers accurate 7-day temperature forecasts so they can dress appropriately, powered by real-time weather data and the thermal energy balance model WAVE-FEST.</p>
+            <p>I built this site to give surfers accurate 7-day water temperature forecasts and wind ratings so they can bring the right equipment everytime. </p>
+            <p>Water temperature in wave pools roughly tracks the ambient air temperature, but not quick enough for it to be a reliable indicator. It's driven by a number of atmospheric physical processes, such as solar radiation, wind, evaporative cooling, and many more. Calculating and bookkeeping these processes is the perfect task for a remote machine. </p>
         </div>
 
         <!-- ── About the Creator ── -->
         <div class="card">
             <h2>About the Creator</h2>
-            <p>I'm <strong style="color:#fff;">Dylan Elliott</strong>, Data Analyst II at <strong style="color:#fff;">SeekOps</strong> working on drone-based methane detection, and a former master's student in Atmospheric Sciences. I build projects at the intersection of data science, physics modelling, and real-world problems. Outside of work, I chase wind swell and build personal coding projects like this one.</p>
+            <p>I'm <strong style="color:#fff;">Dylan Elliott</strong>, Data Analyst II at <strong style="color:#fff;">SeekOps</strong> working on drone-based methane detection science and engineering projects (M.S. Atmospheric Science, Texas A&M). I build projects at the intersection of data science, physics modelling, and real-world problems. Outside of work, I enjoy surfing and building personal coding projects like this one.</p>
         </div>
 
         <!-- ── What I Do ── -->
@@ -448,7 +414,7 @@
             <p><strong style="color:#fff;">Dylan Elliott</strong></p>
             <p>📧 Email: <a href="mailto:dylanelliott@tamu.edu">dylanelliott@tamu.edu</a></p>
             <p>🌐 Website: <a href="https://dylanelliotttamu.github.io" target="_blank" rel="noopener">dylanelliotttamu.github.io</a></p>
-            <p>Have a question about the model, a bug to report, or want to suggest a new wave pool location? Reach out — I'd love to hear from you. You can also leave a note on the <a href="feedback.html">Feedback &amp; Subscribe</a> page.</p>
+            <p>Have a question about the model, a bug to report, or want to suggest a new wave pool location? Reach out - I'd love to hear from you. You can also leave a note on the <a href="feedback.html">Feedback &amp; Subscribe</a> page.</p>
             <p>Thank you for visiting Wave Pool Weather!</p>
         </div>
 
@@ -456,7 +422,7 @@
         <div class="card" style="text-align:center;">
             <h2>Photos</h2>
             <div class="photos-row">
-                <img src="linkedin_profile.png" alt="Dylan Elliott — LinkedIn Profile">
+                <img src="linkedin_profile.png" alt="Dylan Elliott - LinkedIn Profile">
                 <img src="surfing_waco.png" alt="Surfing at Waco Surf">
             </div>
         </div>
