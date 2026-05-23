@@ -205,6 +205,9 @@ Set `WAVE_POOL_MC_SAMPLES=N` (default `10`) to control the number of Monte Carlo
 |---|---|---|
 | `ci.yml` | push / PR to `dev`, `main` | Repo validation + unit tests |
 | `smoke-test.yml` | daily 10:15 UTC + manual | Full pipeline dry-run (`TEST_MODE=1`) |
+| `auto-tag-main.yml` | push to `main` + manual | Create one annotated release tag and GitHub Release per new `main` commit |
+
+`auto-tag-main.yml` creates tags in the existing date-based format (`YY.M.D`). If more than one commit lands on `main` in the same UTC day, the workflow appends a numeric suffix such as `26.5.23.1`. After tagging, it also creates or reuses a GitHub Release with auto-generated release notes and a three-word title derived from the merged PR title, or the push commit title if no PR is attached.
 
 ## 📚 References
 
