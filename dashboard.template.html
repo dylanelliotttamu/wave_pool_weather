@@ -12,16 +12,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg: #2b3137;
+            --bg-deep: #1f252c;
+            --panel: #3d444c;
+            --panel-soft: #2d343b;
+            --text: #f2f5f7;
+            --muted: #aeb8c1;
+            --accent: #7be0d6;
+            --accent-2: #f5c96a;
+            --border: rgba(255,255,255,0.08);
+        }
         body {
             font-family: 'Inter', 'Lato', sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #333;
-            color: #fff;
+            background:
+                radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+                linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+            color: var(--text);
         }
         .navbar {
-            background-color: #222;
-            border-bottom: 1px solid #333;
+            background-color: var(--bg-deep);
+            border-bottom: 1px solid var(--border);
             overflow: hidden;
             width: 100%;
             display: flex;
@@ -32,7 +45,7 @@
             z-index: 1000;
         }
         .navbar a {
-            color: #ccc;
+            color: var(--muted);
             text-align: center;
             padding: 14px 20px;
             text-decoration: none;
@@ -40,29 +53,30 @@
             transition: color 0.3s ease;
         }
         .navbar a:hover {
-            color: #8db600;
+            color: var(--accent-2);
         }
         .navbar a.active {
-            color: #4ecdc4;
-            border-bottom: 2px solid #4ecdc4;
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
         }
         .container {
             max-width: 1200px;
-            margin: 0 auto;
+            margin: 24px auto 0;
         }
         h1 {
             text-align: center;
             color: #fff;
         }
         .chart-container {
-            background: #444;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.22);
             margin: 20px 0;
             padding: 20px;
+            border: 1px solid var(--border);
         }
         .chart-container h2 {
-            color: #4ecdc4;
+            color: var(--accent);
         }
         .chart {
             width: 100%;
@@ -101,7 +115,7 @@
             margin-bottom: 10px;
         }
         #modalTitle {
-            color: #4ecdc4;
+            color: var(--accent);
             font-size: 15px;
             font-weight: 600;
             flex: 1;
@@ -109,7 +123,7 @@
             padding-right: 8px;
         }
         #modalClose {
-            background: #555;
+            background: rgba(61, 68, 76, 0.96);
             color: #fff;
             border: none;
             border-radius: 50%;
@@ -149,7 +163,7 @@
                 bottom: 8px;
                 right: 8px;
                 background: rgba(78, 205, 196, 0.85);
-                color: #222;
+                color: var(--bg-deep);
                 font-size: 11px;
                 font-weight: 600;
                 padding: 3px 8px;
@@ -387,8 +401,8 @@
                     {
                         label: 'Historical Pool Temp (°F)',
                         data: poolSplit.historical,
-                        borderColor: '#4ecdc4',
-                        backgroundColor: 'rgba(78,205,196,0.08)',
+                        borderColor: '#7be0d6',
+                        backgroundColor: 'rgba(123,224,214,0.08)',
                         fill: true,
                         tension: 0.25
                     },
@@ -491,8 +505,8 @@
                     {
                         label: 'Historical Wind Speed (m/s)',
                         data: windSplit.historical,
-                        borderColor: '#4ecdc4',
-                        backgroundColor: 'rgba(78,205,196,0.08)',
+                        borderColor: '#7be0d6',
+                        backgroundColor: 'rgba(123,224,214,0.08)',
                         fill: true,
                         tension: 0.25
                     },
