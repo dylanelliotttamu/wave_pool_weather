@@ -11,11 +11,24 @@
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+    :root {
+        --bg: #2b3137;
+        --bg-deep: #1f252c;
+        --panel: #3d444c;
+        --panel-soft: #2d343b;
+        --text: #f2f5f7;
+        --muted: #aeb8c1;
+        --accent: #7be0d6;
+        --accent-2: #f5c96a;
+        --border: rgba(255,255,255,0.08);
+    }
     body {
         margin: 0;
         font-family: 'Inter', 'Lato', sans-serif;
-        background-color: #333;
-        color: #fff;
+        background:
+            radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+            linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+        color: var(--text);
         overflow-x: hidden;
         display: flex;
         flex-direction: column;
@@ -32,7 +45,7 @@
     .header {
         position: relative;
         text-align: center;
-        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        background: linear-gradient(135deg, rgba(18, 41, 58, 0.96) 0%, rgba(35, 87, 116, 0.9) 52%, rgba(100, 183, 165, 0.92) 100%);
         color: white;
         padding: 40px 20px 30px;
     }
@@ -43,8 +56,8 @@
         color: rgba(255,255,255,0.85);
     }
     .navbar {
-        background-color: #222;
-        border-bottom: 1px solid #333;
+        background-color: var(--bg-deep);
+        border-bottom: 1px solid var(--border);
         overflow: hidden;
         width: 100%;
         display: flex;
@@ -55,7 +68,7 @@
         z-index: 1000;
     }
     .navbar a {
-        color: #ccc;
+        color: var(--muted);
         text-align: center;
         padding: 14px 20px;
         text-decoration: none;
@@ -63,26 +76,26 @@
         transition: color 0.3s ease;
     }
     .navbar a:hover {
-        color: #8db600;
+        color: var(--accent-2);
     }
     .navbar a.active {
-        color: #4ecdc4;
-        border-bottom: 2px solid #4ecdc4;
+        color: var(--accent);
+        border-bottom: 2px solid var(--accent);
     }
     .content {
         flex: 1;
-        background-color: #333;
+        background: transparent;
         padding: 40px 20px 60px;
     }
     footer {
-        background-color: #222;
-        color: #ccc;
+        background-color: var(--bg-deep);
+        color: var(--muted);
         text-align: center;
         padding: 10px;
         width: 100%;
     }
     footer a {
-        color: #8db600;
+        color: var(--accent);
         text-decoration: none;
     }
     /* Bottom navigation buttons */
@@ -92,10 +105,10 @@
         flex-wrap: wrap;
         justify-content: center;
         padding: 30px 20px;
-        background-color: #333;
+        background: transparent;
     }
     .cta-btn {
-        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+        background: linear-gradient(135deg, rgba(35, 87, 116, 0.95) 0%, rgba(100, 183, 165, 0.96) 100%);
         color: #fff;
         text-decoration: none;
         padding: 12px 28px;
@@ -107,6 +120,14 @@
         transition: opacity 0.3s;
     }
     .cta-btn:hover { opacity: 0.85; }
+    .content > div {
+        max-width: 760px;
+        margin: 0 auto;
+        background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+    }
     @media (max-width: 768px) {
         h1 { font-size: 32px; }
     }
