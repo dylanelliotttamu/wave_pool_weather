@@ -268,6 +268,9 @@
         border: 1px solid rgba(255,255,255,0.05);
         border-radius: 20px;
         box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+        padding: 24px;
+        max-width: 1100px;
+        margin: 28px auto 0;
     }
     .section-eyebrow {
         text-transform: uppercase;
@@ -288,14 +291,9 @@
         color: var(--muted);
         font-size: 14px;
     }
-    .ratings-board {
-        padding: 24px;
-        max-width: 1100px;
-        margin: 28px auto 0;
-    }
     .ratings-grid {
         display: grid;
-        grid-template-columns: 170px repeat(7, minmax(0, 1fr));
+        grid-template-columns: 170px repeat(var(--day-cols, 7), minmax(0, 1fr));
         gap: 10px;
         margin-top: 18px;
         align-items: center;
@@ -340,8 +338,6 @@
     @media (max-width: 1024px) {
         .ratings-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-        .ratings-grid {
             gap: 12px;
         }
         .ratings-grid .header-cell:first-child,
@@ -449,6 +445,7 @@
         });
 
         container.innerHTML = html;
+        container.style.setProperty('--day-cols', visibleRows.length);
     }
     function normalizeRating(rating) {
         const normalized = (rating || '').trim().toLowerCase();
@@ -704,8 +701,8 @@
                     const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
                     windHtml = `
                         <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0;">
-                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
-                            <span style="font-size:14px; color:#ccc;">${windSpeedKt.toFixed(1)} kt <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
+                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:var(--accent);">↑</span>
+                            <span style="font-size:14px; color:var(--muted);">${windSpeedKt.toFixed(1)} kt <span style="color:var(--muted); font-size:12px;">${compassLabel}</span></span>
                         </div>`;
 
                     // Thunder probability - only show if > 0%
@@ -754,7 +751,7 @@
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
                     ${thunderHtml}
-                    <p style="font-size:13px; color:#ccc; margin-top:8px;">Reccomended: ${suitEmoji}${suitRecommendation}</p>
+                    <p style="font-size:13px; color:#ccc; margin-top:8px;">Recommended: ${suitEmoji}${suitRecommendation}</p>
                     ${morningAfternoonHtml}
                 `;
             });
