@@ -92,6 +92,14 @@ K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
 L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
 MIN_POOL_TEMP_C = 4.0     # Reject obviously bad stored seeds below ~39 F
 MAX_POOL_TEMP_C = 40.0    # Reject obviously bad stored seeds above 104 F
+HTTP_TIMEOUT_SECONDS = max(1.0, float(os.getenv('WAVE_POOL_HTTP_TIMEOUT_SECONDS', '10')))
+HTTP_RETRIES = max(1, int(os.getenv('WAVE_POOL_HTTP_RETRIES', '2')))
+HTTP_RETRY_DELAY_SECONDS = max(0.0, float(os.getenv('WAVE_POOL_HTTP_RETRY_DELAY_SECONDS', '0.5')))
+DEFAULT_REQUEST_HEADERS = {
+    'User-Agent': 'WavePoolWeather/1.0 (+https://wavepoolweather.com)',
+    'Accept': 'application/geo+json, application/json',
+}
+JSON_RESPONSE_CACHE = {}
 
 # ---------------------------------------------------------------------------
 # Unit-conversion helpers
@@ -675,10 +683,36 @@ for name, coords in locations.items():
 
 conn.commit()
 
-def fetch_json_from_url(url, timeout=15):
-    with urllib.request.urlopen(url, timeout=timeout) as response:
-        data = json.loads(response.read().decode())
-        return data
+def fetch_json_from_url(
+    url,
+    timeout=HTTP_TIMEOUT_SECONDS,
+    retries=HTTP_RETRIES,
+    delay=HTTP_RETRY_DELAY_SECONDS,
+    use_cache=True,
+):
+    if use_cache and url in JSON_RESPONSE_CACHE:
+        return JSON_RESPONSE_CACHE[url]
+
+    request = urllib.request.Request(url, headers=DEFAULT_REQUEST_HEADERS)
+    last_error = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode())
+                if use_cache:
+                    JSON_RESPONSE_CACHE[url] = data
+                return data
+        except Exception as exc:
+            last_error = exc
+            print(f"Attempt {attempt + 1} failed for {url}: {exc}")
+            if attempt < retries - 1 and delay > 0:
+                time.sleep(delay)
+
+    raise last_error
+
+
+def fetch_nws_points_metadata(input_lat, input_lon):
+    return fetch_json_from_url(f'https://api.weather.gov/points/{input_lat},{input_lon}')
     
 def get_hourly_forecast_url(input_data):
     try:
@@ -690,26 +724,24 @@ def get_hourly_forecast_url(input_data):
 
 # Given lat, lon of a wave pool (US), retrieve the hourly forecast link
 def retrieve_the_hourly_url_given_only_lat_and_lon(input_lat, input_lon):
-    data_1 = fetch_json_from_url(f'https://api.weather.gov/points/{input_lat},{input_lon}')
+    data_1 = fetch_nws_points_metadata(input_lat, input_lon)
     hourly_forecast_url = get_hourly_forecast_url(data_1)
     print('hourly_forecast_url = ', hourly_forecast_url)    
     return hourly_forecast_url
 
 # Use url and return data (returns 7-days of hourly data)
-def request_data(url, retries=3, delay=1):
-    hourly_weather_json_data = None
-    for attempt in range(retries):
-        try:
-            with urllib.request.urlopen(url, timeout=15) as response:
-                hourly_weather_json_data = json.loads(response.read().decode())
-                return hourly_weather_json_data
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                print(f"Failed to retrieve data after {retries} attempts.")
-                return None
+def request_data(url, retries=HTTP_RETRIES, delay=HTTP_RETRY_DELAY_SECONDS):
+    try:
+        return fetch_json_from_url(
+            url,
+            timeout=HTTP_TIMEOUT_SECONDS,
+            retries=retries,
+            delay=delay,
+            use_cache=True,
+        )
+    except Exception as exc:
+        print(f"Failed to retrieve data after {retries} attempts: {exc}")
+        return None
 
 # cron tab calls this script to be ran -> frequency is determiend there (once per day) now.
 
@@ -760,26 +792,25 @@ def fetch_thunder_probability_nws(lat, lon, date_list):
         return {}
     try:
         # Get grid URL from points endpoint
-        points_url = f'https://api.weather.gov/points/{lat},{lon}'
-        points_data = fetch_json_from_url(points_url, timeout=15)
+        points_data = fetch_nws_points_metadata(lat, lon)
         if not points_data or 'properties' not in points_data:
-            print(f"  Warning: could not fetch NWS points data for thunder probability")
+            print("  Warning: could not fetch NWS points data for thunder probability")
             return {}
 
         grid_url = points_data['properties'].get('forecastGridData')
         if not grid_url:
-            print(f"  Warning: no forecastGridData URL in NWS points response")
+            print("  Warning: no forecastGridData URL in NWS points response")
             return {}
 
         # Fetch grid data
-        grid_data = fetch_json_from_url(grid_url, timeout=15)
+        grid_data = fetch_json_from_url(grid_url)
         if not grid_data or 'properties' not in grid_data:
-            print(f"  Warning: could not fetch NWS grid data for thunder probability")
+            print("  Warning: could not fetch NWS grid data for thunder probability")
             return {}
 
         thunder_data = grid_data['properties'].get('probabilityOfThunder')
         if not thunder_data or 'values' not in thunder_data:
-            print(f"  Info: no probabilityOfThunder data available in NWS grid response")
+            print("  Info: no probabilityOfThunder data available in NWS grid response")
             return {}
 
         thunder_values = thunder_data['values']
@@ -1253,7 +1284,7 @@ for name, coords in locations.items():
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
     mc_prev_samples = []
-    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
+    MC_SAMPLES = max(1, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
     for _ in range(MC_SAMPLES):
         # Start near initial condition with a small spread.
         init_sample = random.gauss(T_pool_init_C, fahrenheit_to_celsius(0.5))
