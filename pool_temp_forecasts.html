@@ -538,11 +538,9 @@
                     return normalized || null;
                 };
                 if (parts.length >= 15) {
-                    // New format with wind ratings
+                    // Legacy format with confidence interval columns.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -555,12 +553,26 @@
                         lefts_barrel_rating:  parseRating(parts[13]),
                         lefts_air_rating:     parseRating(parts[14])
                     };
-                } else if (parts.length >= 11) {
-                    // Format without wind ratings (older format)
+                } else if (parts.length >= 13) {
+                    // Current format with wind ratings.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: parseRating(parts[9]),
+                        rights_air_rating:    parseRating(parts[10]),
+                        lefts_barrel_rating:  parseRating(parts[11]),
+                        lefts_air_rating:     parseRating(parts[12])
+                    };
+                } else if (parts.length >= 11) {
+                    // Legacy format without wind ratings but with confidence interval columns.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -573,11 +585,25 @@
                         lefts_barrel_rating:  null,
                         lefts_air_rating:     null
                     };
+                } else if (parts.length >= 9) {
+                    // Current format without wind ratings.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
+                    };
                 } else if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -593,8 +619,6 @@
                 } else if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -611,8 +635,6 @@
                     // Backward compatibility for older export schema.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    NaN,
-                        pool_ci_high:   NaN,
                         air_temp:       parseFloat(parts[2]),
                         wind_speed:     parseFloat(parts[3]),
                         wind_dir:       parseFloat(parts[4]),
