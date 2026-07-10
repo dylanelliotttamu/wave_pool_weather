@@ -369,6 +369,8 @@
     </style> 
     <script>
     let tempChartInstance = null;
+    const forecastResponseCache = new Map();
+    let latestDataVersionPromise = null;
     function getTempColor(temp) {
         if (temp > 88)  return '#cc0000';        // red (very hot)
         if (temp >= 80) return '#ff6600';        // orange
@@ -473,12 +475,61 @@
         return '🔴';  // Poor
     }
 
+    async function fetchTimestamp(url, cacheMode = 'no-store') {
+        try {
+            const response = await fetch(url, { cache: cacheMode });
+            if (!response.ok) return null;
+            const text = (await response.text()).trim();
+            if (!text) return null;
+            const parsedDate = new Date(text);
+            return isNaN(parsedDate.getTime()) ? null : parsedDate;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function getLatestDataVersion() {
+        if (!latestDataVersionPromise) {
+            latestDataVersionPromise = fetchTimestamp('data/last_data_fetch.txt').then(date => {
+                return date ? date.toISOString() : '';
+            });
+        }
+        return latestDataVersionPromise;
+    }
+
+    function buildVersionedDataUrl(path, version) {
+        if (!version) return path;
+        const separator = path.includes('?') ? '&' : '?';
+        return `${path}${separator}v=${encodeURIComponent(version)}`;
+    }
+
+    async function fetchForecastText(path) {
+        const version = await getLatestDataVersion();
+        const url = buildVersionedDataUrl(path, version);
+        if (forecastResponseCache.has(url)) {
+            return forecastResponseCache.get(url);
+        }
+
+        const requestPromise = fetch(url, { cache: 'default' }).then(async response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load data from ${path}`);
+            }
+            return response.text();
+        });
+
+        forecastResponseCache.set(url, requestPromise);
+        try {
+            return await requestPromise;
+        } catch (error) {
+            forecastResponseCache.delete(url);
+            throw error;
+        }
+    }
+
     async function loadWeatherData(poolName) {
         const weatherFilename = `data/forecasts/forecasted_weather_${poolName}.txt`;
         try {
-            const response = await fetch(weatherFilename, { cache: 'no-store' });
-            if (!response.ok) return null;
-            const text = await response.text();
+            const text = await fetchForecastText(weatherFilename);
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
@@ -487,11 +538,9 @@
                     return normalized || null;
                 };
                 if (parts.length >= 15) {
-                    // New format with wind ratings
+                    // Legacy format with confidence interval columns.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -504,12 +553,26 @@
                         lefts_barrel_rating:  parseRating(parts[13]),
                         lefts_air_rating:     parseRating(parts[14])
                     };
-                } else if (parts.length >= 11) {
-                    // Format without wind ratings (older format)
+                } else if (parts.length >= 13) {
+                    // Current format with wind ratings.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: parseRating(parts[9]),
+                        rights_air_rating:    parseRating(parts[10]),
+                        lefts_barrel_rating:  parseRating(parts[11]),
+                        lefts_air_rating:     parseRating(parts[12])
+                    };
+                } else if (parts.length >= 11) {
+                    // Legacy format without wind ratings but with confidence interval columns.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -522,11 +585,25 @@
                         lefts_barrel_rating:  null,
                         lefts_air_rating:     null
                     };
+                } else if (parts.length >= 9) {
+                    // Current format without wind ratings.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
+                    };
                 } else if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -542,8 +619,6 @@
                 } else if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -560,8 +635,6 @@
                     // Backward compatibility for older export schema.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    NaN,
-                        pool_ci_high:   NaN,
                         air_temp:       parseFloat(parts[2]),
                         wind_speed:     parseFloat(parts[3]),
                         wind_dir:       parseFloat(parts[4]),
@@ -608,12 +681,7 @@
         const weatherMap = await loadWeatherData(poolName);
 
         try {
-            const response = await fetch(filename, { cache: 'no-store' });
-            if (!response.ok) {
-                throw new Error(`Failed to load data from ${filename}`);
-            }
-
-            const text = await response.text();
+            const text = await fetchForecastText(filename);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const rows = text
@@ -909,19 +977,6 @@
     });
 
     async function loadInfoTimestamps() {
-        async function fetchTimestamp(url) {
-            try {
-                const r = await fetch(url, { cache: 'no-store' });
-                if (!r.ok) return null;
-                const text = (await r.text()).trim();
-                if (!text) return null;
-                const d = new Date(text);
-                return isNaN(d.getTime()) ? null : d;
-            } catch (e) {
-                return null;
-            }
-        }
-
         function fmtDate(d, timeZone = 'UTC') {
             if (!d) return 'unavailable';
             return d.toLocaleString('en-US', {
