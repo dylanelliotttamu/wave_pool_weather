@@ -1,2 +1,5 @@
 # Runtime dependencies
-# This project currently uses Python standard-library modules only.
+
+# Notebook / analysis (experiments/thermal_model_review_waco.ipynb)
+matplotlib
+numpy
