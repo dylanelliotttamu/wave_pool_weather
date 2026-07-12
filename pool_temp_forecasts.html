@@ -138,6 +138,13 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         max-width: 200px; /* Limit maximum width of each column */
         border: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .day-column:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+        border-color: rgba(123,224,214,0.45);
     }
     .day-column h2 {
         font-size: 24px;
@@ -329,6 +336,13 @@
         font-weight: 700;
         letter-spacing: 0.2px;
         border: 1px solid transparent;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+    }
+    .rating-chip:hover {
+        transform: scale(1.07);
+        filter: brightness(1.18);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
     .rating-chip-empty {
         background: rgba(255,255,255,0.04);
@@ -366,9 +380,82 @@
             max-width: none;
         }
     }
+
+    /* Detail modal */
+    .detail-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.72);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+    }
+    .detail-modal-overlay.open { display: flex; }
+    .detail-modal {
+        background: linear-gradient(160deg, rgba(55,63,72,0.99) 0%, rgba(28,35,43,0.99) 100%);
+        border: 1px solid rgba(123,224,214,0.18);
+        border-radius: 22px;
+        padding: 36px 32px 28px;
+        max-width: 440px;
+        width: 92%;
+        position: relative;
+        box-shadow: 0 28px 70px rgba(0,0,0,0.65);
+        animation: modalIn 0.18s ease;
+    }
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.93) translateY(10px); }
+        to   { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+    .detail-modal-close {
+        position: absolute;
+        top: 14px; right: 16px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #ccc;
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 15px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.2s;
+        line-height: 1;
+    }
+    .detail-modal-close:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .modal-temp-display {
+        font-size: 56px;
+        font-weight: 700;
+        line-height: 1;
+        margin: 10px 0 4px;
+    }
+    .modal-section {
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin-top: 16px;
+        padding-top: 14px;
+    }
+    .modal-section-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--accent);
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .modal-rating-badge {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 10px 28px;
+        border-radius: 16px;
+        display: inline-block;
+        margin: 8px 0;
+    }
     </style> 
     <script>
     let tempChartInstance = null;
+    let currentVisibleRows = [];
+    let currentWeatherMap = null;
     const forecastResponseCache = new Map();
     let latestDataVersionPromise = null;
     function getTempColor(temp) {
@@ -392,7 +479,7 @@
 
     function normalizeDisplayRating(rating) {
         const normalized = normalizeRating(rating);
-        if (!normalized) return 'No call';
+        if (!normalized) return 'Poor';
         if (normalized === 'Epic') return 'Epic';
         if (normalized === 'Good') return 'Good';
         return 'Poor';
@@ -433,14 +520,14 @@
                     <span>${rowDef.subtitle}</span>
                 </div>`;
 
-            visibleRows.forEach(row => {
+            visibleRows.forEach((row, dayIdx) => {
                 const weather = weatherMap ? weatherMap[row.date] : null;
                 const rating = weather ? weather[rowDef.key] : null;
                 const display = normalizeDisplayRating(rating);
-                const isEmpty = display === 'No call';
+                const isEmpty = false;
                 const color = getRatingColor(display);
                 html += `
-                    <div class="rating-chip ${isEmpty ? 'rating-chip-empty' : ''}" style="background:${getRatingBackground(rating)}; color:${isEmpty ? 'var(--muted)' : '#fff'}; border-color:${isEmpty ? 'rgba(255,255,255,0.05)' : color};">
+                    <div class="rating-chip ${isEmpty ? 'rating-chip-empty' : ''}" data-row-key="${rowDef.key}" data-day-index="${dayIdx}" style="background:${getRatingBackground(rating)}; color:${isEmpty ? 'var(--muted)' : '#fff'}; border-color:${isEmpty ? 'rgba(255,255,255,0.05)' : color};">
                         ${display}
                     </div>`;
             });
@@ -720,6 +807,8 @@
             }
 
             const visibleRows = rows.slice(0, forecastDaysToShow);
+            currentVisibleRows = visibleRows;
+            currentWeatherMap = weatherMap;
             renderRatingMatrix(visibleRows, weatherMap);
             visibleRows.forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
@@ -822,6 +911,7 @@
                     <p style="font-size:13px; color:#ccc; margin-top:8px;">Recommended: ${suitEmoji}${suitRecommendation}</p>
                     ${morningAfternoonHtml}
                 `;
+                column.onclick = () => openDayModal(index);
             });
 
             for (let i = visibleRows.length + 1; i <= forecastDaysToShow; i++) {
@@ -974,7 +1064,153 @@
         });
 
         loadInfoTimestamps();
+
+        document.getElementById('ratingsGrid').addEventListener('click', function(e) {
+            const chip = e.target.closest('.rating-chip');
+            if (!chip || !chip.dataset.rowKey) return;
+            openRatingModal(chip.dataset.rowKey, parseInt(chip.dataset.dayIndex, 10));
+        });
     });
+
+    function closeDetailModal() {
+        document.getElementById('detailModal').classList.remove('open');
+    }
+
+    function handleModalOverlayClick(e) {
+        if (e.target === document.getElementById('detailModal')) closeDetailModal();
+    }
+
+    function openDayModal(index) {
+        const row = currentVisibleRows[index];
+        if (!row) return;
+        const wd = currentWeatherMap && currentWeatherMap[row.date];
+        const temp = parseFloat(row.temp);
+        const tempColor = getTempColor(temp);
+        const suitEmoji = getSuitEmoji(temp);
+        const dayLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const dateLabel = row.dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        let suitText = '';
+        if (temp >= 75) suitText = 'Boardshorts';
+        else if (temp >= 69) suitText = 'Top / Shorty';
+        else if (temp >= 63) suitText = '2mm Springsuit / 3/2 Full Suit';
+        else if (temp >= 58) suitText = '4/3 Full Suit';
+        else if (temp >= 52) suitText = '4/3 Full Suit + Booties';
+        else suitText = '5/4 Full Suit + Hood + Booties';
+
+        let windSection = '';
+        let thunderSection = '';
+        let subDailySection = '';
+        let conditionsSection = '';
+
+        if (wd) {
+            const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
+            const windSpeedKt = windSpeedMph * 0.868976;
+            const windDirDeg = isNaN(wd.wind_dir) ? 0 : wd.wind_dir;
+            const arrowRotation = (windDirDeg + 180) % 360;
+            const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
+
+            windSection = `
+                <div class="modal-section">
+                    <div class="modal-section-label">Wind</div>
+                    <div style="display:flex; align-items:center; gap:10px; font-size:22px;">
+                        <span style="display:inline-block; transform:rotate(${arrowRotation}deg); color:var(--accent);">↑</span>
+                        <span style="font-size:20px; font-weight:700;">${windSpeedKt.toFixed(1)} kt</span>
+                        <span style="font-size:15px; color:var(--muted);">${compassLabel}</span>
+                    </div>
+                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">From ${compassLabel} at ${windSpeedMph.toFixed(1)} mph</div>
+                </div>`;
+
+            const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
+            if (thunderProb > 0) {
+                let tColor = '#ffff66';
+                if (thunderProb >= 60) tColor = '#ff3333';
+                else if (thunderProb >= 30) tColor = '#ffaa00';
+                thunderSection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">⚡ Lightning Risk</div>
+                        <div style="font-size:36px; font-weight:800; color:${tColor};">${thunderProb.toFixed(0)}%</div>
+                        <div style="font-size:12px; color:var(--muted);">${thunderProb < 30 ? 'Low risk' : thunderProb < 60 ? 'Moderate risk' : 'High risk'}</div>
+                    </div>`;
+            }
+
+            if (!isNaN(wd.morning_temp) && !isNaN(wd.afternoon_temp)) {
+                const mColor = getTempColor(wd.morning_temp);
+                const aColor = getTempColor(wd.afternoon_temp);
+                subDailySection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">Time-of-Day Estimates</div>
+                        <div style="display:flex; gap:20px; justify-content:center; margin-top:4px;">
+                            <div style="text-align:center;">
+                                <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">🌅 9 AM</div>
+                                <div style="font-size:26px; font-weight:700; color:${mColor};">${wd.morning_temp.toFixed(1)}°F</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">☀️ 3 PM</div>
+                                <div style="font-size:26px; font-weight:700; color:${aColor};">${wd.afternoon_temp.toFixed(1)}°F</div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            if (!isNaN(wd.air_temp) || !isNaN(wd.humidity)) {
+                const parts = [];
+                if (!isNaN(wd.air_temp)) parts.push(`<span><span style="color:var(--muted);font-size:12px;">Air temp</span> <strong style="font-size:16px;">${wd.air_temp.toFixed(1)}°F</strong></span>`);
+                if (!isNaN(wd.humidity)) parts.push(`<span><span style="color:var(--muted);font-size:12px;">Humidity</span> <strong style="font-size:16px;">${wd.humidity.toFixed(0)}%</strong></span>`);
+                conditionsSection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">Conditions</div>
+                        <div style="display:flex; gap:24px; margin-top:4px;">${parts.join('')}</div>
+                    </div>`;
+            }
+        }
+
+        document.getElementById('detailModalContent').innerHTML = `
+            <div style="font-size:13px; color:var(--accent); font-weight:700; letter-spacing:1.2px; text-transform:uppercase;">${dayLabel}</div>
+            <div style="font-size:15px; color:var(--muted); margin-top:2px;">${dateLabel}</div>
+            <div class="modal-temp-display" style="color:${tempColor};">${row.temp}°F</div>
+            <div style="font-size:15px; color:#ccc;">${suitEmoji}${suitText}</div>
+            ${windSection}${thunderSection}${subDailySection}${conditionsSection}
+        `;
+        document.getElementById('detailModal').classList.add('open');
+    }
+
+    const RATING_ROW_LABELS = {
+        rights_barrel_rating: { title: 'Rights Barrel', subtitle: 'Tube focus' },
+        rights_air_rating:    { title: 'Rights Air',    subtitle: 'Launch focus' },
+        lefts_barrel_rating:  { title: 'Lefts Barrel',  subtitle: 'Tube focus' },
+        lefts_air_rating:     { title: 'Lefts Air',     subtitle: 'Launch focus' }
+    };
+
+    const RATING_DESCRIPTIONS = {
+        Epic: 'Optimal wind conditions — expect clean, well-shaped waves perfect for this style.',
+        Good: 'Favorable conditions with minor compromises. Solid sessions likely.',
+        Poor: 'Unfavorable wind for this wave type. Conditions will be challenging.'
+    };
+
+    function openRatingModal(rowKey, dayIndex) {
+        const row = currentVisibleRows[dayIndex];
+        if (!row) return;
+        const wd = currentWeatherMap && currentWeatherMap[row.date];
+        const rating = wd ? wd[rowKey] : null;
+        const display = normalizeDisplayRating(rating);
+        const bg = getRatingBackground(rating);
+        const color = getRatingColor(display);
+        const rowLabel = RATING_ROW_LABELS[rowKey] || { title: rowKey, subtitle: '' };
+        const dateLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        const desc = RATING_DESCRIPTIONS[display] || '';
+
+        document.getElementById('detailModalContent').innerHTML = `
+            <div style="font-size:13px; color:var(--accent); font-weight:700; letter-spacing:1.2px; text-transform:uppercase;">${rowLabel.title}</div>
+            <div style="font-size:13px; color:var(--muted); margin-top:2px;">${rowLabel.subtitle} &middot; ${dateLabel}</div>
+            <div style="margin:16px 0;">
+                <div class="modal-rating-badge" style="background:${bg}; color:#fff;">${display}</div>
+            </div>
+            <div style="font-size:14px; color:#ccc; line-height:1.6;">${desc}</div>
+        `;
+        document.getElementById('detailModal').classList.add('open');
+    }
 
     async function loadInfoTimestamps() {
         function fmtDate(d, timeZone = 'UTC') {
@@ -1063,6 +1299,14 @@
         </div>
     </div>
     <!-- Days Container ends -->
+
+    <!-- Detail modal -->
+    <div id="detailModal" class="detail-modal-overlay" onclick="handleModalOverlayClick(event)">
+        <div class="detail-modal">
+            <button class="detail-modal-close" onclick="closeDetailModal()">✕</button>
+            <div id="detailModalContent"></div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <div class="page-nav-row">
