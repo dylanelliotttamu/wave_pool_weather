@@ -1444,7 +1444,8 @@ if WRITE_FILES:
     _manifest_keys = ('display_name', 'city', 'state', 'description',
                       'wave_technology', 'booking_url', 'breaks')
     manifest = {
-        name: {k: cfg[k] for k in _manifest_keys if k in cfg}
+        name: {**{k: cfg[k] for k in _manifest_keys if k in cfg},
+               'lat': locations[name]['lat'], 'lon': locations[name]['lon']}
         for name, cfg in _pool_registry.items()
     }
     manifest_path = os.path.join(FORECASTS_DIR, '..', 'pools_manifest.json')
