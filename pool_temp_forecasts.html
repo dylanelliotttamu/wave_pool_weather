@@ -381,6 +381,33 @@
         }
     }
 
+    /* Wind particle flow field */
+    .wind-field-section {
+        background: linear-gradient(180deg, rgba(61,68,76,0.94), rgba(45,52,59,0.98));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+        padding: 24px;
+        max-width: 1100px;
+        margin: 28px auto 0;
+    }
+    .wind-field-section h3 { margin: 4px 0 16px; font-size: 24px; color: #fff; }
+    .wind-field-container { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); }
+    #windFieldCanvas { display: block; width: 100%; height: 320px; border-radius: 12px; }
+    .wind-field-info {
+        position: absolute; top: 12px; left: 12px;
+        background: rgba(0,0,0,0.55); padding: 8px 12px; border-radius: 8px;
+        font-size: 13px; color: #fff; line-height: 1.6; pointer-events: none;
+    }
+    .wind-field-controls { padding: 10px 0 0; }
+    .wind-field-controls input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    .wind-time-label { text-align: center; font-size: 13px; color: var(--muted); margin-top: 5px; min-height: 18px; }
+    @media (max-width: 768px) {
+        #windFieldCanvas { height: 220px; }
+        .wind-field-section { padding: 18px; border-radius: 18px; }
+        .wind-field-section h3 { font-size: 20px; }
+    }
+
     /* Detail modal */
     .detail-modal-overlay {
         display: none;
@@ -456,6 +483,7 @@
     let tempChartInstance = null;
     let currentVisibleRows = [];
     let currentWeatherMap = null;
+    let poolManifest = null;
     const forecastResponseCache = new Map();
     let latestDataVersionPromise = null;
     function getTempColor(temp) {
@@ -746,15 +774,10 @@
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
         const forecastDaysToShow = 7;
         let displayName = poolName.replace(/_/g, ' ');
-        // Special handling for display names
-        const displayMap = {
-            'Waco': 'Waco, Texas 🤠',
-            'Palm_Springs': 'Palm Springs, California',
-            'Lemoore': 'Lemoore, California',
-            'Atlantic_Park_Virginia_Beach': 'Atlantic Park, Virginia Beach',
-            'Oceanside': 'Oceanside, California'
-        };
-        displayName = displayMap[poolName] || displayName;
+        const manifestKey = poolName.replace(/_/g, ' ');
+        if (poolManifest && poolManifest[manifestKey]) {
+            displayName = poolManifest[manifestKey].display_name;
+        }
         document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
 
         for (let i = 1; i <= forecastDaysToShow; i++) {
@@ -1046,22 +1069,40 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabs = document.querySelectorAll('.tab');
-        
-        // Load default (Waco)
-        loadPoolData('Waco');
+    async function initPoolTabs() {
+        try {
+            const response = await fetch('data/pools_manifest.json');
+            poolManifest = await response.json();
+        } catch (e) {
+            console.warn('Could not load pools_manifest.json', e);
+            poolManifest = {};
+        }
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', function() {
-                // Remove active class from all tabs
-                tabs.forEach(t => t.classList.remove('active'));
-                // Add active class to clicked tab
+        const tabBar = document.getElementById('pool-tab-bar');
+        tabBar.innerHTML = '';
+
+        const poolKeys = Object.keys(poolManifest);
+        poolKeys.forEach(function(key, index) {
+            const pool = poolManifest[key];
+            const btn = document.createElement('button');
+            btn.className = 'tab' + (index === 0 ? ' active' : '');
+            btn.dataset.pool = key.replace(/ /g, '_');
+            btn.textContent = pool.display_name;
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
-                // Load data for selected pool
                 loadPoolData(this.dataset.pool);
             });
+            tabBar.appendChild(btn);
         });
+
+        if (poolKeys.length > 0) {
+            loadPoolData(poolKeys[0].replace(/ /g, '_'));
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initPoolTabs();
 
         loadInfoTimestamps();
 
@@ -1247,12 +1288,9 @@
 
     <!-- Pool Selector -->
     <div style="text-align: center; padding: 20px; background-color: #222; color: #ccc;">
-        <nav class="pool-tabs">
-            <button class="tab active" data-pool="Waco">Waco, TX</button>
-            <button class="tab" data-pool="Palm_Springs">Palm Springs, CA</button>
-            <button class="tab" data-pool="Lemoore">Lemoore, CA</button>
-            <button class="tab" data-pool="Atlantic_Park_Virginia_Beach">Atlantic Park, VA</button>
-            <button class="tab" data-pool="Oceanside">Oceanside, CA</button>
+        <nav id="pool-tab-bar" class="pool-tabs">
+            <!-- tabs injected dynamically from data/pools_manifest.json -->
+        </nav>
         </nav>
     </div>
 
