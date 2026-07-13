@@ -4,6 +4,7 @@ import urllib.request
 import json
 import math
 from datetime import datetime, date, timedelta, timezone
+from pathlib import Path
 import time
 import sqlite3
 import os
@@ -18,64 +19,18 @@ print(f"Today's date: {todays_date}")
 print(f"Current time: {todays_time}")
 
 # ---------------------------------------------------------------------------
-# Locations dictionary
-#   depth_m: effective thermal-mass depth used in the pool energy balance.
-#   For a well-mixed pool this is the mean water depth (~1.5–2.5 m).
+# Pool registry — loaded from pools_config.json (single source of truth).
+# To add a pool run:  python scripts/add_pool.py
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Bottom heat-loss calibration notes
-# ---------------------------------------------------------------------------
-# U_bottom is NOT set directly — it is derived from the thermal resistance
-# chain in the main loop:
-#
-#   R_concrete = L_CONCRETE_M / K_CONCRETE   (1 ft reinforced concrete slab)
-#   R_soil     = soil_depth_m / k_soil_Wm1K  (soil column to undisturbed earth)
-#   U_bottom   = 1 / (R_concrete + R_soil)    [W m⁻² K⁻¹]
-#
-# Soil conductivity typical values:
-#   Dry desert sand  : 0.30–0.40 W m⁻¹ K⁻¹
-#   Moist sandy loam : 0.60–0.90 W m⁻¹ K⁻¹
-#   Moist clay-loam  : 1.20–1.60 W m⁻¹ K⁻¹
-#
-# soil_depth_m = effective column depth to undisturbed ground temperature.
-# ground_temp_C = approximate annual mean deep-soil temperature.
-# ---------------------------------------------------------------------------
+_THERMAL_KEYS = ('lat', 'lon', 'depth_m', 'ground_temp_C', 'k_soil_Wm1K', 'soil_depth_m')
+
+_config_path = Path(__file__).parent / 'pools_config.json'
+with open(_config_path) as _f:
+    _pool_registry: dict = json.load(_f)
+
 locations = {
-    'Waco': {
-        'lat': 31.6212, 'lon': -97.0037,
-        'depth_m': 2.0,           # BSR Waco — roughly 2 m mean depth
-        'ground_temp_C': 20.0,    # Annual-mean deep-soil temp, central TX (~68 °F)
-        'k_soil_Wm1K': 1.5,       # Moist Texas clay-loam
-        'soil_depth_m': 2.0,      # Effective column to undisturbed ground
-    },
-    'Palm Springs': {
-        'lat': 33.8303, 'lon': -116.5453,
-        'depth_m': 1.8,
-        'ground_temp_C': 23.0,    # Coachella Valley — warm desert (~73 °F)
-        'k_soil_Wm1K': 0.35,      # Dry desert sand/gravel (low conductivity)
-        'soil_depth_m': 2.0,
-    },
-    'Lemoore': {
-        'lat': 36.3008, 'lon': -119.7829,
-        'depth_m': 2.0,
-        'ground_temp_C': 18.0,    # San Joaquin Valley (~64 °F)
-        'k_soil_Wm1K': 1.2,       # Irrigated valley clay/silt-loam
-        'soil_depth_m': 2.0,
-    },
-    'Atlantic Park Virginia Beach': {
-        'lat': 36.8529, 'lon': -75.9779,
-        'depth_m': 1.8,
-        'ground_temp_C': 16.0,    # Coastal Virginia (~61 °F)
-        'k_soil_Wm1K': 0.8,       # Moist coastal sand
-        'soil_depth_m': 2.0,
-    },
-    'Oceanside': {
-        'lat': 33.1959, 'lon': -117.3795,
-        'depth_m': 1.5,
-        'ground_temp_C': 18.0,    # Southern CA coast (~64 °F)
-        'k_soil_Wm1K': 0.6,       # Dry/moist coastal sand
-        'soil_depth_m': 2.0,
-    },
+    name: {k: cfg[k] for k in _THERMAL_KEYS}
+    for name, cfg in _pool_registry.items()
 }
 
 # ---------------------------------------------------------------------------
@@ -275,26 +230,19 @@ def derive_break_config(break_name, break_config, pool_defaults=None):
     }
 
 def load_breaks_config(location="Waco"):
-    """Load and derive break configuration from JSON file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'breaks_config.json')
-    try:
-        with open(config_path, 'r') as f:
-            data = json.load(f)
-        location_config = data.get(location, {})
-        pool_defaults = location_config.get('_defaults', {})
-        derived_config = {}
-        for break_name, break_config in location_config.items():
-            if break_name.startswith('_'):
-                continue
-            derived_config[break_name] = derive_break_config(
-                break_name,
-                break_config,
-                pool_defaults,
-            )
-        return derived_config
-    except Exception as e:
-        print(f"Warning: Could not load breaks_config.json: {e}")
-        return {}
+    """Load and derive break configuration from the pool registry."""
+    location_config = _pool_registry.get(location, {}).get('breaks', {})
+    pool_defaults = location_config.get('_defaults', {})
+    derived_config = {}
+    for break_name, break_config in location_config.items():
+        if break_name.startswith('_'):
+            continue
+        derived_config[break_name] = derive_break_config(
+            break_name,
+            break_config,
+            pool_defaults,
+        )
+    return derived_config
 
 def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
     """
@@ -723,6 +671,45 @@ def fetch_solar_radiation_open_meteo(lat, lon, date_list):
     except Exception as exc:
         print(f"  Warning: could not fetch solar radiation from Open-Meteo: {exc}")
         return {}
+
+# ---------------------------------------------------------------------------
+# ECMWF wind forecast retrieval  (Open-Meteo, no API key required)
+# ---------------------------------------------------------------------------
+def fetch_ecmwf_wind_open_meteo(lat, lon):
+    """Retrieve 3-hourly ECMWF wind forecast via Open-Meteo (no API key)."""
+    url = (
+        f"https://api.open-meteo.com/v1/ecmwf"
+        f"?latitude={lat}&longitude={lon}"
+        f"&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+        f"&wind_speed_unit=kn"
+        f"&forecast_days=7"
+        f"&timezone=UTC"
+    )
+    try:
+        resp   = fetch_json_from_url(url, use_cache=False)
+        times  = resp['hourly']['time']
+        speeds = resp['hourly']['wind_speed_10m']
+        dirs   = resp['hourly']['wind_direction_10m']
+        gusts  = resp['hourly']['wind_gusts_10m']
+        steps = []
+        for t, s, d, g in zip(times, speeds, dirs, gusts):
+            if s is None or d is None:
+                continue
+            steps.append({
+                'time':     t,
+                'speed_kt': round(float(s), 1),
+                'dir_deg':  round(float(d), 1),
+                'gusts_kt': round(float(g) if g is not None else s, 1),
+            })
+        from datetime import timezone as _tz
+        return {
+            'generated': datetime.now(_tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'location':  '',
+            'steps':     steps,
+        }
+    except Exception as exc:
+        print(f"  Warning: could not fetch ECMWF wind from Open-Meteo: {exc}")
+        return None
 
 # ---------------------------------------------------------------------------
 # NWS thunder probability retrieval  (no API key required)
@@ -1452,8 +1439,40 @@ if WRITE_FILES:
         for row in cursor.fetchall():
             temp_F = celsius_to_fahrenheit(row[1])
             f.write(f"{row[0]},{temp_F:.2f}\n")
+
+    # Write pools_manifest.json for the frontend (display info only, no thermal params).
+    _manifest_keys = ('display_name', 'city', 'state', 'description',
+                      'wave_technology', 'booking_url', 'breaks')
+    manifest = {
+        name: {**{k: cfg[k] for k in _manifest_keys if k in cfg},
+               'lat': locations[name]['lat'], 'lon': locations[name]['lon']}
+        for name, cfg in _pool_registry.items()
+    }
+    manifest_path = os.path.join(FORECASTS_DIR, '..', 'pools_manifest.json')
+    with open(manifest_path, 'w') as mf:
+        json.dump(manifest, mf, indent=2)
+    print(f"Pools manifest written → {os.path.normpath(manifest_path)}")
 else:
     print("\nTEST MODE: skipped all file exports (comparison txt + forecast txt).")
+
+# ---------------------------------------------------------------------------
+# ECMWF wind forecast JSON (one compact file per location)
+# ---------------------------------------------------------------------------
+if WRITE_FILES:
+    for name, coords in locations.items():
+        ecmwf = fetch_ecmwf_wind_open_meteo(coords['lat'], coords['lon'])
+        if ecmwf is None:
+            print(f"  Skipping ECMWF wind export for {name} (fetch failed)")
+            continue
+        ecmwf['location'] = name
+        ecmwf_path = os.path.join(
+            FORECASTS_DIR, f'ecmwf_wind_{name.replace(" ", "_")}.json'
+        )
+        with open(ecmwf_path, 'w') as f:
+            json.dump(ecmwf, f, separators=(',', ':'))
+        print(f"  Wrote ECMWF wind JSON → {ecmwf_path}")
+else:
+    print("TEST MODE: skipped ECMWF wind JSON exports.")
 
 # ---------------------------------------------------------------------------
 # Generate dashboard.html with real data
