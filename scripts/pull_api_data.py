@@ -3,8 +3,8 @@
 import urllib.request
 import json
 import math
-import random
 from datetime import datetime, date, timedelta, timezone
+from pathlib import Path
 import time
 import sqlite3
 import os
@@ -19,64 +19,18 @@ print(f"Today's date: {todays_date}")
 print(f"Current time: {todays_time}")
 
 # ---------------------------------------------------------------------------
-# Locations dictionary
-#   depth_m: effective thermal-mass depth used in the pool energy balance.
-#   For a well-mixed pool this is the mean water depth (~1.5–2.5 m).
+# Pool registry — loaded from pools_config.json (single source of truth).
+# To add a pool run:  python scripts/add_pool.py
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Bottom heat-loss calibration notes
-# ---------------------------------------------------------------------------
-# U_bottom is NOT set directly — it is derived from the thermal resistance
-# chain in the main loop:
-#
-#   R_concrete = L_CONCRETE_M / K_CONCRETE   (1 ft reinforced concrete slab)
-#   R_soil     = soil_depth_m / k_soil_Wm1K  (soil column to undisturbed earth)
-#   U_bottom   = 1 / (R_concrete + R_soil)    [W m⁻² K⁻¹]
-#
-# Soil conductivity typical values:
-#   Dry desert sand  : 0.30–0.40 W m⁻¹ K⁻¹
-#   Moist sandy loam : 0.60–0.90 W m⁻¹ K⁻¹
-#   Moist clay-loam  : 1.20–1.60 W m⁻¹ K⁻¹
-#
-# soil_depth_m = effective column depth to undisturbed ground temperature.
-# ground_temp_C = approximate annual mean deep-soil temperature.
-# ---------------------------------------------------------------------------
+_THERMAL_KEYS = ('lat', 'lon', 'depth_m', 'ground_temp_C', 'k_soil_Wm1K', 'soil_depth_m')
+
+_config_path = Path(__file__).parent / 'pools_config.json'
+with open(_config_path) as _f:
+    _pool_registry: dict = json.load(_f)
+
 locations = {
-    'Waco': {
-        'lat': 31.6212, 'lon': -97.0037,
-        'depth_m': 2.0,           # BSR Waco — roughly 2 m mean depth
-        'ground_temp_C': 20.0,    # Annual-mean deep-soil temp, central TX (~68 °F)
-        'k_soil_Wm1K': 1.5,       # Moist Texas clay-loam
-        'soil_depth_m': 2.0,      # Effective column to undisturbed ground
-    },
-    'Palm Springs': {
-        'lat': 33.8303, 'lon': -116.5453,
-        'depth_m': 1.8,
-        'ground_temp_C': 23.0,    # Coachella Valley — warm desert (~73 °F)
-        'k_soil_Wm1K': 0.35,      # Dry desert sand/gravel (low conductivity)
-        'soil_depth_m': 2.0,
-    },
-    'Lemoore': {
-        'lat': 36.3008, 'lon': -119.7829,
-        'depth_m': 2.0,
-        'ground_temp_C': 18.0,    # San Joaquin Valley (~64 °F)
-        'k_soil_Wm1K': 1.2,       # Irrigated valley clay/silt-loam
-        'soil_depth_m': 2.0,
-    },
-    'Atlantic Park Virginia Beach': {
-        'lat': 36.8529, 'lon': -75.9779,
-        'depth_m': 1.8,
-        'ground_temp_C': 16.0,    # Coastal Virginia (~61 °F)
-        'k_soil_Wm1K': 0.8,       # Moist coastal sand
-        'soil_depth_m': 2.0,
-    },
-    'Oceanside': {
-        'lat': 33.1959, 'lon': -117.3795,
-        'depth_m': 1.5,
-        'ground_temp_C': 18.0,    # Southern CA coast (~64 °F)
-        'k_soil_Wm1K': 0.6,       # Dry/moist coastal sand
-        'soil_depth_m': 2.0,
-    },
+    name: {k: cfg[k] for k in _THERMAL_KEYS}
+    for name, cfg in _pool_registry.items()
 }
 
 # ---------------------------------------------------------------------------
@@ -92,6 +46,14 @@ K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
 L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
 MIN_POOL_TEMP_C = 4.0     # Reject obviously bad stored seeds below ~39 F
 MAX_POOL_TEMP_C = 40.0    # Reject obviously bad stored seeds above 104 F
+HTTP_TIMEOUT_SECONDS = max(1.0, float(os.getenv('WAVE_POOL_HTTP_TIMEOUT_SECONDS', '10')))
+HTTP_RETRIES = max(1, int(os.getenv('WAVE_POOL_HTTP_RETRIES', '2')))
+HTTP_RETRY_DELAY_SECONDS = max(0.0, float(os.getenv('WAVE_POOL_HTTP_RETRY_DELAY_SECONDS', '0.5')))
+DEFAULT_REQUEST_HEADERS = {
+    'User-Agent': 'WavePoolWeather/1.0 (+https://wavepoolweather.com)',
+    'Accept': 'application/geo+json, application/json',
+}
+JSON_RESPONSE_CACHE = {}
 
 # ---------------------------------------------------------------------------
 # Unit-conversion helpers
@@ -150,48 +112,6 @@ def coerce_float(value, fallback=0.0, field_name='value'):
         f"type={type(raw_value).__name__}; using {fallback}"
     )
     return fallback
-
-def percentile(values, pct):
-    """Linear-interpolated percentile for a non-empty numeric list."""
-    if not values:
-        raise ValueError('percentile() requires non-empty values')
-    sorted_vals = sorted(values)
-    if len(sorted_vals) == 1:
-        return sorted_vals[0]
-    rank = (len(sorted_vals) - 1) * (pct / 100.0)
-    lo = int(math.floor(rank))
-    hi = int(math.ceil(rank))
-    if lo == hi:
-        return sorted_vals[lo]
-    frac = rank - lo
-    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * frac
-
-def mean_and_std(values):
-    if not values:
-        return 0.0, 0.0
-    mu = sum(values) / len(values)
-    if len(values) == 1:
-        return mu, 0.0
-    var = sum((v - mu) ** 2 for v in values) / len(values)
-    return mu, math.sqrt(var)
-
-def mc_sigma_schedule(day_index):
-    """
-    Day-dependent uncertainty assumptions (1-sigma).
-    day_index: 0-based forecast horizon index.
-    """
-    return {
-        # ~1.5 F at day 1, +0.5 F per extra day (converted to C)
-        'temp_C': fahrenheit_to_celsius(1.5 + 0.5 * day_index),
-        # ~2 mph at day 1, +0.5 mph per extra day (converted to m/s)
-        'wind_ms': mph_to_ms(2.0 + 0.5 * day_index),
-        # RH uncertainty widens with horizon
-        'rh_pct': 8.0 + 2.0 * day_index,
-        # solar uncertainty as fraction of daily value
-        'solar_frac': min(0.35, 0.10 + 0.02 * day_index),
-        # modest structural uncertainty for ground temperature
-        'ground_temp_C': 0.5,
-    }
 
 # ---------------------------------------------------------------------------
 # Wind rating helpers for air wind and barrel wind conditions
@@ -310,26 +230,19 @@ def derive_break_config(break_name, break_config, pool_defaults=None):
     }
 
 def load_breaks_config(location="Waco"):
-    """Load and derive break configuration from JSON file."""
-    config_path = os.path.join(os.path.dirname(__file__), 'breaks_config.json')
-    try:
-        with open(config_path, 'r') as f:
-            data = json.load(f)
-        location_config = data.get(location, {})
-        pool_defaults = location_config.get('_defaults', {})
-        derived_config = {}
-        for break_name, break_config in location_config.items():
-            if break_name.startswith('_'):
-                continue
-            derived_config[break_name] = derive_break_config(
-                break_name,
-                break_config,
-                pool_defaults,
-            )
-        return derived_config
-    except Exception as e:
-        print(f"Warning: Could not load breaks_config.json: {e}")
-        return {}
+    """Load and derive break configuration from the pool registry."""
+    location_config = _pool_registry.get(location, {}).get('breaks', {})
+    pool_defaults = location_config.get('_defaults', {})
+    derived_config = {}
+    for break_name, break_config in location_config.items():
+        if break_name.startswith('_'):
+            continue
+        derived_config[break_name] = derive_break_config(
+            break_name,
+            break_config,
+            pool_defaults,
+        )
+    return derived_config
 
 def calculate_wind_ratings(wind_direction, break_name, location="Waco"):
     """
@@ -630,19 +543,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temps (
     UNIQUE(location_id, date)
 )''')
 
-# pool_temp_ci: 95% interval and distribution stats for pool temp (°C)
-cursor.execute('''CREATE TABLE IF NOT EXISTS pool_temp_ci (
-    location_id  INTEGER,
-    date         TEXT,
-    p025_C       REAL,
-    p500_C       REAL,
-    p975_C       REAL,
-    mean_C       REAL,
-    std_C        REAL,
-    n_samples    INTEGER,
-    FOREIGN KEY(location_id) REFERENCES locations(id),
-    UNIQUE(location_id, date)
-)''')
+# Legacy uncertainty output table is obsolete; delete it when present.
+cursor.execute('DROP TABLE IF EXISTS pool_temp_ci')
 
 # Migrate existing databases: add new columns if they are absent
 for col, table, col_type in [
@@ -675,10 +577,36 @@ for name, coords in locations.items():
 
 conn.commit()
 
-def fetch_json_from_url(url, timeout=15):
-    with urllib.request.urlopen(url, timeout=timeout) as response:
-        data = json.loads(response.read().decode())
-        return data
+def fetch_json_from_url(
+    url,
+    timeout=HTTP_TIMEOUT_SECONDS,
+    retries=HTTP_RETRIES,
+    delay=HTTP_RETRY_DELAY_SECONDS,
+    use_cache=True,
+):
+    if use_cache and url in JSON_RESPONSE_CACHE:
+        return JSON_RESPONSE_CACHE[url]
+
+    request = urllib.request.Request(url, headers=DEFAULT_REQUEST_HEADERS)
+    last_error = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode())
+                if use_cache:
+                    JSON_RESPONSE_CACHE[url] = data
+                return data
+        except Exception as exc:
+            last_error = exc
+            print(f"Attempt {attempt + 1} failed for {url}: {exc}")
+            if attempt < retries - 1 and delay > 0:
+                time.sleep(delay)
+
+    raise last_error
+
+
+def fetch_nws_points_metadata(input_lat, input_lon):
+    return fetch_json_from_url(f'https://api.weather.gov/points/{input_lat},{input_lon}')
     
 def get_hourly_forecast_url(input_data):
     try:
@@ -690,26 +618,24 @@ def get_hourly_forecast_url(input_data):
 
 # Given lat, lon of a wave pool (US), retrieve the hourly forecast link
 def retrieve_the_hourly_url_given_only_lat_and_lon(input_lat, input_lon):
-    data_1 = fetch_json_from_url(f'https://api.weather.gov/points/{input_lat},{input_lon}')
+    data_1 = fetch_nws_points_metadata(input_lat, input_lon)
     hourly_forecast_url = get_hourly_forecast_url(data_1)
     print('hourly_forecast_url = ', hourly_forecast_url)    
     return hourly_forecast_url
 
 # Use url and return data (returns 7-days of hourly data)
-def request_data(url, retries=3, delay=1):
-    hourly_weather_json_data = None
-    for attempt in range(retries):
-        try:
-            with urllib.request.urlopen(url, timeout=15) as response:
-                hourly_weather_json_data = json.loads(response.read().decode())
-                return hourly_weather_json_data
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed: {e}")
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                print(f"Failed to retrieve data after {retries} attempts.")
-                return None
+def request_data(url, retries=HTTP_RETRIES, delay=HTTP_RETRY_DELAY_SECONDS):
+    try:
+        return fetch_json_from_url(
+            url,
+            timeout=HTTP_TIMEOUT_SECONDS,
+            retries=retries,
+            delay=delay,
+            use_cache=True,
+        )
+    except Exception as exc:
+        print(f"Failed to retrieve data after {retries} attempts: {exc}")
+        return None
 
 # cron tab calls this script to be ran -> frequency is determiend there (once per day) now.
 
@@ -747,6 +673,45 @@ def fetch_solar_radiation_open_meteo(lat, lon, date_list):
         return {}
 
 # ---------------------------------------------------------------------------
+# ECMWF wind forecast retrieval  (Open-Meteo, no API key required)
+# ---------------------------------------------------------------------------
+def fetch_ecmwf_wind_open_meteo(lat, lon):
+    """Retrieve 3-hourly ECMWF wind forecast via Open-Meteo (no API key)."""
+    url = (
+        f"https://api.open-meteo.com/v1/ecmwf"
+        f"?latitude={lat}&longitude={lon}"
+        f"&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+        f"&wind_speed_unit=kn"
+        f"&forecast_days=7"
+        f"&timezone=UTC"
+    )
+    try:
+        resp   = fetch_json_from_url(url, use_cache=False)
+        times  = resp['hourly']['time']
+        speeds = resp['hourly']['wind_speed_10m']
+        dirs   = resp['hourly']['wind_direction_10m']
+        gusts  = resp['hourly']['wind_gusts_10m']
+        steps = []
+        for t, s, d, g in zip(times, speeds, dirs, gusts):
+            if s is None or d is None:
+                continue
+            steps.append({
+                'time':     t,
+                'speed_kt': round(float(s), 1),
+                'dir_deg':  round(float(d), 1),
+                'gusts_kt': round(float(g) if g is not None else s, 1),
+            })
+        from datetime import timezone as _tz
+        return {
+            'generated': datetime.now(_tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'location':  '',
+            'steps':     steps,
+        }
+    except Exception as exc:
+        print(f"  Warning: could not fetch ECMWF wind from Open-Meteo: {exc}")
+        return None
+
+# ---------------------------------------------------------------------------
 # NWS thunder probability retrieval  (no API key required)
 # ---------------------------------------------------------------------------
 def fetch_thunder_probability_nws(lat, lon, date_list):
@@ -760,26 +725,25 @@ def fetch_thunder_probability_nws(lat, lon, date_list):
         return {}
     try:
         # Get grid URL from points endpoint
-        points_url = f'https://api.weather.gov/points/{lat},{lon}'
-        points_data = fetch_json_from_url(points_url, timeout=15)
+        points_data = fetch_nws_points_metadata(lat, lon)
         if not points_data or 'properties' not in points_data:
-            print(f"  Warning: could not fetch NWS points data for thunder probability")
+            print("  Warning: could not fetch NWS points data for thunder probability")
             return {}
 
         grid_url = points_data['properties'].get('forecastGridData')
         if not grid_url:
-            print(f"  Warning: no forecastGridData URL in NWS points response")
+            print("  Warning: no forecastGridData URL in NWS points response")
             return {}
 
         # Fetch grid data
-        grid_data = fetch_json_from_url(grid_url, timeout=15)
+        grid_data = fetch_json_from_url(grid_url)
         if not grid_data or 'properties' not in grid_data:
-            print(f"  Warning: could not fetch NWS grid data for thunder probability")
+            print("  Warning: could not fetch NWS grid data for thunder probability")
             return {}
 
         thunder_data = grid_data['properties'].get('probabilityOfThunder')
         if not thunder_data or 'values' not in thunder_data:
-            print(f"  Info: no probabilityOfThunder data available in NWS grid response")
+            print("  Info: no probabilityOfThunder data available in NWS grid response")
             return {}
 
         thunder_values = thunder_data['values']
@@ -1252,12 +1216,6 @@ for name, coords in locations.items():
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
-    mc_prev_samples = []
-    MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
-    for _ in range(MC_SAMPLES):
-        # Start near initial condition with a small spread.
-        init_sample = random.gauss(T_pool_init_C, fahrenheit_to_celsius(0.5))
-        mc_prev_samples.append(clamp(init_sample, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C))
     comparison_rows = []           # for the per-location comparison file
 
     for i, d in enumerate(data['date_list']):
@@ -1330,33 +1288,6 @@ for name, coords in locations.items():
             dt_days=DT_AFTERNOON_DAYS
         )
 
-        # --- Monte Carlo uncertainty propagation for 95% interval ---
-        sigmas = mc_sigma_schedule(i)
-        mc_day_samples = []
-        for prev_sample in mc_prev_samples:
-            T_air_s = random.gauss(T_air_C, sigmas['temp_C'])
-            RH_s = clamp(random.gauss(RH_pct, sigmas['rh_pct']), 0.0, 100.0)
-            wind_s = max(0.0, random.gauss(wind_ms, sigmas['wind_ms']))
-            solar_sigma = abs(solar_MJm2) * sigmas['solar_frac']
-            solar_s = max(0.0, random.gauss(solar_MJm2, solar_sigma))
-            ground_temp_s = random.gauss(ground_temp_C, sigmas['ground_temp_C'])
-
-            mc_temp_C, _ = pool_thermal_balance_step(
-                prev_sample, T_air_s, RH_s, wind_s, solar_s,
-                depth_m=depth_m,
-                ground_temp_C=ground_temp_s,
-                bottom_u_Wm2K=bottom_u_Wm2K,
-                include_ground=True,
-                dt_days=1.0
-            )
-            mc_day_samples.append(clamp(mc_temp_C, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C))
-
-        mc_prev_samples = mc_day_samples
-        p025_C = percentile(mc_day_samples, 2.5)
-        p500_C = percentile(mc_day_samples, 50.0)
-        p975_C = percentile(mc_day_samples, 97.5)
-        mc_mean_C, mc_std_C = mean_and_std(mc_day_samples)
-
         # DB and exported files continue to use the new physics model
         cursor.execute(
             'INSERT OR REPLACE INTO pool_temps '
@@ -1364,12 +1295,6 @@ for name, coords in locations.items():
             'VALUES (?, ?, ?, ?, ?, ?)',
             (location_id, str(d), T_pool_new_C, json.dumps(fluxes),
              T_morning_C, T_afternoon_C)
-        )
-        cursor.execute(
-            'INSERT OR REPLACE INTO pool_temp_ci '
-            '(location_id, date, p025_C, p500_C, p975_C, mean_C, std_C, n_samples) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            (location_id, str(d), p025_C, p500_C, p975_C, mc_mean_C, mc_std_C, MC_SAMPLES)
         )
 
         air_F         = celsius_to_fahrenheit(T_pool_air_C)
@@ -1396,7 +1321,6 @@ for name, coords in locations.items():
               f"Δ(new-old)={delta_new_old:+.2f}°F "
               f"Δ(old-air)={delta_old_air:+.2f}°F "
               f"Δ(new-air)={delta_new_air:+.2f}°F "
-              f"CI95=[{celsius_to_fahrenheit(p025_C):.1f}, {celsius_to_fahrenheit(p975_C):.1f}]°F | "
               f"Q_solar={fluxes['Q_solar_Wm2']:.0f} "
               f"Q_lw={fluxes['Q_lw_net_Wm2']:.0f} "
               f"Q_conv={fluxes['Q_conv_Wm2']:.0f} "
@@ -1465,12 +1389,10 @@ if WRITE_FILES:
         # Write extended weather forecast file (pool temp + air met data + thunder)
         weather_name = name.replace(" ", "_")
         cursor.execute(
-            'SELECT pt.date, pt.temp, ci.p025_C, ci.p975_C, '
-            'at.temp, at.wind_speed, at.wind_direction, at.humidity, '
+            'SELECT pt.date, pt.temp, at.temp, at.wind_speed, at.wind_direction, at.humidity, '
             'pt.morning_temp_C, pt.afternoon_temp_C, at.thunder_prob '
             'FROM pool_temps pt '
             'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
-            'LEFT JOIN pool_temp_ci ci ON pt.location_id = ci.location_id AND pt.date = ci.date '
             'WHERE pt.location_id = (SELECT id FROM locations WHERE name = ?) AND pt.date >= ? '
             'ORDER BY pt.date',
             (name, str(current_date))
@@ -1482,15 +1404,13 @@ if WRITE_FILES:
         with open(weather_filename, 'w') as wf:
             for wrow in weather_rows:
                 pool_temp_F  = celsius_to_fahrenheit(wrow[1])
-                ci_low_F     = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else pool_temp_F
-                ci_high_F    = celsius_to_fahrenheit(wrow[3]) if wrow[3] is not None else pool_temp_F
-                air_temp_F   = celsius_to_fahrenheit(wrow[4]) if wrow[4] is not None else 0.0
-                wind_mph     = (wrow[5] / 0.44704) if wrow[5] is not None else 0.0
-                wind_dir     = wrow[6] if wrow[6] is not None else 0.0
-                humidity     = wrow[7] if wrow[7] is not None else 0.0
-                morning_F    = celsius_to_fahrenheit(wrow[8])  if wrow[8]  is not None else pool_temp_F
-                afternoon_F  = celsius_to_fahrenheit(wrow[9])  if wrow[9]  is not None else pool_temp_F
-                thunder_prob = wrow[10] if wrow[10] is not None else 0.0  # NEW
+                air_temp_F   = celsius_to_fahrenheit(wrow[2]) if wrow[2] is not None else 0.0
+                wind_mph     = (wrow[3] / 0.44704) if wrow[3] is not None else 0.0
+                wind_dir     = wrow[4] if wrow[4] is not None else 0.0
+                humidity     = wrow[5] if wrow[5] is not None else 0.0
+                morning_F    = celsius_to_fahrenheit(wrow[6])  if wrow[6]  is not None else pool_temp_F
+                afternoon_F  = celsius_to_fahrenheit(wrow[7])  if wrow[7]  is not None else pool_temp_F
+                thunder_prob = wrow[8] if wrow[8] is not None else 0.0  # NEW
 
                 # Calculate wind ratings for both breaks
                 rights_ratings = calculate_wind_ratings(int(wind_dir), 'Rights', name)
@@ -1502,7 +1422,7 @@ if WRITE_FILES:
                 lefts_air_rating = lefts_ratings['air_rating'] or ''
 
                 wf.write(
-                    f"{wrow[0]},{pool_temp_F:.2f},{ci_low_F:.2f},{ci_high_F:.2f},{air_temp_F:.2f},"
+                    f"{wrow[0]},{pool_temp_F:.2f},{air_temp_F:.2f},"
                     f"{wind_mph:.1f},{wind_dir:.1f},{humidity:.1f},"
                     f"{morning_F:.2f},{afternoon_F:.2f},{thunder_prob:.0f},"
                     f"{rights_barrel_rating},{rights_air_rating},{lefts_barrel_rating},{lefts_air_rating}\n"
@@ -1519,8 +1439,40 @@ if WRITE_FILES:
         for row in cursor.fetchall():
             temp_F = celsius_to_fahrenheit(row[1])
             f.write(f"{row[0]},{temp_F:.2f}\n")
+
+    # Write pools_manifest.json for the frontend (display info only, no thermal params).
+    _manifest_keys = ('display_name', 'city', 'state', 'description',
+                      'wave_technology', 'booking_url', 'breaks')
+    manifest = {
+        name: {**{k: cfg[k] for k in _manifest_keys if k in cfg},
+               'lat': locations[name]['lat'], 'lon': locations[name]['lon']}
+        for name, cfg in _pool_registry.items()
+    }
+    manifest_path = os.path.join(FORECASTS_DIR, '..', 'pools_manifest.json')
+    with open(manifest_path, 'w') as mf:
+        json.dump(manifest, mf, indent=2)
+    print(f"Pools manifest written → {os.path.normpath(manifest_path)}")
 else:
     print("\nTEST MODE: skipped all file exports (comparison txt + forecast txt).")
+
+# ---------------------------------------------------------------------------
+# ECMWF wind forecast JSON (one compact file per location)
+# ---------------------------------------------------------------------------
+if WRITE_FILES:
+    for name, coords in locations.items():
+        ecmwf = fetch_ecmwf_wind_open_meteo(coords['lat'], coords['lon'])
+        if ecmwf is None:
+            print(f"  Skipping ECMWF wind export for {name} (fetch failed)")
+            continue
+        ecmwf['location'] = name
+        ecmwf_path = os.path.join(
+            FORECASTS_DIR, f'ecmwf_wind_{name.replace(" ", "_")}.json'
+        )
+        with open(ecmwf_path, 'w') as f:
+            json.dump(ecmwf, f, separators=(',', ':'))
+        print(f"  Wrote ECMWF wind JSON → {ecmwf_path}")
+else:
+    print("TEST MODE: skipped ECMWF wind JSON exports.")
 
 # ---------------------------------------------------------------------------
 # Generate dashboard.html with real data

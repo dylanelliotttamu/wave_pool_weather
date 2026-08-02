@@ -1,0 +1,122 @@
+{
+  "Waco": {
+    "display_name": "Waco, Texas",
+    "city": "Waco",
+    "state": "TX",
+    "description": "BSR Cable Park & Surf Resort \u2014 a wave lagoon on the Brazos River in central Texas.",
+    "wave_technology": null,
+    "booking_url": null,
+    "breaks": {
+      "_defaults": {
+        "barrel_offset_degrees": 180,
+        "barrel_tolerance_degrees": 30,
+        "air_offset_degrees": 45,
+        "air_excellent_half_width_degrees": 30
+      },
+      "Rights": {
+        "wave_vector": 160
+      },
+      "Lefts": {
+        "wave_vector": 30
+      }
+    },
+    "lat": 31.6212,
+    "lon": -97.0037
+  },
+  "Palm Springs": {
+    "display_name": "Palm Springs, California",
+    "city": "Palm Springs",
+    "state": "CA",
+    "description": "Desert surf lagoon in the Coachella Valley.",
+    "wave_technology": null,
+    "booking_url": null,
+    "breaks": {
+      "_defaults": {
+        "barrel_offset_degrees": 180,
+        "barrel_tolerance_degrees": 30,
+        "air_offset_degrees": 45,
+        "air_excellent_half_width_degrees": 30
+      },
+      "Rights": {
+        "wave_vector": 250
+      },
+      "Lefts": {
+        "wave_vector": 250
+      }
+    },
+    "lat": 33.8303,
+    "lon": -116.5453
+  },
+  "Lemoore": {
+    "display_name": "Lemoore, California",
+    "city": "Lemoore",
+    "state": "CA",
+    "description": "Kelly Slater's Surf Ranch \u2014 a world-class standing wave in California's San Joaquin Valley.",
+    "wave_technology": "Kelly Slater Wave Co.",
+    "booking_url": null,
+    "breaks": {
+      "_defaults": {
+        "barrel_offset_degrees": 180,
+        "barrel_tolerance_degrees": 30,
+        "air_offset_degrees": 45,
+        "air_excellent_half_width_degrees": 30
+      },
+      "Rights": {
+        "wave_vector": 170
+      },
+      "Lefts": {
+        "wave_vector": 10
+      }
+    },
+    "lat": 36.3008,
+    "lon": -119.7829
+  },
+  "Atlantic Park Virginia Beach": {
+    "display_name": "Atlantic Park, Virginia Beach",
+    "city": "Virginia Beach",
+    "state": "VA",
+    "description": "Urban surf resort on the Virginia Beach oceanfront.",
+    "wave_technology": null,
+    "booking_url": null,
+    "breaks": {
+      "_defaults": {
+        "barrel_offset_degrees": 180,
+        "barrel_tolerance_degrees": 30,
+        "air_offset_degrees": 45,
+        "air_excellent_half_width_degrees": 30
+      },
+      "Rights": {
+        "wave_vector": 315
+      },
+      "Lefts": {
+        "wave_vector": 315
+      }
+    },
+    "lat": 36.8529,
+    "lon": -75.9779
+  },
+  "Oceanside": {
+    "display_name": "Oceanside, California",
+    "city": "Oceanside",
+    "state": "CA",
+    "description": "Wave pool in the coastal surf community of Oceanside, Southern California.",
+    "wave_technology": null,
+    "booking_url": null,
+    "breaks": {
+      "_defaults": {
+        "barrel_offset_degrees": 180,
+        "barrel_tolerance_degrees": 30,
+        "air_offset_degrees": 45,
+        "air_excellent_half_width_degrees": 30
+      },
+      "Rights": {
+        "wave_vector": 270
+      },
+      "Lefts": {
+        "wave_vector": 90
+      }
+    },
+    "lat": 33.1959,
+    "lon": -117.3795
+  }
+}

@@ -95,8 +95,7 @@ data/last_data_fetch.txt
 data/last_deploy.txt
 
 # Generated forecast outputs from live/test runs
-data/forecasts/model_comparison_*.txt
-data/forecasts/model_comparison_summary.txt
+data/forecasts/
 
 # Generated dashboard (built from dashboard.template.html by pull_api_data.py)
 dashboard.html
@@ -111,3 +110,4 @@ temp/
 *.orig
 *.rej
 
+.claude/worktrees/bias-correction

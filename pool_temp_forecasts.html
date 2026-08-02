@@ -12,12 +12,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+    :root {
+        --bg: #2b3137;
+        --panel: #3d444c;
+        --panel-strong: #1f252c;
+        --panel-soft: #30363d;
+        --text: #f2f5f7;
+        --muted: #aeb8c1;
+        --grid: rgba(255,255,255,0.08);
+        --accent: #7be0d6;
+        --accent-2: #f5c96a;
+        --good: #00c16a;
+        --epic: #7c3aed;
+        --risk: #ff6b57;
+    }
+
     /* CSS styles */
     body {
         margin: 0;
         font-family: 'Inter', 'Lato', sans-serif;
-        background-color: #333;
-        color: #fff;
+        background:
+            radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+            linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+        color: var(--text);
         overflow-x: hidden; /* Prevent horizontal scrolling */
         display: flex;
         flex-direction: column;
@@ -38,12 +55,13 @@
     .header {
         position: relative;
         text-align: center;
-        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        background: linear-gradient(135deg, rgba(18, 41, 58, 0.96) 0%, rgba(35, 87, 116, 0.9) 52%, rgba(100, 183, 165, 0.92) 100%);
         color: white;
-        padding: 20px;
-        margin-bottom: 20px; /* Add margin to create space for days container */
-        height: 5vh;
+        padding: 0;
+        margin-bottom: 10px;
+        min-height: 0;
 	overflow: hidden;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
     }
     .logo {
         width: 50px;
@@ -53,7 +71,7 @@
         vertical-align: middle;
     }
     .inner-header {
-        height: 65vh;
+        height: 10px;
         width: 100%;
         margin: 0;
         padding: 0;
@@ -66,7 +84,7 @@
         flex: 1; /* Take remaining vertical space */
         position: relative;
         min-height: 300px;
-        background-color: #666; /* Cooler background color */
+        background: transparent;
         padding: 20px;
     }
     /* Navigation Bar Styles */
@@ -115,10 +133,18 @@
         flex: 1 1 calc(15% - 20px); /* Adjust width calculation */
         text-align: center;
         padding: 20px;
-        background-color: #444; /* Darker background color */
+        background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
         border-radius: 12px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         max-width: 200px; /* Limit maximum width of each column */
+        border: 1px solid rgba(255,255,255,0.05);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .day-column:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+        border-color: rgba(123,224,214,0.45);
     }
     .day-column h2 {
         font-size: 24px;
@@ -228,25 +254,260 @@
 
     /* Temperature forecast chart */
     .chart-section {
-        max-width: 900px;
+        max-width: 1100px;
         margin: 20px auto 0;
         padding: 20px 24px;
-        background: #444;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+        border: 1px solid rgba(255,255,255,0.05);
     }
     .chart-section h3 {
         text-align: center;
-        color: #4ecdc4;
+        color: var(--accent);
         margin: 0 0 16px;
         font-size: 18px;
         font-weight: 600;
         letter-spacing: 0.5px;
     }
+    .ratings-board {
+        background: linear-gradient(180deg, rgba(61, 68, 76, 0.95), rgba(45, 52, 59, 0.98));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+        padding: 24px;
+        max-width: 1100px;
+        margin: 28px auto 0;
+    }
+    .section-eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+        font-size: 11px;
+        color: var(--accent);
+        font-weight: 700;
+    }
+    .ratings-board h3 {
+        margin: 4px 0 0;
+        font-size: 30px;
+        line-height: 1.1;
+        color: #fff;
+        text-align: left;
+    }
+    .ratings-board p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+    }
+    .ratings-grid {
+        display: grid;
+        grid-template-columns: 170px repeat(var(--day-cols, 7), minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+        align-items: center;
+    }
+    .ratings-grid .header-cell {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-align: center;
+    }
+    .rating-row-label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding-right: 8px;
+    }
+    .rating-row-label strong {
+        color: #fff;
+        font-size: 14px;
+    }
+    .rating-row-label span {
+        color: var(--muted);
+        font-size: 12px;
+    }
+    .rating-chip {
+        min-height: 54px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+    }
+    .rating-chip:hover {
+        transform: scale(1.07);
+        filter: brightness(1.18);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .rating-chip-empty {
+        background: rgba(255,255,255,0.04);
+        color: var(--muted);
+        border-color: rgba(255,255,255,0.05);
+    }
+    @media (max-width: 1024px) {
+        .ratings-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .ratings-grid .header-cell:first-child,
+        .rating-row-label {
+            grid-column: 1 / -1;
+            padding-right: 0;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .content {
+            padding: 16px;
+        }
+        .ratings-board,
+        .chart-section {
+            padding: 18px;
+            border-radius: 18px;
+        }
+        .ratings-board h3 {
+            font-size: 24px;
+        }
+        .ratings-grid {
+            grid-template-columns: 1fr;
+        }
+        .day-column {
+            max-width: none;
+        }
+    }
+
+    /* Radar map section */
+    .radar-section {
+        background: linear-gradient(180deg, rgba(61,68,76,0.94), rgba(45,52,59,0.98));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+        padding: 24px;
+        max-width: 1100px;
+        margin: 28px auto 0;
+    }
+    .radar-section h3 { margin: 4px 0 16px; font-size: 24px; color: #fff; }
+    #radarMap { width: 100%; height: 380px; border-radius: 12px; }
+    @media (max-width: 768px) {
+        #radarMap { height: 260px; }
+        .radar-section { padding: 18px; border-radius: 18px; }
+        .radar-section h3 { font-size: 20px; }
+    }
+
+    /* Wind particle flow field */
+    .wind-field-section {
+        background: linear-gradient(180deg, rgba(61,68,76,0.94), rgba(45,52,59,0.98));
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+        padding: 24px;
+        max-width: 1100px;
+        margin: 28px auto 0;
+    }
+    .wind-field-section h3 { margin: 4px 0 16px; font-size: 24px; color: #fff; }
+    .wind-field-container { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); height: 380px; }
+    #windMap { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; border-radius: 12px; }
+    #windFieldCanvas { position: absolute; top: 0; left: 0; display: block; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; z-index: 1; }
+    .wind-field-info {
+        position: absolute; top: 12px; left: 12px;
+        background: rgba(0,0,0,0.55); padding: 8px 12px; border-radius: 8px;
+        font-size: 13px; color: #fff; line-height: 1.6; pointer-events: none;
+    }
+    .wind-field-controls { padding: 10px 0 0; }
+    .wind-field-controls input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    .wind-time-label { text-align: center; font-size: 13px; color: var(--muted); margin-top: 5px; min-height: 18px; }
+    @media (max-width: 768px) {
+        .wind-field-container { height: 260px; }
+        .wind-field-section { padding: 18px; border-radius: 18px; }
+        .wind-field-section h3 { font-size: 20px; }
+    }
+
+    /* Detail modal */
+    .detail-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.72);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(5px);
+    }
+    .detail-modal-overlay.open { display: flex; }
+    .detail-modal {
+        background: linear-gradient(160deg, rgba(55,63,72,0.99) 0%, rgba(28,35,43,0.99) 100%);
+        border: 1px solid rgba(123,224,214,0.18);
+        border-radius: 22px;
+        padding: 36px 32px 28px;
+        max-width: 440px;
+        width: 92%;
+        position: relative;
+        box-shadow: 0 28px 70px rgba(0,0,0,0.65);
+        animation: modalIn 0.18s ease;
+    }
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.93) translateY(10px); }
+        to   { opacity: 1; transform: scale(1)    translateY(0); }
+    }
+    .detail-modal-close {
+        position: absolute;
+        top: 14px; right: 16px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #ccc;
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 15px;
+        display: flex; align-items: center; justify-content: center;
+        transition: background 0.2s;
+        line-height: 1;
+    }
+    .detail-modal-close:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .modal-temp-display {
+        font-size: 56px;
+        font-weight: 700;
+        line-height: 1;
+        margin: 10px 0 4px;
+    }
+    .modal-section {
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin-top: 16px;
+        padding-top: 14px;
+    }
+    .modal-section-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--accent);
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .modal-rating-badge {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 10px 28px;
+        border-radius: 16px;
+        display: inline-block;
+        margin: 8px 0;
+    }
     </style> 
     <script>
     let tempChartInstance = null;
-
+    let windField = null;
+    let radarMap = null;
+    const ecmwfCache = new Map();   // poolName → parsed ECMWF JSON data
+    let currentVisibleRows = [];
+    let currentWeatherMap = null;
+    let poolManifest = null;
+    const forecastResponseCache = new Map();
+    let latestDataVersionPromise = null;
     function getTempColor(temp) {
         if (temp > 88)  return '#cc0000';        // red (very hot)
         if (temp >= 80) return '#ff6600';        // orange
@@ -266,6 +527,65 @@
         return '🧊 ';
     }
 
+    function normalizeDisplayRating(rating) {
+        const normalized = normalizeRating(rating);
+        if (!normalized) return 'Poor';
+        if (normalized === 'Epic') return 'Epic';
+        if (normalized === 'Good') return 'Good';
+        return 'Poor';
+    }
+
+    function getRatingBackground(rating) {
+        const normalized = normalizeDisplayRating(rating);
+        if (normalized === 'Epic') {
+            return 'linear-gradient(135deg, rgba(124,58,237,0.9), rgba(88,28,135,0.95))';
+        }
+        if (normalized === 'Good') {
+            return 'linear-gradient(135deg, rgba(0,193,106,0.9), rgba(8,122,75,0.95))';
+        }
+        if (normalized === 'Poor') {
+            return 'linear-gradient(135deg, rgba(136,136,136,0.9), rgba(102,102,102,0.95))';
+        }
+        return 'rgba(255,255,255,0.04)';
+    }
+
+    function renderRatingMatrix(visibleRows, weatherMap) {
+        const container = document.getElementById('ratingsGrid');
+        if (!container) return;
+
+        const rows = [
+            { title: 'Rights barrel', subtitle: 'Tube focus', key: 'rights_barrel_rating' },
+            { title: 'Rights air', subtitle: 'Launch focus', key: 'rights_air_rating' },
+            { title: 'Lefts barrel', subtitle: 'Tube focus', key: 'lefts_barrel_rating' },
+            { title: 'Lefts air', subtitle: 'Launch focus', key: 'lefts_air_rating' }
+        ];
+
+        let html = '<div class="header-cell">Break / day</div>';
+        html += visibleRows.map(row => `<div class="header-cell">${row.dateObj.toLocaleDateString('en-US', { weekday: 'short' })}<br>${row.dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>`).join('');
+
+        rows.forEach(rowDef => {
+            html += `
+                <div class="rating-row-label">
+                    <strong>${rowDef.title}</strong>
+                    <span>${rowDef.subtitle}</span>
+                </div>`;
+
+            visibleRows.forEach((row, dayIdx) => {
+                const weather = weatherMap ? weatherMap[row.date] : null;
+                const rating = weather ? weather[rowDef.key] : null;
+                const display = normalizeDisplayRating(rating);
+                const isEmpty = false;
+                const color = getRatingColor(display);
+                html += `
+                    <div class="rating-chip ${isEmpty ? 'rating-chip-empty' : ''}" data-row-key="${rowDef.key}" data-day-index="${dayIdx}" style="background:${getRatingBackground(rating)}; color:${isEmpty ? 'var(--muted)' : '#fff'}; border-color:${isEmpty ? 'rgba(255,255,255,0.05)' : color};">
+                        ${display}
+                    </div>`;
+            });
+        });
+
+        container.innerHTML = html;
+        container.style.setProperty('--day-cols', visibleRows.length);
+    }
     function normalizeRating(rating) {
         const normalized = (rating || '').trim().toLowerCase();
         if (!normalized) return '';
@@ -280,7 +600,7 @@
         if (normalized === 'Excellent') return '#7c3aed';
         if (normalized === 'Epic') return '#7c3aed';
         if (normalized === 'Good') return '#00cc00';
-        return '#ff3333';  // Poor
+        return '#888';  // Poor
     }
 
     function getRatingEmoji(rating) {
@@ -292,23 +612,475 @@
         return '🔴';  // Poor
     }
 
-    function createRatingHtml(label, icon, rating) {
-        const normalized = normalizeRating(rating);
-        if (!normalized) return '';
-        const color = getRatingColor(normalized);
-        const emoji = getRatingEmoji(normalized);
-        return `<div style="margin: 6px 0; font-size: 12px;">
-            <span>${icon} ${label}:</span>
-            <span style="color: ${color}; font-weight: 700; margin-left: 4px;">${emoji} ${normalized}</span>
-        </div>`;
+    async function fetchTimestamp(url, cacheMode = 'no-store') {
+        try {
+            const response = await fetch(url, { cache: cacheMode });
+            if (!response.ok) return null;
+            const text = (await response.text()).trim();
+            if (!text) return null;
+            const parsedDate = new Date(text);
+            return isNaN(parsedDate.getTime()) ? null : parsedDate;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function getLatestDataVersion() {
+        if (!latestDataVersionPromise) {
+            latestDataVersionPromise = fetchTimestamp('data/last_data_fetch.txt').then(date => {
+                return date ? date.toISOString() : '';
+            });
+        }
+        return latestDataVersionPromise;
+    }
+
+    function buildVersionedDataUrl(path, version) {
+        if (!version) return path;
+        const separator = path.includes('?') ? '&' : '?';
+        return `${path}${separator}v=${encodeURIComponent(version)}`;
+    }
+
+    async function fetchForecastText(path) {
+        const version = await getLatestDataVersion();
+        const url = buildVersionedDataUrl(path, version);
+        if (forecastResponseCache.has(url)) {
+            return forecastResponseCache.get(url);
+        }
+
+        const requestPromise = fetch(url, { cache: 'default' }).then(async response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load data from ${path}`);
+            }
+            return response.text();
+        });
+
+        forecastResponseCache.set(url, requestPromise);
+        try {
+            return await requestPromise;
+        } catch (error) {
+            forecastResponseCache.delete(url);
+            throw error;
+        }
+    }
+
+    async function loadEcmwfWind(poolName) {
+        if (ecmwfCache.has(poolName)) return ecmwfCache.get(poolName);
+        const resp = await fetch(`data/forecasts/ecmwf_wind_${poolName}.json`, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        ecmwfCache.set(poolName, data);
+        return data;
+    }
+
+    class WindParticleField {
+        constructor(canvas, slider, infoEl, labelEl) {
+            this.canvas  = canvas;
+            this.ctx     = canvas.getContext('2d');
+            this.slider  = slider;
+            this.infoEl  = infoEl;
+            this.labelEl = labelEl;
+
+            this.data       = null;
+            this.stepIndex  = 0;
+            this.particles  = [];
+            this.NUM_PARTICLES = 90;
+            this.W = 0; this.H = 0;
+
+            this.animFrameId      = null;
+            this.autoPlayTimer    = null;
+            this.autoRefreshTimer = null;
+            this.isUserInteracting = false;
+            this._interactTimeout  = null;
+            this.poolName = null;
+
+            this._bindSlider();
+            window.addEventListener('resize', () => this._onResize());
+        }
+
+        // -------------------------------------------------------
+        // Map layer (context, no radar)
+        // -------------------------------------------------------
+        _initMap(lat, lon) {
+            if (this.map) {
+                this.map.setView([lat, lon], 7);
+                return;
+            }
+            this.map = L.map('windMap', {
+                center: [lat, lon],
+                zoom: 7,
+                zoomControl: false,
+                attributionControl: true,
+                dragging: false,
+                scrollWheelZoom: false,
+            });
+            L.tileLayer(
+                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19,
+                }
+            ).addTo(this.map);
+        }
+
+        // -------------------------------------------------------
+        // Canvas sizing
+        // -------------------------------------------------------
+        _setupCanvas() {
+            const rect = this.canvas.getBoundingClientRect();
+            const dpr  = window.devicePixelRatio || 1;
+            this.W = rect.width  || 800;
+            this.H = rect.height || 380;
+            this.canvas.width  = this.W * dpr;
+            this.canvas.height = this.H * dpr;
+            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        _onResize() {
+            if (!this.data) return;
+            this._setupCanvas();
+            this._resetParticles();
+            if (this.map) this.map.invalidateSize();
+        }
+
+        _bindSlider() {
+            if (!this.slider) return;
+            this.slider.addEventListener('input', (e) => {
+                this.isUserInteracting = true;
+                this._setStep(parseInt(e.target.value, 10));
+                clearTimeout(this._interactTimeout);
+                this._interactTimeout = setTimeout(() => {
+                    this.isUserInteracting = false;
+                }, 6000);
+            });
+        }
+
+        async load(poolName) {
+            this.poolName = poolName;
+            this.data = null;
+            this._stopAnimation();
+            this._setupCanvas();
+            this._showLoading();
+            try {
+                const data = await loadEcmwfWind(poolName);
+                this.data = data;
+                this.stepIndex = 0;
+                if (this.slider) {
+                    this.slider.max   = data.steps.length - 1;
+                    this.slider.value = 0;
+                }
+                this._resetParticles();
+                this._updateLabel();
+                this._startAnimation();
+                this._startAutoPlay();
+                if (!this.autoRefreshTimer) this._startAutoRefresh();
+            } catch (err) {
+                this._showError('Wind data unavailable');
+                console.warn('WindParticleField load error:', err);
+            }
+        }
+
+        _applyNewData(data) {
+            this.data = data;
+            if (this.slider) {
+                this.slider.max = data.steps.length - 1;
+                if (this.stepIndex >= data.steps.length) this.stepIndex = 0;
+            }
+            this._updateLabel();
+        }
+
+        _resetParticles() {
+            this.particles = Array.from({ length: this.NUM_PARTICLES }, () => {
+                const maxAge = 60 + Math.floor(Math.random() * 70);
+                return {
+                    x: Math.random() * this.W,
+                    y: Math.random() * this.H,
+                    px: 0, py: 0,
+                    age: Math.floor(Math.random() * maxAge),
+                    maxAge,
+                };
+            });
+            this.particles.forEach(p => { p.px = p.x; p.py = p.y; });
+        }
+
+        _setStep(index) {
+            if (!this.data) return;
+            this.stepIndex = Math.max(0, Math.min(index, this.data.steps.length - 1));
+            if (this.slider) this.slider.value = this.stepIndex;
+            this._updateLabel();
+        }
+
+        _getWind() {
+            if (!this.data || !this.data.steps[this.stepIndex]) {
+                return { speed_kt: 0, dir_deg: 0, gusts_kt: 0 };
+            }
+            return this.data.steps[this.stepIndex];
+        }
+
+        _windVelocity(speed_kt, dir_deg) {
+            const rad   = dir_deg * Math.PI / 180;
+            const scale = speed_kt * 0.10;
+            return { vx: -Math.sin(rad) * scale, vy: Math.cos(rad) * scale };
+        }
+
+        _particleColor(speed_kt) {
+            if (speed_kt <  5) return 'rgba(136,204,255,0.70)';
+            if (speed_kt < 15) return 'rgba(123,224,214,0.80)';
+            if (speed_kt < 25) return 'rgba(245,201,106,0.88)';
+            if (speed_kt < 35) return 'rgba(255,154, 86,0.92)';
+            return                    'rgba(255,107, 87,0.98)';
+        }
+
+        _tick() {
+            const wind       = this._getWind();
+            const { vx, vy } = this._windVelocity(wind.speed_kt, wind.dir_deg);
+            this.particles.forEach(p => {
+                p.px = p.x; p.py = p.y;
+                p.x += vx;  p.y += vy;
+                p.age++;
+                if (p.x <  0)      { p.x += this.W; p.px = p.x; }
+                if (p.x >  this.W) { p.x -= this.W; p.px = p.x; }
+                if (p.y <  0)      { p.y += this.H; p.py = p.y; }
+                if (p.y >  this.H) { p.y -= this.H; p.py = p.y; }
+                if (p.age >= p.maxAge) {
+                    p.x = Math.random() * this.W; p.y = Math.random() * this.H;
+                    p.px = p.x; p.py = p.y;
+                    p.age = 0;
+                    p.maxAge = 60 + Math.floor(Math.random() * 70);
+                }
+            });
+        }
+
+        _draw() {
+            const ctx  = this.ctx;
+            const wind = this._getWind();
+
+            // Persistent fade creates motion trails
+            ctx.fillStyle = 'rgba(31,37,44,0.20)';
+            ctx.fillRect(0, 0, this.W, this.H);
+
+            const color = this._particleColor(wind.speed_kt);
+            ctx.strokeStyle = color;
+            ctx.lineWidth   = 1.5;
+            ctx.lineCap     = 'round';
+            this.particles.forEach(p => {
+                const t = p.age / p.maxAge;
+                ctx.globalAlpha = Math.min(1, t * 4) * 0.85;
+                ctx.beginPath();
+                ctx.moveTo(p.px, p.py);
+                ctx.lineTo(p.x,  p.y);
+                ctx.stroke();
+            });
+            ctx.globalAlpha = 1;
+
+            this._drawCompass(wind.dir_deg, wind.speed_kt);
+            this._updateInfoOverlay(wind);
+        }
+
+        _drawCompass(dir_deg, speed_kt) {
+            const ctx = this.ctx;
+            const cx  = this.W - 52;
+            const cy  = 52;
+            const r   = 32;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.50)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+            ctx.lineWidth   = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            [0, 90, 180, 270].forEach(deg => {
+                const a = (deg - 90) * Math.PI / 180;
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(a) * (r - 5), cy + Math.sin(a) * (r - 5));
+                ctx.lineTo(cx + Math.cos(a) * r,       cy + Math.sin(a) * r);
+                ctx.stroke();
+            });
+
+            ctx.font = '9px Inter,sans-serif';
+            ctx.textAlign = 'center';
+            [['N', 0, -(r+11)], ['S', 0, r+13], ['E', r+13, 3], ['W', -(r+13), 3]].forEach(([lbl, dx, dy]) => {
+                ctx.fillStyle = lbl === 'N' ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)';
+                ctx.fillText(lbl, cx + dx, cy + dy);
+            });
+
+            const fromRad = (dir_deg + 90) * Math.PI / 180;
+            const tipX = cx + Math.cos(fromRad) * r * 0.75;
+            const tipY = cy + Math.sin(fromRad) * r * 0.75;
+            const arrowColor = this._particleColor(speed_kt).replace(/[\d.]+\)$/, '1)');
+            ctx.strokeStyle = arrowColor;
+            ctx.lineWidth   = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(tipX, tipY);
+            ctx.stroke();
+            const hLen = 7;
+            const hAngle = Math.atan2(tipY - cy, tipX - cx);
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(tipX - hLen * Math.cos(hAngle - Math.PI / 6), tipY - hLen * Math.sin(hAngle - Math.PI / 6));
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(tipX - hLen * Math.cos(hAngle + Math.PI / 6), tipY - hLen * Math.sin(hAngle + Math.PI / 6));
+            ctx.stroke();
+        }
+
+        _updateInfoOverlay(wind) {
+            if (!this.infoEl) return;
+            const DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            const compass = DIRS[Math.round(wind.dir_deg / 22.5) % 16];
+            const step    = this.data && this.data.steps[this.stepIndex];
+            const timeStr = step ? (() => {
+                const dt = new Date(step.time + 'Z');
+                return dt.toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false
+                }) + ' UTC';
+            })() : '';
+            this.infoEl.innerHTML =
+                `<div style="font-weight:700;color:var(--accent);font-size:15px;">${wind.speed_kt.toFixed(1)} kt</div>` +
+                `<div style="color:#ccc;font-size:12px;">${compass} · gusts ${wind.gusts_kt.toFixed(0)} kt</div>` +
+                `<div style="color:#888;font-size:11px;margin-top:3px;">${timeStr}</div>`;
+        }
+
+        _updateLabel() {
+            if (!this.data || !this.labelEl) return;
+            const step = this.data.steps[this.stepIndex];
+            if (!step) return;
+            const dt = new Date(step.time + 'Z');
+            this.labelEl.textContent = dt.toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false
+            }) + ' UTC';
+        }
+
+        _startAnimation() {
+            if (this.animFrameId) return;
+            const loop = () => {
+                this._tick();
+                this._draw();
+                this.animFrameId = requestAnimationFrame(loop);
+            };
+            this.animFrameId = requestAnimationFrame(loop);
+        }
+
+        _stopAnimation() {
+            if (this.animFrameId) {
+                cancelAnimationFrame(this.animFrameId);
+                this.animFrameId = null;
+            }
+        }
+
+        _startAutoPlay() {
+            this._stopAutoPlay();
+            this.autoPlayTimer = setInterval(() => {
+                if (!this.data || this.isUserInteracting) return;
+                this._setStep((this.stepIndex + 1) % this.data.steps.length);
+            }, 2200);
+        }
+
+        _stopAutoPlay() {
+            if (this.autoPlayTimer) { clearInterval(this.autoPlayTimer); this.autoPlayTimer = null; }
+        }
+
+        _startAutoRefresh() {
+            this.autoRefreshTimer = setInterval(async () => {
+                if (!this.poolName) return;
+                ecmwfCache.delete(this.poolName);
+                try {
+                    const fresh = await loadEcmwfWind(this.poolName);
+                    this._applyNewData(fresh);
+                } catch (e) {
+                    console.warn('ECMWF auto-refresh failed:', e);
+                }
+            }, 30 * 60 * 1000);
+        }
+
+        _showLoading() {
+            const ctx = this.ctx;
+            ctx.clearRect(0, 0, this.W, this.H);
+            if (this.infoEl)  this.infoEl.innerHTML = '';
+            if (this.labelEl) this.labelEl.textContent = '';
+        }
+
+        _showError(msg) {
+            const ctx = this.ctx;
+            ctx.clearRect(0, 0, this.W, this.H);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(0, 0, this.W, this.H);
+            ctx.fillStyle = 'rgba(255,107,87,0.85)';
+            ctx.font = '13px Inter,sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(msg, this.W / 2, this.H / 2 - 8);
+            ctx.fillStyle = 'rgba(174,184,193,0.5)';
+            ctx.font = '11px Inter,sans-serif';
+            ctx.fillText('ECMWF data not yet available', this.W / 2, this.H / 2 + 10);
+        }
+    }
+
+    class RadarMap {
+        constructor(mapDivId) {
+            this.mapDiv = document.getElementById(mapDivId);
+            this.map = null;
+            this.radarLayer = null;
+        }
+
+        async load(lat, lon) {
+            if (!this.map) {
+                this.map = L.map(this.mapDiv, {
+                    center: [lat, lon],
+                    zoom: 7,
+                    zoomControl: true,
+                    attributionControl: true,
+                    scrollWheelZoom: true,
+                });
+                L.tileLayer(
+                    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                    {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                        subdomains: 'abcd',
+                        maxZoom: 19,
+                    }
+                ).addTo(this.map);
+            } else {
+                this.map.setView([lat, lon], 7);
+            }
+            this._updateRadar();
+        }
+
+        async _updateRadar() {
+            if (!this.map) return;
+            try {
+                const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+                const data = await resp.json();
+                const frames = data.radar.past;
+                if (!frames || frames.length === 0) return;
+                const latest = frames[frames.length - 1];
+                const host   = data.host;
+                const tileUrl = `${host}${latest.path}/256/{z}/{x}/{y}/4/1_1.png`;
+
+                if (this.radarLayer) {
+                    this.map.removeLayer(this.radarLayer);
+                }
+                this.radarLayer = L.tileLayer(tileUrl, {
+                    opacity: 0.55,
+                    attribution: '<a href="https://www.rainviewer.com">RainViewer</a>',
+                }).addTo(this.map);
+            } catch (e) {
+                console.warn('RainViewer radar fetch failed:', e);
+            }
+        }
     }
 
     async function loadWeatherData(poolName) {
         const weatherFilename = `data/forecasts/forecasted_weather_${poolName}.txt`;
         try {
-            const response = await fetch(weatherFilename, { cache: 'no-store' });
-            if (!response.ok) return null;
-            const text = await response.text();
+            const text = await fetchForecastText(weatherFilename);
             const weatherMap = {};
             text.trim().split('\n').forEach(line => {
                 const parts = line.trim().split(',');
@@ -317,11 +1089,9 @@
                     return normalized || null;
                 };
                 if (parts.length >= 15) {
-                    // New format with wind ratings
+                    // Legacy format with confidence interval columns.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -334,12 +1104,26 @@
                         lefts_barrel_rating:  parseRating(parts[13]),
                         lefts_air_rating:     parseRating(parts[14])
                     };
-                } else if (parts.length >= 11) {
-                    // Format without wind ratings (older format)
+                } else if (parts.length >= 13) {
+                    // Current format with wind ratings.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: parseRating(parts[9]),
+                        rights_air_rating:    parseRating(parts[10]),
+                        lefts_barrel_rating:  parseRating(parts[11]),
+                        lefts_air_rating:     parseRating(parts[12])
+                    };
+                } else if (parts.length >= 11) {
+                    // Legacy format without wind ratings but with confidence interval columns.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -352,11 +1136,25 @@
                         lefts_barrel_rating:  null,
                         lefts_air_rating:     null
                     };
+                } else if (parts.length >= 9) {
+                    // Current format without wind ratings.
+                    weatherMap[parts[0]] = {
+                        pool_temp:      parseFloat(parts[1]),
+                        air_temp:       parseFloat(parts[2]),
+                        wind_speed:     parseFloat(parts[3]),
+                        wind_dir:       parseFloat(parts[4]),
+                        humidity:       parseFloat(parts[5]),
+                        morning_temp:   parseFloat(parts[6]),
+                        afternoon_temp: parseFloat(parts[7]),
+                        thunder_prob:   parseFloat(parts[8]),
+                        rights_barrel_rating: null,
+                        rights_air_rating:    null,
+                        lefts_barrel_rating:  null,
+                        lefts_air_rating:     null
+                    };
                 } else if (parts.length >= 10) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -372,8 +1170,6 @@
                 } else if (parts.length >= 8) {
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    parseFloat(parts[2]),
-                        pool_ci_high:   parseFloat(parts[3]),
                         air_temp:       parseFloat(parts[4]),
                         wind_speed:     parseFloat(parts[5]),
                         wind_dir:       parseFloat(parts[6]),
@@ -390,8 +1186,6 @@
                     // Backward compatibility for older export schema.
                     weatherMap[parts[0]] = {
                         pool_temp:      parseFloat(parts[1]),
-                        pool_ci_low:    NaN,
-                        pool_ci_high:   NaN,
                         air_temp:       parseFloat(parts[2]),
                         wind_speed:     parseFloat(parts[3]),
                         wind_dir:       parseFloat(parts[4]),
@@ -416,15 +1210,10 @@
         const filename = `data/forecasts/forecasted_pool_temps_${poolName}.txt`;
         const forecastDaysToShow = 7;
         let displayName = poolName.replace(/_/g, ' ');
-        // Special handling for display names
-        const displayMap = {
-            'Waco': 'Waco, Texas 🤠',
-            'Palm_Springs': 'Palm Springs, California',
-            'Lemoore': 'Lemoore, California',
-            'Atlantic_Park_Virginia_Beach': 'Atlantic Park, Virginia Beach',
-            'Oceanside': 'Oceanside, California'
-        };
-        displayName = displayMap[poolName] || displayName;
+        const manifestKey = poolName.replace(/_/g, ' ');
+        if (poolManifest && poolManifest[manifestKey]) {
+            displayName = poolManifest[manifestKey].display_name;
+        }
         document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
 
         for (let i = 1; i <= forecastDaysToShow; i++) {
@@ -438,12 +1227,7 @@
         const weatherMap = await loadWeatherData(poolName);
 
         try {
-            const response = await fetch(filename, { cache: 'no-store' });
-            if (!response.ok) {
-                throw new Error(`Failed to load data from ${filename}`);
-            }
-
-            const text = await response.text();
+            const text = await fetchForecastText(filename);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const rows = text
@@ -482,6 +1266,9 @@
             }
 
             const visibleRows = rows.slice(0, forecastDaysToShow);
+            currentVisibleRows = visibleRows;
+            currentWeatherMap = weatherMap;
+            renderRatingMatrix(visibleRows, weatherMap);
             visibleRows.forEach((row, index) => {
                 const column = document.getElementById(`day${index + 1}`);
                 if (!column) {
@@ -517,7 +1304,6 @@
                 // Build wind row if weather data available
                 let windHtml = '';
                 let thunderHtml = '';
-                let ratingsHtml = '';
                 let morningAfternoonHtml = '';
                 if (weatherMap && weatherMap[row.date]) {
                     const wd = weatherMap[row.date];
@@ -531,39 +1317,9 @@
                     const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
                     windHtml = `
                         <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:6px 0;">
-                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:#4ecdc4;">↑</span>
-                            <span style="font-size:14px; color:#ccc;">${windSpeedKt.toFixed(1)} kt <span style="color:#aaa; font-size:12px;">${compassLabel}</span></span>
+                            <span style="display:inline-block; transform:rotate(${arrowRotation}deg); font-size:20px; line-height:1; color:var(--accent);">↑</span>
+                            <span style="font-size:14px; color:var(--muted);">${windSpeedKt.toFixed(1)} kt <span style="color:var(--muted); font-size:12px;">${compassLabel}</span></span>
                         </div>`;
-
-                    // Build wind ratings HTML (only show if ratings are available)
-                    let ratingsContent = '';
-                    let rightsRatings = '';
-                    let leftsRatings = '';
-
-                    rightsRatings += createRatingHtml('Barrel wind', '🌊', wd.rights_barrel_rating);
-                    rightsRatings += createRatingHtml('Air wind', '✈️', wd.rights_air_rating);
-
-                    leftsRatings += createRatingHtml('Barrel wind', '🌊', wd.lefts_barrel_rating);
-                    leftsRatings += createRatingHtml('Air wind', '✈️', wd.lefts_air_rating);
-
-                    if (rightsRatings || leftsRatings) {
-                        let ratingsHtmlParts = [];
-                        if (rightsRatings) {
-                            ratingsHtmlParts.push(`
-                            <div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
-                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">RIGHTS</div>
-                                ${rightsRatings}
-                            </div>`);
-                        }
-                        if (leftsRatings) {
-                            ratingsHtmlParts.push(`
-                            <div style="padding: 6px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 3px solid #4ecdc4;">
-                                <div style="font-size: 10px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px;">LEFTS</div>
-                                ${leftsRatings}
-                            </div>`);
-                        }
-                        ratingsHtml = `<div style="margin-top: 8px;">${ratingsHtmlParts.join('')}</div>`;
-                    }
 
                     // Thunder probability - only show if > 0%
                     const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
@@ -610,11 +1366,11 @@
                     <h3>${row.date}</h3>
                     <p style="color:${tempColor}; font-size:22px; font-weight:700; margin:8px 0;">${row.temp} °F</p>
                     ${windHtml}
-                    ${ratingsHtml}
                     ${thunderHtml}
-                    <p style="font-size:13px; color:#ccc; margin-top:8px;">${suitEmoji}${suitRecommendation}</p>
+                    <p style="font-size:13px; color:#ccc; margin-top:8px;">Recommended: ${suitEmoji}${suitRecommendation}</p>
                     ${morningAfternoonHtml}
                 `;
+                column.onclick = () => openDayModal(index);
             });
 
             for (let i = visibleRows.length + 1; i <= forecastDaysToShow; i++) {
@@ -747,42 +1503,224 @@
             }
             console.error(error);
         }
+
+        // Non-blocking: load ECMWF wind visualization and radar for this pool
+        const poolKey = poolName.replace(/_/g, ' ');
+        const coords  = poolManifest && poolManifest[poolKey];
+        const lat = coords ? coords.lat : 37.0;
+        const lon = coords ? coords.lon : -97.0;
+
+        if (windField) {
+            windField.load(poolName).catch(err =>
+                console.warn('ECMWF wind field unavailable for', poolName, err)
+            );
+        }
+        if (radarMap) {
+            radarMap.load(lat, lon).catch(err =>
+                console.warn('Radar map unavailable for', poolName, err)
+            );
+        }
+    }
+
+    async function initPoolTabs() {
+        try {
+            const response = await fetch('data/pools_manifest.json');
+            poolManifest = await response.json();
+        } catch (e) {
+            console.warn('Could not load pools_manifest.json', e);
+            poolManifest = {};
+        }
+
+        const tabBar = document.getElementById('pool-tab-bar');
+        tabBar.innerHTML = '';
+
+        const poolKeys = Object.keys(poolManifest);
+        poolKeys.forEach(function(key, index) {
+            const pool = poolManifest[key];
+            const btn = document.createElement('button');
+            btn.className = 'tab' + (index === 0 ? ' active' : '');
+            btn.dataset.pool = key.replace(/ /g, '_');
+            btn.textContent = pool.display_name;
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                loadPoolData(this.dataset.pool);
+            });
+            tabBar.appendChild(btn);
+        });
+
+        if (poolKeys.length > 0) {
+            loadPoolData(poolKeys[0].replace(/ /g, '_'));
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const tabs = document.querySelectorAll('.tab');
-        
-        // Load default (Waco)
-        loadPoolData('Waco');
+        initPoolTabs();
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', function() {
-                // Remove active class from all tabs
-                tabs.forEach(t => t.classList.remove('active'));
-                // Add active class to clicked tab
-                this.classList.add('active');
-                // Load data for selected pool
-                loadPoolData(this.dataset.pool);
-            });
-        });
+        // Init wind particle field
+        const wfCanvas = document.getElementById('windFieldCanvas');
+        if (wfCanvas) {
+            windField = new WindParticleField(
+                wfCanvas,
+                document.getElementById('windTimeSlider'),
+                document.getElementById('windFieldInfo'),
+                document.getElementById('windTimeLabel')
+            );
+        }
+
+        // Init radar map
+        radarMap = new RadarMap('radarMap');
 
         loadInfoTimestamps();
+
+        document.getElementById('ratingsGrid').addEventListener('click', function(e) {
+            const chip = e.target.closest('.rating-chip');
+            if (!chip || !chip.dataset.rowKey) return;
+            openRatingModal(chip.dataset.rowKey, parseInt(chip.dataset.dayIndex, 10));
+        });
     });
 
-    async function loadInfoTimestamps() {
-        async function fetchTimestamp(url) {
-            try {
-                const r = await fetch(url, { cache: 'no-store' });
-                if (!r.ok) return null;
-                const text = (await r.text()).trim();
-                if (!text) return null;
-                const d = new Date(text);
-                return isNaN(d.getTime()) ? null : d;
-            } catch (e) {
-                return null;
+    function closeDetailModal() {
+        document.getElementById('detailModal').classList.remove('open');
+    }
+
+    function handleModalOverlayClick(e) {
+        if (e.target === document.getElementById('detailModal')) closeDetailModal();
+    }
+
+    function openDayModal(index) {
+        const row = currentVisibleRows[index];
+        if (!row) return;
+        const wd = currentWeatherMap && currentWeatherMap[row.date];
+        const temp = parseFloat(row.temp);
+        const tempColor = getTempColor(temp);
+        const suitEmoji = getSuitEmoji(temp);
+        const dayLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const dateLabel = row.dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        let suitText = '';
+        if (temp >= 75) suitText = 'Boardshorts';
+        else if (temp >= 69) suitText = 'Top / Shorty';
+        else if (temp >= 63) suitText = '2mm Springsuit / 3/2 Full Suit';
+        else if (temp >= 58) suitText = '4/3 Full Suit';
+        else if (temp >= 52) suitText = '4/3 Full Suit + Booties';
+        else suitText = '5/4 Full Suit + Hood + Booties';
+
+        let windSection = '';
+        let thunderSection = '';
+        let subDailySection = '';
+        let conditionsSection = '';
+
+        if (wd) {
+            const windSpeedMph = isNaN(wd.wind_speed) ? 0 : wd.wind_speed;
+            const windSpeedKt = windSpeedMph * 0.868976;
+            const windDirDeg = isNaN(wd.wind_dir) ? 0 : wd.wind_dir;
+            const arrowRotation = (windDirDeg + 180) % 360;
+            const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            const compassLabel = dirs[Math.round(windDirDeg / 22.5) % 16];
+
+            windSection = `
+                <div class="modal-section">
+                    <div class="modal-section-label">Wind</div>
+                    <div style="display:flex; align-items:center; gap:10px; font-size:22px;">
+                        <span style="display:inline-block; transform:rotate(${arrowRotation}deg); color:var(--accent);">↑</span>
+                        <span style="font-size:20px; font-weight:700;">${windSpeedKt.toFixed(1)} kt</span>
+                        <span style="font-size:15px; color:var(--muted);">${compassLabel}</span>
+                    </div>
+                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">From ${compassLabel} at ${windSpeedMph.toFixed(1)} mph</div>
+                </div>`;
+
+            const thunderProb = isNaN(wd.thunder_prob) ? 0 : wd.thunder_prob;
+            if (thunderProb > 0) {
+                let tColor = '#ffff66';
+                if (thunderProb >= 60) tColor = '#ff3333';
+                else if (thunderProb >= 30) tColor = '#ffaa00';
+                thunderSection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">⚡ Lightning Risk</div>
+                        <div style="font-size:36px; font-weight:800; color:${tColor};">${thunderProb.toFixed(0)}%</div>
+                        <div style="font-size:12px; color:var(--muted);">${thunderProb < 30 ? 'Low risk' : thunderProb < 60 ? 'Moderate risk' : 'High risk'}</div>
+                    </div>`;
+            }
+
+            if (!isNaN(wd.morning_temp) && !isNaN(wd.afternoon_temp)) {
+                const mColor = getTempColor(wd.morning_temp);
+                const aColor = getTempColor(wd.afternoon_temp);
+                subDailySection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">Time-of-Day Estimates</div>
+                        <div style="display:flex; gap:20px; justify-content:center; margin-top:4px;">
+                            <div style="text-align:center;">
+                                <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">🌅 9 AM</div>
+                                <div style="font-size:26px; font-weight:700; color:${mColor};">${wd.morning_temp.toFixed(1)}°F</div>
+                            </div>
+                            <div style="text-align:center;">
+                                <div style="font-size:12px; color:var(--muted); margin-bottom:4px;">☀️ 3 PM</div>
+                                <div style="font-size:26px; font-weight:700; color:${aColor};">${wd.afternoon_temp.toFixed(1)}°F</div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            if (!isNaN(wd.air_temp) || !isNaN(wd.humidity)) {
+                const parts = [];
+                if (!isNaN(wd.air_temp)) parts.push(`<span><span style="color:var(--muted);font-size:12px;">Air temp</span> <strong style="font-size:16px;">${wd.air_temp.toFixed(1)}°F</strong></span>`);
+                if (!isNaN(wd.humidity)) parts.push(`<span><span style="color:var(--muted);font-size:12px;">Humidity</span> <strong style="font-size:16px;">${wd.humidity.toFixed(0)}%</strong></span>`);
+                conditionsSection = `
+                    <div class="modal-section">
+                        <div class="modal-section-label">Conditions</div>
+                        <div style="display:flex; gap:24px; margin-top:4px;">${parts.join('')}</div>
+                    </div>`;
             }
         }
 
+        document.getElementById('detailModalContent').innerHTML = `
+            <div style="font-size:13px; color:var(--accent); font-weight:700; letter-spacing:1.2px; text-transform:uppercase;">${dayLabel}</div>
+            <div style="font-size:15px; color:var(--muted); margin-top:2px;">${dateLabel}</div>
+            <div class="modal-temp-display" style="color:${tempColor};">${row.temp}°F</div>
+            <div style="font-size:15px; color:#ccc;">${suitEmoji}${suitText}</div>
+            ${windSection}${thunderSection}${subDailySection}${conditionsSection}
+        `;
+        document.getElementById('detailModal').classList.add('open');
+    }
+
+    const RATING_ROW_LABELS = {
+        rights_barrel_rating: { title: 'Rights Barrel', subtitle: 'Tube focus' },
+        rights_air_rating:    { title: 'Rights Air',    subtitle: 'Launch focus' },
+        lefts_barrel_rating:  { title: 'Lefts Barrel',  subtitle: 'Tube focus' },
+        lefts_air_rating:     { title: 'Lefts Air',     subtitle: 'Launch focus' }
+    };
+
+    const RATING_DESCRIPTIONS = {
+        Epic: 'Optimal wind conditions — expect clean, well-shaped waves perfect for this style.',
+        Good: 'Favorable conditions with minor compromises. Solid sessions likely.',
+        Poor: 'Unfavorable wind for this wave type. Conditions will be challenging.'
+    };
+
+    function openRatingModal(rowKey, dayIndex) {
+        const row = currentVisibleRows[dayIndex];
+        if (!row) return;
+        const wd = currentWeatherMap && currentWeatherMap[row.date];
+        const rating = wd ? wd[rowKey] : null;
+        const display = normalizeDisplayRating(rating);
+        const bg = getRatingBackground(rating);
+        const color = getRatingColor(display);
+        const rowLabel = RATING_ROW_LABELS[rowKey] || { title: rowKey, subtitle: '' };
+        const dateLabel = row.dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        const desc = RATING_DESCRIPTIONS[display] || '';
+
+        document.getElementById('detailModalContent').innerHTML = `
+            <div style="font-size:13px; color:var(--accent); font-weight:700; letter-spacing:1.2px; text-transform:uppercase;">${rowLabel.title}</div>
+            <div style="font-size:13px; color:var(--muted); margin-top:2px;">${rowLabel.subtitle} &middot; ${dateLabel}</div>
+            <div style="margin:16px 0;">
+                <div class="modal-rating-badge" style="background:${bg}; color:#fff;">${display}</div>
+            </div>
+            <div style="font-size:14px; color:#ccc; line-height:1.6;">${desc}</div>
+        `;
+        document.getElementById('detailModal').classList.add('open');
+    }
+
+    async function loadInfoTimestamps() {
         function fmtDate(d, timeZone = 'UTC') {
             if (!d) return 'unavailable';
             return d.toLocaleString('en-US', {
@@ -803,6 +1741,8 @@
         if (deployEl) deployEl.textContent = fmtDate(deployDate, 'America/Chicago');
     }
     </script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -812,17 +1752,14 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="feedback.html">Feedback &amp; Subscribe</a>
+        <a href="feedback.html">Feedback</a>
     </div>
 
     <!-- Pool Selector -->
     <div style="text-align: center; padding: 20px; background-color: #222; color: #ccc;">
-        <nav class="pool-tabs">
-            <button class="tab active" data-pool="Waco">Waco, TX</button>
-            <button class="tab" data-pool="Palm_Springs">Palm Springs, CA</button>
-            <button class="tab" data-pool="Lemoore">Lemoore, CA</button>
-            <button class="tab" data-pool="Atlantic_Park_Virginia_Beach">Atlantic Park, VA</button>
-            <button class="tab" data-pool="Oceanside">Oceanside, CA</button>
+        <nav id="pool-tab-bar" class="pool-tabs">
+            <!-- tabs injected dynamically from data/pools_manifest.json -->
+        </nav>
         </nav>
     </div>
 
@@ -837,9 +1774,9 @@
     <div class="content">
         <h2 id="poolTitle" style="text-align: center; margin-bottom: 20px;">Predicted Water Temperature for Waco, Texas 🤠</h2>
 
-        <!-- Temperature Forecast Chart -->
+        <!-- Water Temperature Forecast Chart -->
         <div class="chart-section">
-            <h3>📈 Temperature Forecast</h3>
+            <h3>📈 Water Temperature Forecast</h3>
             <canvas id="tempForecastChart" style="width:100%; max-height:280px;"></canvas>
         </div>
 
@@ -853,6 +1790,35 @@
             <div id="day7" class="day-column"></div>
         </div>
 
+        <section class="ratings-board">
+            <div class="section-eyebrow">Wave-specific calls</div>
+            <h3>Wind rating matrix</h3>
+            <p>Rights and lefts stay grouped beneath the forecast cards so the daily temperature scan comes first and the wave-specific read follows it.</p>
+            <div id="ratingsGrid" class="ratings-grid"></div>
+        </section>
+
+        <!-- Radar Reflectivity Map -->
+        <section class="radar-section">
+            <div class="section-eyebrow">Current radar reflectivity</div>
+            <h3>Radar Map</h3>
+            <div id="radarMap"></div>
+        </section>
+
+        <!-- ECMWF Wind Particle Flow Field -->
+        <section class="wind-field-section">
+            <div class="section-eyebrow">ECMWF 7-day wind forecast · 3-hourly</div>
+            <h3>Wind Flow Field</h3>
+            <div class="wind-field-container">
+                <div id="windMap"></div>
+                <canvas id="windFieldCanvas"></canvas>
+                <div id="windFieldInfo" class="wind-field-info"></div>
+            </div>
+            <div class="wind-field-controls">
+                <input type="range" id="windTimeSlider" min="0" max="55" value="0" step="1">
+                <div id="windTimeLabel" class="wind-time-label"></div>
+            </div>
+        </section>
+
         <!-- Data timestamps info box -->
         <div class="data-info-box">
             <div class="data-info-row"><span class="info-label">🕐 Last data update:</span><br>
@@ -862,6 +1828,14 @@
         </div>
     </div>
     <!-- Days Container ends -->
+
+    <!-- Detail modal -->
+    <div id="detailModal" class="detail-modal-overlay" onclick="handleModalOverlayClick(event)">
+        <div class="detail-modal">
+            <button class="detail-modal-close" onclick="closeDetailModal()">✕</button>
+            <div id="detailModalContent"></div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <div class="page-nav-row">
