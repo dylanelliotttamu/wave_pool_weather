@@ -1,3 +1,5 @@
+<img width="602" height="824" alt="WPW_preview" src="https://github.com/user-attachments/assets/dd59ee74-83aa-4400-837c-17d039e8519d" />
+
 # 🌊 Wave Pool Weather
 
 Wave Pool Weather is a lightweight weather analysis and forecasting website that predicts outdoor pool water temperatures across multiple US wave pool venues using a thermal energy balance model (WAVE-FEST) driven by live NWS and Open-Meteo forecast data.
