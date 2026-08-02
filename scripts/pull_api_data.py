@@ -94,6 +94,49 @@ MIN_POOL_TEMP_C = 4.0     # Reject obviously bad stored seeds below ~39 F
 MAX_POOL_TEMP_C = 40.0    # Reject obviously bad stored seeds above 104 F
 
 # ---------------------------------------------------------------------------
+# Bias correction configuration
+# ---------------------------------------------------------------------------
+# The model has a warm bias: mean Q_evap/Q_solar ≈ 0.56 (needs ~1.0 for
+# equilibrium). On hot days (pool > 91°F) the ratio drops to ~0.46.
+# Root cause: C_E = 1.3e-3 is an ocean-derived bulk transfer coefficient;
+# enclosed wave pools likely have different fetch/turbulence characteristics.
+#
+# Three correction approaches run in parallel on every forecast and are
+# written to the comparison file so you can review them before choosing
+# one to promote to live output (ACTIVE_BIAS_CORRECTION).
+#
+# METHOD options:
+#
+#   'none'
+#       Original model. No correction. Baseline only.
+#
+#   'evap_multiplier'  ← data points here (~1.25x needed for Waco summer)
+#       Scale C_E by CE_MULTIPLIER. Physical justification: C_E = 1.3e-3 is
+#       ocean-derived. Published values for enclosed ponds/lakes range from
+#       0.9e-3 to 2.0e-3. 1.25x brings Waco steady-state to ~91°F at 105°F air.
+#       Tune: CE_MULTIPLIER (default 1.25)
+#
+#   'wind_floor'
+#       Enforce a minimum effective wind speed for evaporation. Physical
+#       justification: natural convection drives evaporation even at zero
+#       measured wind. Less impactful for Waco (hot-day wind already 2.3 m/s)
+#       but may matter more for Palm Springs / Lemoore calm nights.
+#       Tune: EVAP_WIND_FLOOR_MS (default 1.5 m/s)
+#
+#   'penman'
+#       Replace bulk-transfer Q_evap with the Penman (1948) open-water
+#       combination equation: adds a radiation-driven term (Δ·Rn) alongside
+#       the aerodynamic term (γ·Ea). More physically complete, no extra
+#       tuning parameters. Produces higher evaporation on sunny calm days
+#       (exactly the problem scenario) and lower on cloudy windy days.
+#
+# ACTIVE_BIAS_CORRECTION is what gets written to the DB and exported.
+# ---------------------------------------------------------------------------
+ACTIVE_BIAS_CORRECTION = os.getenv('WAVE_POOL_BIAS_CORRECTION', 'evap_multiplier')
+CE_MULTIPLIER          = float(os.getenv('WAVE_POOL_CE_MULTIPLIER', '1.25'))
+EVAP_WIND_FLOOR_MS     = float(os.getenv('WAVE_POOL_EVAP_WIND_FLOOR', '1.5'))
+
+# ---------------------------------------------------------------------------
 # Unit-conversion helpers
 # ---------------------------------------------------------------------------
 def fahrenheit_to_celsius(T_F):
@@ -431,6 +474,59 @@ def sky_emissivity(T_air_C, RH_pct):
     # Brutsaert: ε_sky = 1.24 * (e_a [hPa] / T [K])^(1/7)
     return min(1.0, 1.24 * (e_a_hPa / T_air_K) ** (1.0 / 7.0))
 
+def penman_evap_Wm2(T_pool_C, T_air_C, RH_pct, wind_ms, solar_Wm2):
+    """
+    Penman (1948) open-water evaporation expressed as a heat flux (W m⁻²,
+    negative = cooling).
+
+    Formula:
+        E_mm_day = (Δ·Rn/λ + γ·Ea) / (Δ + γ)
+
+    where:
+        Δ  = slope of saturation vapor pressure curve at T_air  (kPa K⁻¹)
+        γ  = psychrometric constant ≈ 0.067 kPa K⁻¹
+        Rn = net radiation estimated from solar input and LW terms (MJ m⁻² day⁻¹)
+        λ  = latent heat of vaporization = 2.45 MJ kg⁻¹
+        Ea = aerodynamic evaporation = f(u) × (e_s(T_pool) − e_a)
+             f(u) = 6.43 × (1 + 0.536·U)  [Monteith & Unsworth wind function,
+                    mm day⁻¹ kPa⁻¹]
+
+    Differences from bulk-transfer baseline:
+      - The Δ/(Δ+γ) weight on the radiation term means sunny calm days produce
+        MORE evaporation than the linear-wind bulk formula would predict —
+        exactly the scenario where the model currently under-cools.
+      - At T_air = 35°C: Δ ≈ 0.245, γ = 0.067, Δ/(Δ+γ) ≈ 0.78 so ~78% of
+        evaporation is radiation-driven, only 22% wind-driven.
+      - No additional tuning constants — all parameters are standard physics.
+    """
+    RH = max(0.0, min(1.0, RH_pct / 100.0))
+
+    # Slope of saturation vapor pressure curve at air temp (kPa K⁻¹)
+    e_s_air = saturation_vapor_pressure_kPa(T_air_C)
+    delta = 4098.0 * e_s_air / (T_air_C + 237.3) ** 2
+
+    gamma = 0.067  # psychrometric constant (kPa K⁻¹) at sea level
+
+    # Net radiation: use incoming solar as proxy (W m⁻² → MJ m⁻² day⁻¹)
+    # LW components cancel approximately for open water near air temp; using
+    # solar only keeps this self-contained without double-counting LW.
+    Rn_MJm2day = solar_Wm2 * 86400.0 / 1.0e6
+
+    lam = 2.45  # latent heat (MJ kg⁻¹)
+
+    # Aerodynamic term: Monteith wind function (mm day⁻¹ kPa⁻¹)
+    f_u = 6.43 * (1.0 + 0.536 * wind_ms)
+    e_s_pool = saturation_vapor_pressure_kPa(T_pool_C)
+    e_a      = e_s_air * RH
+    Ea_mm_day = f_u * (e_s_pool - e_a)  # mm day⁻¹
+
+    # Penman combination
+    E_mm_day = (delta * (Rn_MJm2day / lam) + gamma * Ea_mm_day) / (delta + gamma)
+
+    # Convert mm day⁻¹ → W m⁻²  (1 mm water = 1 kg m⁻²; ×L_VAP / 86400)
+    E_kgm2s = max(0.0, E_mm_day) / 1000.0 / 86400.0  # kg m⁻² s⁻¹
+    return -(E_kgm2s * L_VAP)  # negative = cooling
+
 # ---------------------------------------------------------------------------
 # One-state (well-mixed) pool thermal balance model
 # ---------------------------------------------------------------------------
@@ -444,7 +540,10 @@ def pool_thermal_balance_step(
         ground_temp_C=18.0,
         bottom_u_Wm2K=1.0,
         include_ground=True,
-        dt_days=1.0):
+        dt_days=1.0,
+        bias_correction=None,
+        ce_multiplier=None,
+        evap_wind_floor_ms=None):
     """
     Advance pool temperature by one time step using a single-layer (one-state)
     energy balance.  All fluxes are in W m⁻²; positive values heat the pool.
@@ -512,15 +611,31 @@ def pool_thermal_balance_step(
     h_c    = 5.7 + 3.8 * wind_speed_ms          # W m⁻² K⁻¹
     Q_conv = h_c * (T_air_C - T_pool_C)
 
-    # 4. Evaporative heat flux (bulk atmospheric transfer)
-    #    E [kg/m²/s] = ρ_a × C_E × U × (0.622/P_atm) × (e_s_pool − e_a)
-    #    Q_evap [W/m²] = −L_VAP × E
-    #    EVAP_COEFF = ρ_a × C_E × L_VAP × 0.622 / P_atm
-    #               = 1.2 × 1.3e-3 × 2.45e6 × 0.622 / 101.325 ≈ 23.5
-    EVAP_COEFF = 1.2 * 1.3e-3 * L_VAP * 0.622 / 101.325  # W m⁻² (m s⁻¹)⁻¹ kPa⁻¹
-    e_s_pool = saturation_vapor_pressure_kPa(T_pool_C)      # kPa
-    e_a      = saturation_vapor_pressure_kPa(T_air_C) * RH  # kPa
-    Q_evap   = -EVAP_COEFF * wind_speed_ms * (e_s_pool - e_a)  # W m⁻²
+    # 4. Evaporative heat flux — method selected by bias_correction param
+    #    Falls back to module-level ACTIVE_BIAS_CORRECTION when not specified.
+    method    = bias_correction   if bias_correction   is not None else ACTIVE_BIAS_CORRECTION
+    ce_mult   = ce_multiplier     if ce_multiplier     is not None else CE_MULTIPLIER
+    wind_floor = evap_wind_floor_ms if evap_wind_floor_ms is not None else EVAP_WIND_FLOOR_MS
+
+    EVAP_BASE = 1.2 * 1.3e-3 * L_VAP * 0.622 / 101.325  # ≈ 23.5 W m⁻² (m s⁻¹)⁻¹ kPa⁻¹
+    e_s_pool  = saturation_vapor_pressure_kPa(T_pool_C)
+    e_a       = saturation_vapor_pressure_kPa(T_air_C) * RH
+
+    if method == 'evap_multiplier':
+        # Scale C_E by ce_mult. Data suggests ~1.25x for Waco summer.
+        Q_evap = -(EVAP_BASE * ce_mult) * wind_speed_ms * (e_s_pool - e_a)
+
+    elif method == 'wind_floor':
+        # Minimum effective wind for evaporation (natural convection floor).
+        effective_wind = max(wind_speed_ms, wind_floor)
+        Q_evap = -EVAP_BASE * effective_wind * (e_s_pool - e_a)
+
+    elif method == 'penman':
+        # Penman (1948) open-water combination equation.
+        Q_evap = penman_evap_Wm2(T_pool_C, T_air_C, RH_pct, wind_speed_ms, solar_Wm2)
+
+    else:  # 'none' — original model, no correction
+        Q_evap = -EVAP_BASE * wind_speed_ms * (e_s_pool - e_a)
 
     # 5. Conductive exchange at pool bottom (positive warms pool)
     Q_ground = -bottom_u_Wm2K * (T_pool_C - ground_temp_C) if include_ground else 0.0
@@ -534,13 +649,14 @@ def pool_thermal_balance_step(
     T_pool_new_C = T_pool_C + dT
 
     heat_fluxes = {
-        'Q_solar_Wm2'  : round(Q_solar,   2),
-        'Q_lw_net_Wm2' : round(Q_lw_net,  2),
-        'Q_conv_Wm2'   : round(Q_conv,    2),
-        'Q_evap_Wm2'   : round(Q_evap,    2),
-        'Q_ground_Wm2' : round(Q_ground,  2),
-        'Q_total_Wm2'  : round(Q_total,   2),
-        'dT_C'         : round(dT,         4),
+        'Q_solar_Wm2'      : round(Q_solar,   2),
+        'Q_lw_net_Wm2'     : round(Q_lw_net,  2),
+        'Q_conv_Wm2'       : round(Q_conv,    2),
+        'Q_evap_Wm2'       : round(Q_evap,    2),
+        'Q_ground_Wm2'     : round(Q_ground,  2),
+        'Q_total_Wm2'      : round(Q_total,   2),
+        'dT_C'             : round(dT,         4),
+        'bias_correction'  : method,
     }
     return T_pool_new_C, heat_fluxes
 
@@ -1251,7 +1367,15 @@ for name, coords in locations.items():
 
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
-    T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
+    T_pool_new_C = T_pool_init_C   # tracks active bias-corrected model (written to DB)
+    # ---------------------------------------------------------------------------
+    # Bias correction comparison tracks — all three methods run in parallel.
+    # T_pool_new_C uses ACTIVE_BIAS_CORRECTION for DB output.
+    # The others are comparison-only and written to the comparison file.
+    # ---------------------------------------------------------------------------
+    T_pool_evap_mult_C  = T_pool_init_C   # evap_multiplier  (CE_MULTIPLIER)
+    T_pool_wind_floor_C = T_pool_init_C   # wind_floor       (EVAP_WIND_FLOOR_MS)
+    T_pool_penman_C     = T_pool_init_C   # penman           (Penman 1948)
     mc_prev_samples = []
     MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
     for _ in range(MC_SAMPLES):
@@ -1308,6 +1432,26 @@ for name, coords in locations.items():
             bottom_u_Wm2K=bottom_u_Wm2K,
             include_ground=True,
             dt_days=1.0
+        )
+
+        # --- bias correction comparison runs (comparison file only, not DB) ---
+        T_pool_evap_mult_C, _ = pool_thermal_balance_step(
+            T_pool_evap_mult_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='evap_multiplier', ce_multiplier=CE_MULTIPLIER,
+        )
+        T_pool_wind_floor_C, _ = pool_thermal_balance_step(
+            T_pool_wind_floor_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='wind_floor', evap_wind_floor_ms=EVAP_WIND_FLOOR_MS,
+        )
+        T_pool_penman_C, _ = pool_thermal_balance_step(
+            T_pool_penman_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='penman',
         )
 
         # --- sub-daily estimates: 9 AM and 3 PM ---
@@ -1372,23 +1516,31 @@ for name, coords in locations.items():
             (location_id, str(d), p025_C, p500_C, p975_C, mc_mean_C, mc_std_C, MC_SAMPLES)
         )
 
-        air_F         = celsius_to_fahrenheit(T_pool_air_C)
-        old_F         = celsius_to_fahrenheit(T_pool_old_C)
-        new_F         = celsius_to_fahrenheit(T_pool_new_C)
-        morning_F     = celsius_to_fahrenheit(T_morning_C)
-        afternoon_F   = celsius_to_fahrenheit(T_afternoon_C)
-        delta_new_old = new_F - old_F
-        delta_old_air = old_F - air_F
-        delta_new_air = new_F - air_F
+        air_F          = celsius_to_fahrenheit(T_pool_air_C)
+        old_F          = celsius_to_fahrenheit(T_pool_old_C)
+        new_F          = celsius_to_fahrenheit(T_pool_new_C)
+        morning_F      = celsius_to_fahrenheit(T_morning_C)
+        afternoon_F    = celsius_to_fahrenheit(T_afternoon_C)
+        evap_mult_F    = celsius_to_fahrenheit(T_pool_evap_mult_C)
+        wind_floor_F   = celsius_to_fahrenheit(T_pool_wind_floor_C)
+        penman_F       = celsius_to_fahrenheit(T_pool_penman_C)
+        delta_new_old  = new_F - old_F
+        delta_old_air  = old_F - air_F
+        delta_new_air  = new_F - air_F
         comparison_rows.append((
             str(d),
-            round(air_F, 2),
-            round(old_F, 2),
-            round(new_F, 2),
-            round(delta_new_old, 2),
-            round(delta_old_air, 2),
-            round(delta_new_air, 2),
-            fluxes['Q_ground_Wm2']
+            round(air_F,        2),
+            round(old_F,        2),
+            round(new_F,        2),
+            round(evap_mult_F,  2),
+            round(wind_floor_F, 2),
+            round(penman_F,     2),
+            round(delta_new_old,  2),
+            round(delta_old_air,  2),
+            round(delta_new_air,  2),
+            fluxes['Q_ground_Wm2'],
+            fluxes['Q_evap_Wm2'],
+            fluxes['Q_solar_Wm2'],
         ))
 
         print(f"  {d}: air={air_F:.1f}°F old={old_F:.1f}°F new={new_F:.1f}°F "
@@ -1410,18 +1562,16 @@ for name, coords in locations.items():
             f'model_comparison_{name.replace(" ", "_")}.txt'
         )
         with open(cmp_filename, 'w') as f:
-            f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+            f.write('date,T_air_only_F,T_old_F,T_new_F,T_evap_mult_F,T_wind_floor_F,T_penman_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2,Q_evap_Wm2,Q_solar_Wm2\n')
             for row in comparison_rows:
-                f.write(
-                    f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
-                )
+                f.write(','.join(str(v) for v in row) + '\n')
         print(f"  Comparison written → {cmp_filename}")
     else:
         print(f"  TEST MODE summary for {name} (first 3 rows):")
         for row in comparison_rows[:3]:
             print(
                 f"    {row[0]} air={row[1]} old={row[2]} new={row[3]} "
-                f"d_new_old={row[4]} d_old_air={row[5]} d_new_air={row[6]} Qg={row[7]}"
+                f"evap_mult={row[4]} wind_floor={row[5]} penman={row[6]}"
             )
 
     # Accumulate for the cross-location summary (keyed by location name)
@@ -1435,12 +1585,10 @@ conn.commit()
 if WRITE_FILES:
     summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
     with open(summary_path, 'w') as f:
-        f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+        f.write('location,date,T_air_only_F,T_old_F,T_new_F,T_evap_mult_F,T_wind_floor_F,T_penman_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2,Q_evap_Wm2,Q_solar_Wm2\n')
         for loc_name, rows in all_comparison_rows.items():
             for row in rows:
-                f.write(
-                    f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
-                )
+                f.write(f"{loc_name}," + ','.join(str(v) for v in row) + '\n')
     print(f"\nCross-location summary written → {summary_path}")
 
     # -----------------------------------------------------------------------
