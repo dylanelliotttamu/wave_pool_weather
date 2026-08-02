@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feedback &amp; Subscribe - Wave Pool Weather</title>
+    <title>Feedback - Wave Pool Weather</title>
     <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
     <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
@@ -118,6 +118,8 @@
         font-weight: 600;
         box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         transition: opacity 0.3s;
+        border: none;
+        cursor: pointer;
     }
     .cta-btn:hover { opacity: 0.85; }
     .content > div {
@@ -131,6 +133,68 @@
     @media (max-width: 768px) {
         h1 { font-size: 32px; }
     }
+
+    /* Feedback form */
+    .feedback-form {
+        padding: 40px 40px 48px;
+    }
+    .feedback-form .lead {
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.5;
+        margin: 0 0 28px;
+        text-align: center;
+    }
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+    .form-group .hint {
+        display: block;
+        font-weight: 400;
+        color: var(--muted);
+        font-size: 12.5px;
+        margin-top: 4px;
+    }
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: var(--text);
+        font-family: 'Inter', 'Lato', sans-serif;
+        font-size: 15px;
+        transition: border-color 0.2s ease;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+    .form-group textarea {
+        min-height: 140px;
+        resize: vertical;
+    }
+    .form-actions {
+        text-align: center;
+        margin-top: 28px;
+    }
+    .form-note {
+        text-align: center;
+        color: var(--muted);
+        font-size: 12.5px;
+        margin-top: 14px;
+    }
     </style>
 </head>
 <body>
@@ -141,23 +205,41 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="feedback.html" class="active">Feedback &amp; Subscribe</a>
+        <a href="feedback.html" class="active">Feedback</a>
     </div>
 
     <!-- Header -->
     <div class="header">
-        <h1>Feedback &amp; Subscribe</h1>
-        <p style="color: rgba(255,255,255,0.85); margin: 0; font-size: 15px; letter-spacing: 1px;">
-            Get water temp forecasts delivered to your inbox &amp; share your thoughts
-        </p>
+        <h1>Feedback</h1>
+        <p>Have a suggestion or spot something off? Let us know.</p>
     </div>
 
     <!-- Main Content -->
     <div class="content">
-        <div style="text-align:center; padding: 80px 20px;">
-            <div style="font-size:80px; margin-bottom:20px;">🏄</div>
-            <h2 style="font-size:2rem; margin-bottom:12px;">Under Construction 🚧</h2>
-            <p style="color:#aaa; font-size:1.1rem;">We're working on something rad. Check back soon!</p>
+        <div class="feedback-form">
+            <p class="lead">
+                🏄 We'd love to hear your thoughts on Wave Pool Weather &mdash; feature ideas,
+                bug reports, or anything else. Fill out the form below and it'll open in your
+                email app, ready to send straight to us.
+            </p>
+            <form id="feedback-form" action="mailto:dylanelliott@tamu.edu" method="post" enctype="text/plain">
+                <div class="form-group">
+                    <label for="name">Name <span class="hint">(optional)</span></label>
+                    <input type="text" id="name" name="Name" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label for="contact">Contact Info <span class="hint">(email or phone, so we can follow up)</span></label>
+                    <input type="text" id="contact" name="Contact_Info" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">Your Feedback</label>
+                    <textarea id="message" name="Feedback" placeholder="Tell us what's on your mind..." required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="cta-btn">Send Feedback</button>
+                </div>
+                <p class="form-note">Submitting opens your default email app with this message pre-filled.</p>
+            </form>
         </div>
     </div>
 
