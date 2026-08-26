@@ -124,11 +124,10 @@ cursor.executemany(
 ```python
 # Around line 995, modify the forecasted_weather export
 cursor.execute(
-    'SELECT pt.date, pt.temp, ci.p025_C, ci.p975_C, '
+    'SELECT pt.date, pt.temp, '
     'at.temp, at.wind_speed, at.wind_direction, at.humidity, at.thunder_prob '  # Added thunder_prob
     'FROM pool_temps pt '
     'JOIN air_temps at ON pt.location_id = at.location_id AND pt.date = at.date '
-    'LEFT JOIN pool_temp_ci ci ON pt.location_id = ci.location_id AND pt.date = ci.date '
     'WHERE pt.location_id = (SELECT id FROM locations WHERE name = ?) AND pt.date >= ? '
     'ORDER BY pt.date',
     (name, str(current_date))
@@ -162,12 +161,10 @@ with open(weather_filename, 'w') as wf:
 if (parts.length >= 9) {  // Updated from 8
     weatherMap[parts[0]] = {
         pool_temp:    parseFloat(parts[1]),
-        pool_ci_low:  parseFloat(parts[2]),
-        pool_ci_high: parseFloat(parts[3]),
-        air_temp:     parseFloat(parts[4]),
-        wind_speed:   parseFloat(parts[5]),
-        wind_dir:     parseFloat(parts[6]),
-        humidity:     parseFloat(parts[7]),
+        air_temp:     parseFloat(parts[2]),
+        wind_speed:   parseFloat(parts[3]),
+        wind_dir:     parseFloat(parts[4]),
+        humidity:     parseFloat(parts[5]),
         thunder_prob: parseFloat(parts[8])  // NEW
     };
 }

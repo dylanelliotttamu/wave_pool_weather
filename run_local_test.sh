@@ -2,7 +2,6 @@
 # Local test script - writes to local_test directory instead of /var/www
 
 export WAVE_POOL_FORCE_REFRESH=1
-export WAVE_POOL_MC_SAMPLES=50
 
 # Temporarily modify script to use local paths
 python3 << 'PYTHON_EOF'

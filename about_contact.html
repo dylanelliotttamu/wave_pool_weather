@@ -11,19 +11,32 @@
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+    :root {
+        --bg: #2b3137;
+        --bg-deep: #1f252c;
+        --panel: #3d444c;
+        --panel-soft: #2d343b;
+        --text: #f2f5f7;
+        --muted: #aeb8c1;
+        --accent: #7be0d6;
+        --accent-2: #f5c96a;
+        --border: rgba(255,255,255,0.08);
+    }
     body {
         margin: 0;
         font-family: 'Inter', 'Lato', sans-serif;
-        background-color: #333;
-        color: #fff;
+        background:
+            radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+            linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+        color: var(--text);
         overflow-x: hidden;
         display: flex;
         flex-direction: column;
         min-height: 100vh;
     }
     .navbar {
-        background-color: #222;
-        border-bottom: 1px solid #333;
+        background-color: var(--bg-deep);
+        border-bottom: 1px solid var(--border);
         overflow: hidden;
         width: 100%;
         display: flex;
@@ -34,21 +47,21 @@
         z-index: 1000;
     }
     .navbar a {
-        color: #ccc;
+        color: var(--muted);
         text-align: center;
         padding: 14px 20px;
         text-decoration: none;
         font-size: 17px;
         transition: color 0.3s ease;
     }
-    .navbar a:hover { color: #8db600; }
+    .navbar a:hover { color: var(--accent-2); }
     .navbar a.active {
-        color: #4ecdc4;
-        border-bottom: 2px solid #4ecdc4;
+        color: var(--accent);
+        border-bottom: 2px solid var(--accent);
     }
     .header {
         text-align: center;
-        background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+        background: linear-gradient(135deg, rgba(18, 41, 58, 0.96) 0%, rgba(35, 87, 116, 0.9) 52%, rgba(100, 183, 165, 0.92) 100%);
         color: white;
         padding: 50px 20px 35px;
     }
@@ -73,30 +86,31 @@
         box-sizing: border-box;
     }
     .card {
-        background-color: #444;
-        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+        border-radius: 18px;
         padding: 28px 32px;
         margin-bottom: 24px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+        border: 1px solid var(--border);
     }
     .card h2 {
         margin-top: 0;
         font-size: 1.2rem;
         font-weight: 600;
-        color: #4ecdc4;
+        color: var(--accent);
         letter-spacing: 0.5px;
     }
     .card p {
-        color: #ccc;
+        color: var(--muted);
         line-height: 1.7;
         font-size: 15px;
         margin: 0 0 10px 0;
     }
     .card p:last-child { margin-bottom: 0; }
-    .card a { color: #8db600; text-decoration: none; }
+    .card a { color: var(--accent); text-decoration: none; }
     .card a:hover { text-decoration: underline; }
     pre, code {
-        background-color: #2a2a2a;
+        background-color: var(--bg-deep);
         color: #f8f8f2;
         border-radius: 6px;
         font-family: 'Courier New', monospace;
@@ -118,19 +132,19 @@
         font-size: 14px;
     }
     th {
-        background-color: #333;
-        color: #4ecdc4;
+        background-color: var(--bg-deep);
+        color: var(--accent);
         padding: 10px 14px;
         text-align: left;
         font-weight: 600;
     }
     td {
         padding: 9px 14px;
-        border-bottom: 1px solid #555;
-        color: #ccc;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        color: var(--muted);
     }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background-color: #3a3a3a; }
+    tr:hover td { background-color: rgba(255,255,255,0.04); }
 
     /* ── What I Do grid ── */
     .pillars-grid {
@@ -140,11 +154,12 @@
         margin-top: 18px;
     }
     .pillar {
-        background-color: #3a3a3a;
+        background-color: rgba(255,255,255,0.04);
         border-radius: 10px;
         padding: 20px 18px;
         text-align: center;
-        border-top: 3px solid #4ecdc4;
+        border-top: 3px solid var(--accent);
+        border: 1px solid var(--border);
     }
     .pillar .pillar-icon {
         font-size: 2rem;
@@ -158,7 +173,7 @@
     }
     .pillar p {
         font-size: 13.5px;
-        color: #bbb;
+        color: var(--muted);
         line-height: 1.6;
         margin: 0;
     }
@@ -176,7 +191,7 @@
         top: 6px;
         bottom: 6px;
         width: 2px;
-        background: linear-gradient(180deg, #4ecdc4, rgba(78,205,196,0.15));
+        background: linear-gradient(180deg, var(--accent), rgba(123,224,214,0.15));
         border-radius: 2px;
     }
     .tl-item {
@@ -191,15 +206,15 @@
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background-color: #4ecdc4;
-        border: 2px solid #333;
-        box-shadow: 0 0 0 2px #4ecdc4;
+        background-color: var(--accent);
+        border: 2px solid var(--bg);
+        box-shadow: 0 0 0 2px var(--accent);
         flex-shrink: 0;
     }
     .tl-year {
         font-size: 11.5px;
         font-weight: 700;
-        color: #8db600;
+        color: var(--accent-2);
         letter-spacing: 1px;
         text-transform: uppercase;
         margin-bottom: 3px;
@@ -212,7 +227,7 @@
     }
     .tl-desc {
         font-size: 14px;
-        color: #bbb;
+        color: var(--muted);
         line-height: 1.65;
         margin: 0;
     }
@@ -231,13 +246,13 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     }
     footer {
-        background-color: #222;
-        color: #ccc;
+        background-color: var(--bg-deep);
+        color: var(--muted);
         text-align: center;
         padding: 10px;
         width: 100%;
     }
-    footer a { color: #8db600; text-decoration: none; }
+    footer a { color: var(--accent); text-decoration: none; }
     /* Bottom navigation buttons */
     .page-nav-row {
         display: flex;
@@ -245,10 +260,10 @@
         flex-wrap: wrap;
         justify-content: center;
         padding: 30px 20px;
-        background-color: #333;
+        background: transparent;
     }
     .cta-btn {
-        background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+        background: linear-gradient(135deg, rgba(35, 87, 116, 0.95) 0%, rgba(100, 183, 165, 0.96) 100%);
         color: #fff;
         text-decoration: none;
         padding: 12px 28px;
@@ -280,7 +295,7 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html" class="active">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="feedback.html">Feedback &amp; Subscribe</a>
+        <a href="feedback.html">Feedback</a>
     </div>
 
     <!-- Header -->
@@ -311,8 +326,8 @@
             <h2>Data Sources</h2>
             <p>Weather and solar forcing data are fetched automatically once per day from free public APIs:</p>
             <ul style="color:#ccc; line-height:1.8; font-size:15px;">
-                <li><strong style="color:#fff;">NWS API</strong> - <a href="https://www.weather.gov" target="_blank" rel="noopener" style="color:#8db600;">weather.gov</a> - Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
-                <li><strong style="color:#fff;">Open-Meteo API</strong> - <a href="https://open-meteo.com" target="_blank" rel="noopener" style="color:#8db600;">open-meteo.com</a> - Daily total shortwave solar radiation (MJ/m²/day).</li>
+                <li><strong style="color:#fff;">NWS API</strong> - <a href="https://www.weather.gov" target="_blank" rel="noopener noreferrer">weather.gov</a> - Hourly air temperature, relative humidity, wind speed, and wind direction forecasts for each pool location.</li>
+                <li><strong style="color:#fff;">Open-Meteo API</strong> - <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">open-meteo.com</a> - Daily total shortwave solar radiation (MJ/m²/day).</li>
             </ul>
             <p>All retrieved data is stored in a local SQLite database for knowledge of the previous state estimate and used as WAVE-FEST's initial condition on subsequent runs. Retrieving NWS data daily acts as a pseudo data assimilation step, updating the model with the latest observations.</p>
         </div>
@@ -414,7 +429,7 @@
             <p><strong style="color:#fff;">Dylan Elliott</strong></p>
             <p>📧 Email: <a href="mailto:dylanelliott@tamu.edu">dylanelliott@tamu.edu</a></p>
             <p>🌐 Website: <a href="https://dylanelliotttamu.github.io" target="_blank" rel="noopener">dylanelliotttamu.github.io</a></p>
-            <p>Have a question about the model, a bug to report, or want to suggest a new wave pool location? Reach out - I'd love to hear from you. You can also leave a note on the <a href="feedback.html">Feedback &amp; Subscribe</a> page.</p>
+            <p>Have a question about the model, a bug to report, or want to suggest a new wave pool location? Reach out - I'd love to hear from you. You can also leave a note on the <a href="feedback.html">Feedback</a> page.</p>
             <p>Thank you for visiting Wave Pool Weather!</p>
         </div>
 

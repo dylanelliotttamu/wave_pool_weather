@@ -11,12 +11,26 @@
     <link rel="manifest" href="/assets/favicons/site.webmanifest" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #2b3137;
+            --bg-deep: #1f252c;
+            --panel: #3d444c;
+            --panel-soft: #2d343b;
+            --text: #f2f5f7;
+            --muted: #aeb8c1;
+            --accent: #7be0d6;
+            --accent-2: #f5c96a;
+            --border: rgba(255,255,255,0.08);
+        }
+
         /* CSS styles */
         body {
             margin: 0;
             font-family: 'Inter', 'Lato', sans-serif;
-            background-color: #333;
-            color: #fff;
+            background:
+                radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+                linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+            color: var(--text);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -30,12 +44,12 @@
         p {
             letter-spacing: 1px;
             font-size: 14px;
-            color: #ccc;
+            color: var(--muted);
         }
         .header {
             position: relative;
             text-align: center;
-            background: linear-gradient(60deg, rgba(84, 58, 183, 1) 0%, rgba(0, 172, 193, 1) 100%);
+            background: linear-gradient(135deg, rgba(18, 41, 58, 0.96) 0%, rgba(35, 87, 116, 0.9) 52%, rgba(100, 183, 165, 0.92) 100%);
             color: white;
         }
         .logo {
@@ -66,7 +80,7 @@
         .content {
             position: relative;
             text-align: center;
-            background-color: #333;
+            background: transparent;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -84,14 +98,15 @@
             margin: 0 auto;
         }
         .feature-card {
-            background: #444;
-            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+            border-radius: 18px;
             padding: 28px 24px;
             flex: 1 1 220px;
             max-width: 260px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.22);
             text-align: center;
-            color: #fff;
+            color: var(--text);
+            border: 1px solid var(--border);
         }
         .feature-card .icon {
             font-size: 2.5rem;
@@ -104,7 +119,7 @@
             color: #fff;
         }
         .feature-card p {
-            color: #aaa;
+            color: var(--muted);
             font-size: 13px;
             line-height: 1.6;
             margin: 0;
@@ -119,7 +134,7 @@
             padding: 20px 20px 0;
         }
         .cta-btn {
-            background: linear-gradient(60deg, rgba(84,58,183,1) 0%, rgba(0,172,193,1) 100%);
+            background: linear-gradient(135deg, rgba(35, 87, 116, 0.95) 0%, rgba(100, 183, 165, 0.96) 100%);
             color: #fff;
             text-decoration: none;
             padding: 12px 28px;
@@ -136,25 +151,26 @@
             max-width: 680px;
             margin: 0 auto;
             padding: 28px 20px 40px;
-            color: #aaa;
+            color: var(--muted);
             font-size: 14px;
             line-height: 1.8;
             letter-spacing: 0.5px;
             text-align: center;
         }
-        .tagline strong { color: #4ecdc4; }
+        .tagline strong { color: var(--accent); }
         /* Copyright row */
         .copyright-row {
-            background-color: #333;
+            background: transparent;
+            border-top: 1px solid var(--border);
             padding: 10px 20px 20px;
             text-align: center;
         }
         .copyright-row p {
-            color: #666;
+            color: #8f9aa4;
             font-size: 13px;
             margin: 4px 0;
         }
-        .copyright-row a { color: #8db600; text-decoration: none; }
+        .copyright-row a { color: var(--accent); text-decoration: none; }
         /* Animation */
         .parallax > use {
             animation: move-forever 25s cubic-bezier(.55, .5, .45, .5) infinite;
@@ -198,8 +214,8 @@
         }
     /* Navigation Bar Styles */
     .navbar {
-        background-color: #222;
-        border-bottom: 1px solid #333;
+        background-color: var(--bg-deep);
+        border-bottom: 1px solid var(--border);
         overflow: hidden;
         width: 100%;
         display: flex;
@@ -210,7 +226,7 @@
         z-index: 1000; /* Ensure navigation bar stays on top */
     }
     .navbar a {
-        color: #ccc;
+        color: var(--muted);
         text-align: center;
         padding: 14px 20px;
         text-decoration: none;
@@ -218,11 +234,11 @@
         transition: color 0.3s ease;
     }
     .navbar a:hover {
-        color: #8db600; /* Olive color */
+        color: var(--accent-2);
     }
     .navbar a.active {
-        color: #4ecdc4;
-        border-bottom: 2px solid #4ecdc4;
+        color: var(--accent);
+        border-bottom: 2px solid var(--accent);
     }
     </style>
 </head>
@@ -234,7 +250,7 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
-        <a href="feedback.html">Feedback &amp; Subscribe</a>
+        <a href="feedback.html">Feedback</a>
     </div>
 
     <!-- Header -->

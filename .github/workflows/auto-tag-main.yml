@@ -78,18 +78,18 @@ jobs:
           source_title="$(printf '%s\n' "$source_title" | head -n 1)"
           normalized_title="$(printf '%s' "$source_title" | sed -E 's/^[[:space:]]*[^:]+:[[:space:]]*//' | tr '/_-' '   ' | sed -E 's/[^[:alnum:] ]+/ /g' | awk '{$1=$1; print}')"
           release_title="$(SOURCE_TITLE="$normalized_title" python3 - <<'PY'
-import os
+          import os
 
-words = os.environ.get("SOURCE_TITLE", "").split()
-summary = words[:3]
-if not summary:
-    summary = ["Site", "Update", "Release"]
-elif len(summary) == 1:
-    summary += ["Update", "Release"]
-elif len(summary) == 2:
-    summary += ["Release"]
-print(" ".join(word.capitalize() for word in summary))
-PY
+          words = os.environ.get("SOURCE_TITLE", "").split()
+          summary = words[:3]
+          if not summary:
+              summary = ["Site", "Update", "Release"]
+          elif len(summary) == 1:
+              summary += ["Update", "Release"]
+          elif len(summary) == 2:
+              summary += ["Release"]
+          print(" ".join(word.capitalize() for word in summary))
+          PY
           )"
 
           if gh release view "$tag_name" >/dev/null 2>&1; then

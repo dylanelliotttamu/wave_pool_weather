@@ -1,3 +1,5 @@
+<img width="602" height="824" alt="WPW_preview" src="https://github.com/user-attachments/assets/dd59ee74-83aa-4400-837c-17d039e8519d" />
+
 # 🌊 Wave Pool Weather
 
 Wave Pool Weather is a lightweight weather analysis and forecasting website that predicts outdoor pool water temperatures across multiple US wave pool venues using a thermal energy balance model (WAVE-FEST) driven by live NWS and Open-Meteo forecast data.
@@ -196,8 +198,6 @@ Then open `dashboard.html` or `pool_temp_forecasts.html` in a browser.
 Set `WAVE_POOL_TEST_MODE=1` to run the full pipeline in-memory with no file writes — useful for CI smoke tests.
 
 Set `WAVE_POOL_FORCE_REFRESH=1` to bypass the same-day API cache and re-fetch all external data even when today's rows already exist in the database.  This is useful after a model-parameter change where you want fresh API data on the same calendar day.
-
-Set `WAVE_POOL_MC_SAMPLES=N` (default `10`) to control the number of Monte Carlo uncertainty samples.  Higher values give smoother 95 % confidence intervals at the cost of more CPU time.
 
 ## ⚙️ CI / CD
 

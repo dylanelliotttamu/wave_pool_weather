@@ -92,49 +92,14 @@ K_CONCRETE    = 1.4       # Thermal conductivity of concrete  (W m⁻¹ K⁻¹)
 L_CONCRETE_M  = 0.3048    # Pool slab thickness — 1 ft  (m)
 MIN_POOL_TEMP_C = 4.0     # Reject obviously bad stored seeds below ~39 F
 MAX_POOL_TEMP_C = 40.0    # Reject obviously bad stored seeds above 104 F
-
-# ---------------------------------------------------------------------------
-# Bias correction configuration
-# ---------------------------------------------------------------------------
-# The model has a warm bias: mean Q_evap/Q_solar ≈ 0.56 (needs ~1.0 for
-# equilibrium). On hot days (pool > 91°F) the ratio drops to ~0.46.
-# Root cause: C_E = 1.3e-3 is an ocean-derived bulk transfer coefficient;
-# enclosed wave pools likely have different fetch/turbulence characteristics.
-#
-# Three correction approaches run in parallel on every forecast and are
-# written to the comparison file so you can review them before choosing
-# one to promote to live output (ACTIVE_BIAS_CORRECTION).
-#
-# METHOD options:
-#
-#   'none'
-#       Original model. No correction. Baseline only.
-#
-#   'evap_multiplier'  ← data points here (~1.25x needed for Waco summer)
-#       Scale C_E by CE_MULTIPLIER. Physical justification: C_E = 1.3e-3 is
-#       ocean-derived. Published values for enclosed ponds/lakes range from
-#       0.9e-3 to 2.0e-3. 1.25x brings Waco steady-state to ~91°F at 105°F air.
-#       Tune: CE_MULTIPLIER (default 1.25)
-#
-#   'wind_floor'
-#       Enforce a minimum effective wind speed for evaporation. Physical
-#       justification: natural convection drives evaporation even at zero
-#       measured wind. Less impactful for Waco (hot-day wind already 2.3 m/s)
-#       but may matter more for Palm Springs / Lemoore calm nights.
-#       Tune: EVAP_WIND_FLOOR_MS (default 1.5 m/s)
-#
-#   'penman'
-#       Replace bulk-transfer Q_evap with the Penman (1948) open-water
-#       combination equation: adds a radiation-driven term (Δ·Rn) alongside
-#       the aerodynamic term (γ·Ea). More physically complete, no extra
-#       tuning parameters. Produces higher evaporation on sunny calm days
-#       (exactly the problem scenario) and lower on cloudy windy days.
-#
-# ACTIVE_BIAS_CORRECTION is what gets written to the DB and exported.
-# ---------------------------------------------------------------------------
-ACTIVE_BIAS_CORRECTION = os.getenv('WAVE_POOL_BIAS_CORRECTION', 'evap_multiplier')
-CE_MULTIPLIER          = float(os.getenv('WAVE_POOL_CE_MULTIPLIER', '1.25'))
-EVAP_WIND_FLOOR_MS     = float(os.getenv('WAVE_POOL_EVAP_WIND_FLOOR', '1.5'))
+HTTP_TIMEOUT_SECONDS = max(1.0, float(os.getenv('WAVE_POOL_HTTP_TIMEOUT_SECONDS', '10')))
+HTTP_RETRIES = max(1, int(os.getenv('WAVE_POOL_HTTP_RETRIES', '2')))
+HTTP_RETRY_DELAY_SECONDS = max(0.0, float(os.getenv('WAVE_POOL_HTTP_RETRY_DELAY_SECONDS', '0.5')))
+DEFAULT_REQUEST_HEADERS = {
+    'User-Agent': 'WavePoolWeather/1.0 (+https://wavepoolweather.com)',
+    'Accept': 'application/geo+json, application/json',
+}
+JSON_RESPONSE_CACHE = {}
 
 # ---------------------------------------------------------------------------
 # Unit-conversion helpers
@@ -1367,15 +1332,7 @@ for name, coords in locations.items():
 
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
-    T_pool_new_C = T_pool_init_C   # tracks active bias-corrected model (written to DB)
-    # ---------------------------------------------------------------------------
-    # Bias correction comparison tracks — all three methods run in parallel.
-    # T_pool_new_C uses ACTIVE_BIAS_CORRECTION for DB output.
-    # The others are comparison-only and written to the comparison file.
-    # ---------------------------------------------------------------------------
-    T_pool_evap_mult_C  = T_pool_init_C   # evap_multiplier  (CE_MULTIPLIER)
-    T_pool_wind_floor_C = T_pool_init_C   # wind_floor       (EVAP_WIND_FLOOR_MS)
-    T_pool_penman_C     = T_pool_init_C   # penman           (Penman 1948)
+    T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
     mc_prev_samples = []
     MC_SAMPLES = max(50, int(os.getenv('WAVE_POOL_MC_SAMPLES', '10')))
     for _ in range(MC_SAMPLES):
