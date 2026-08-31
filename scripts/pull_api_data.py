@@ -45,10 +45,11 @@ if _scripts_dir not in sys.path:
 from pool_physics import (
     SIGMA_SB, EPSILON_WATER, ALBEDO_WATER, RHO_WATER, CP_WATER, L_VAP,
     K_CONCRETE, L_CONCRETE_M, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C,
+    ACTIVE_BIAS_CORRECTION, CE_MULTIPLIER, EVAP_WIND_FLOOR_MS,
     fahrenheit_to_celsius, celsius_to_fahrenheit, mph_to_ms, kmh_to_ms,
     is_plausible_pool_temp_C, clamp, coerce_float,
-    saturation_vapor_pressure_kPa, sky_emissivity, pool_thermal_balance_step,
-    bottom_u_value_Wm2K,
+    saturation_vapor_pressure_kPa, sky_emissivity, penman_evap_Wm2,
+    pool_thermal_balance_step, bottom_u_value_Wm2K,
 )
 
 HTTP_TIMEOUT_SECONDS = max(1.0, float(os.getenv('WAVE_POOL_HTTP_TIMEOUT_SECONDS', '10')))
