@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Pool Weather — Climate</title>
+    <link rel="icon" type="image/png" href="/assets/favicons/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/apple-touch-icon.png" />
+    <link rel="manifest" href="/assets/favicons/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #2b3137;
+            --bg-deep: #1f252c;
+            --panel: #3d444c;
+            --panel-soft: #2d343b;
+            --text: #f2f5f7;
+            --muted: #aeb8c1;
+            --accent: #7be0d6;
+            --accent-2: #f5c96a;
+            --border: rgba(255,255,255,0.08);
+        }
+        body {
+            font-family: 'Inter', 'Lato', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background:
+                radial-gradient(circle at top, rgba(123,224,214,0.14), transparent 34%),
+                linear-gradient(180deg, #1f252c 0%, #2b3137 48%, #242a31 100%);
+            color: var(--text);
+        }
+        .navbar {
+            background-color: var(--bg-deep);
+            border-bottom: 1px solid var(--border);
+            overflow: hidden;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar a {
+            color: var(--muted);
+            text-align: center;
+            padding: 14px 20px;
+            text-decoration: none;
+            font-size: 17px;
+            transition: color 0.3s ease;
+        }
+        .navbar a:hover { color: var(--accent-2); }
+        .navbar a.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 24px auto 0;
+        }
+        h1 { text-align: center; color: #fff; }
+        .subtitle {
+            text-align: center;
+            color: var(--muted);
+            max-width: 760px;
+            margin: 0 auto 20px;
+            line-height: 1.5;
+        }
+        .pool-tabs {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .tab {
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            color: var(--muted);
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-size: 16px;
+        }
+        .tab:hover { background: var(--panel-soft); }
+        .tab.active {
+            background: var(--accent);
+            color: var(--bg-deep);
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        #climateMeta {
+            text-align: center;
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+        .summary-panel,
+        .query-panel,
+        .read-more-section {
+            background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        .summary-panel h2,
+        .query-panel h2,
+        .read-more-section h2 {
+            color: var(--accent);
+            margin: 0 0 8px;
+        }
+        .panel-subtitle,
+        .query-help,
+        .query-status,
+        .read-more-content,
+        .summary-detail {
+            color: var(--muted);
+            line-height: 1.5;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .summary-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+        }
+        .summary-label {
+            color: var(--accent-2);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .summary-value {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .summary-detail {
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .query-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: end;
+            margin: 16px 0 10px;
+        }
+        .query-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .query-controls input {
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font: inherit;
+        }
+        .action-button {
+            background: var(--accent);
+            color: var(--bg-deep);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.2s ease, transform 0.2s ease;
+        }
+        .action-button:hover {
+            filter: brightness(1.03);
+            transform: translateY(-1px);
+        }
+        .action-button.secondary {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .query-table-wrap {
+            margin-top: 16px;
+            overflow: auto;
+            max-height: 360px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+        }
+        .query-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+            background: rgba(255,255,255,0.02);
+        }
+        .query-table th,
+        .query-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            vertical-align: top;
+        }
+        .query-table th {
+            position: sticky;
+            top: 0;
+            background: rgba(31, 37, 44, 0.96);
+            color: var(--accent-2);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .query-table td {
+            color: var(--text);
+            font-size: 14px;
+        }
+        .chart-container {
+            background: linear-gradient(180deg, rgba(61, 68, 76, 0.94), rgba(45, 52, 59, 0.98));
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+        .chart-container h2 {
+            color: var(--accent);
+            margin-top: 0;
+        }
+        .chart-container .today-line {
+            color: var(--accent-2);
+            font-size: 14px;
+            margin: -6px 0 12px;
+        }
+        .chart { width: 100%; height: 360px; }
+        .chart-wrapper {
+            position: relative;
+            height: 360px;
+        }
+        .chart-wrapper .chart {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #climateError {
+            display: none;
+            text-align: center;
+            color: var(--accent-2);
+            margin: 40px auto;
+            max-width: 600px;
+        }
+        .read-more-content {
+            margin-top: 16px;
+        }
+        .read-more-content p {
+            margin: 0 0 12px;
+        }
+        @media (max-width: 600px) {
+            .chart, .chart-wrapper { height: 260px; }
+            .chart-container { padding: 12px; }
+            .summary-panel,
+            .query-panel,
+            .read-more-section { padding: 14px; }
+            .query-controls { align-items: stretch; }
+            .query-controls label,
+            .query-controls button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <a href="index.html">Home</a>
+        <a href="pool_temp_forecasts.html">Pool Temperature Forecasts</a>
+        <a href="news.html">Wave Pool News</a>
+        <a href="about_contact.html">About/Contact</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="climate.html" class="active">Climate</a>
+        <a href="feedback.html">Feedback</a>
+    </div>
+
+    <div class="container">
+        <h1>🌤️ Pool Climate Normals</h1>
+        <p class="subtitle">
+            Seasonal climate normals for the selected pool, with lookup by single date or date range.
+        </p>
+
+        <div class="pool-tabs" id="pool-tab-bar"></div>
+        <p id="climateMeta"></p>
+
+        <p id="climateError">
+            Climate data isn't available for this pool yet. It's generated by a monthly batch
+            job (<code>scripts/build_climatology.py</code>) — check back after the next run.
+        </p>
+
+        <section class="summary-panel" id="todaySummaryPanel" style="display:none;">
+            <h2>Today's Climatology</h2>
+            <p class="panel-subtitle" id="todaySummaryDate"></p>
+            <div class="summary-grid" id="todaySummaryGrid"></div>
+        </section>
+
+        <section class="query-panel" id="dateQueryPanel" style="display:none;">
+            <h2>Query Climatology by Date</h2>
+            <p class="query-help">
+                Choose a single day or a date range for the currently selected pool. The year is
+                ignored; only the seasonal month/day is used.
+            </p>
+            <div class="query-controls">
+                <label>
+                    Start date
+                    <input type="date" id="climateStartDate">
+                </label>
+                <label>
+                    End date
+                    <input type="date" id="climateEndDate">
+                </label>
+                <button type="button" class="action-button" id="climateApplyDates">Show climatology</button>
+                <button type="button" class="action-button secondary" id="climateUseToday">Use today</button>
+            </div>
+            <p class="query-status" id="queryStatus"></p>
+            <div class="summary-grid" id="querySummaryGrid"></div>
+            <div class="query-table-wrap" id="queryTableWrap">
+                <table class="query-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Pool water</th>
+                            <th>Air temp</th>
+                            <th>Wind</th>
+                            <th>Sunshine</th>
+                            <th>Lightning</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queryTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <div id="climateCharts" style="display:none;">
+            <div class="chart-container">
+                <h2>Pool Water Temperature — Climatology (modeled)</h2>
+                <p class="today-line" id="poolTempToday"></p>
+                <div class="chart-wrapper">
+                    <canvas id="poolTempClimateChart" class="chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Air Temperature — Climatology</h2>
+                <p class="today-line" id="airTempToday"></p>
+                <div class="chart-wrapper">
+                    <canvas id="airTempClimateChart" class="chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Wind Speed — Climatology</h2>
+                <p class="today-line" id="windToday"></p>
+                <div class="chart-wrapper">
+                    <canvas id="windClimateChart" class="chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Sunshine Hours — Climatology</h2>
+                <p class="today-line" id="sunshineToday"></p>
+                <div class="chart-wrapper">
+                    <canvas id="sunshineClimateChart" class="chart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>⚡ Lightning Potential — Climatology</h2>
+                <p class="today-line" id="lightningToday"></p>
+                <div class="chart-wrapper">
+                    <canvas id="lightningClimateChart" class="chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <section class="read-more-section">
+            <button
+                type="button"
+                class="action-button secondary"
+                id="climateReadMoreToggle"
+                aria-expanded="false"
+                aria-controls="climateReadMore"
+            >
+                Read more about this climatology
+            </button>
+            <div class="read-more-content" id="climateReadMore" hidden>
+                <p>
+                    What's "normal" for this pool on a given date is based on a multi-year
+                    historical baseline — not a forecast. Pool water temperature is reconstructed
+                    with the site's WAVE-FEST thermal model driven by decades of historical weather;
+                    air temperature, wind, and sunshine come from the Open-Meteo Historical Weather
+                    API (ERA5 reanalysis); lightning potential is proxied from historical CAPE
+                    (convective available potential energy), since no free historical
+                    lightning-strike dataset exists.
+                </p>
+                <p id="climateSourceNote"></p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let climateChartInstances = [];
+        let poolManifest = {};
+        let currentClimatology = null;
+        const CLIMATE_QUERY_YEAR = 2000;
+
+        // Day-of-year index (0-based, Jan 1 = 0) using the same leap-year
+        // reference calendar the backend uses, so "today" always lines up
+        // with the right slot even on Feb 29 in non-leap years.
+        function dayOfYearIndex(d, calendarDays) {
+            const month = d.getMonth() + 1;
+            const day = d.getDate();
+            return findCalendarIndex(month, day, calendarDays);
+        }
+
+        function findCalendarIndex(month, day, calendarDays) {
+            let idx = calendarDays.findIndex(([m, dd]) => m === month && dd === day);
+            if (idx === -1 && month === 2 && day === 29) {
+                idx = calendarDays.findIndex(([m, dd]) => m === 2 && dd === 28);
+            }
+            return idx;
+        }
+
+        function monthDayLabel(month, day) {
+            return new Date(CLIMATE_QUERY_YEAR, month - 1, day).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+            });
+        }
+
+        function dateInputValue(month, day) {
+            return `${CLIMATE_QUERY_YEAR}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        function parseMonthDayInput(value) {
+            if (!value) return null;
+            const parts = value.split('-');
+            if (parts.length !== 3) return null;
+            const month = Number(parts[1]);
+            const day = Number(parts[2]);
+            if (!Number.isFinite(month) || !Number.isFinite(day)) return null;
+            return { month, day };
+        }
+
+        function circularRange(startIdx, endIdx, len) {
+            const out = [];
+            let idx = startIdx;
+            while (idx !== endIdx) {
+                out.push(idx);
+                idx = (idx + 1) % len;
+            }
+            out.push(endIdx);
+            return out;
+        }
+
+        function average(values) {
+            const valid = values.filter(v => Number.isFinite(v));
+            if (valid.length === 0) return null;
+            return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+        }
+
+        function minValue(values) {
+            const valid = values.filter(v => Number.isFinite(v));
+            return valid.length ? Math.min(...valid) : null;
+        }
+
+        function maxValue(values) {
+            const valid = values.filter(v => Number.isFinite(v));
+            return valid.length ? Math.max(...valid) : null;
+        }
+
+        function dominantValue(values) {
+            const counts = new Map();
+            values.filter(Boolean).forEach(value => {
+                counts.set(value, (counts.get(value) || 0) + 1);
+            });
+            let best = null;
+            let bestCount = -1;
+            counts.forEach((count, value) => {
+                if (count > bestCount) {
+                    best = value;
+                    bestCount = count;
+                }
+            });
+            return best;
+        }
+
+        function renderSummaryCards(containerId, cards) {
+            document.getElementById(containerId).innerHTML = cards.map(card => `
+                <div class="summary-card">
+                    <div class="summary-label">${card.label}</div>
+                    <div class="summary-value">${card.value}</div>
+                    ${card.detail ? `<div class="summary-detail">${card.detail}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderTodaySummary(climatology, todayRec) {
+            document.getElementById('todaySummaryPanel').style.display = 'block';
+            document.getElementById('todaySummaryDate').textContent =
+                `${climatology.display_name} · ${monthDayLabel(todayRec.month, todayRec.day)}`;
+            renderSummaryCards('todaySummaryGrid', [
+                {
+                    label: 'Pool water',
+                    value: fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p50, '°F', 1),
+                    detail: `Typical range ${fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p10, '°F', 0)}–${fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p90, '°F', 0)}`,
+                },
+                {
+                    label: 'Air high / low',
+                    value: `${fmt(todayRec.air_temp_max_F && todayRec.air_temp_max_F.p50, '°F', 0)} / ${fmt(todayRec.air_temp_min_F && todayRec.air_temp_min_F.p50, '°F', 0)}`,
+                    detail: `Median daytime mean ${fmt(todayRec.air_temp_F && todayRec.air_temp_F.p50, '°F', 0)}`,
+                },
+                {
+                    label: 'Wind',
+                    value: fmt(todayRec.wind_speed_mph && todayRec.wind_speed_mph.p50, ' mph', 1),
+                    detail: `Dominant direction ${todayRec.wind_dir_dominant || '—'}`,
+                },
+                {
+                    label: 'Sunshine',
+                    value: fmt(todayRec.sunshine_hours && todayRec.sunshine_hours.p50, ' hrs', 1),
+                    detail: `Typical day range ${fmt(todayRec.sunshine_hours && todayRec.sunshine_hours.p10, ' hrs', 1)}–${fmt(todayRec.sunshine_hours && todayRec.sunshine_hours.p90, ' hrs', 1)}`,
+                },
+                {
+                    label: 'Lightning potential',
+                    value: fmt(todayRec.lightning_potential_pct, '%', 0),
+                    detail: 'Percent of baseline days with thunderstorm-favorable instability',
+                },
+            ]);
+        }
+
+        function executeDateQuery() {
+            if (!currentClimatology) return;
+
+            const start = parseMonthDayInput(document.getElementById('climateStartDate').value);
+            const end = parseMonthDayInput(document.getElementById('climateEndDate').value);
+            const statusEl = document.getElementById('queryStatus');
+
+            if (!start || !end) {
+                statusEl.textContent = 'Choose both a start date and an end date.';
+                renderSummaryCards('querySummaryGrid', []);
+                document.getElementById('queryTableBody').innerHTML = '';
+                return;
+            }
+
+            const days = currentClimatology.days;
+            const calendarDays = days.map(d => [d.month, d.day]);
+            const startIdx = findCalendarIndex(start.month, start.day, calendarDays);
+            const endIdx = findCalendarIndex(end.month, end.day, calendarDays);
+
+            if (startIdx === -1 || endIdx === -1) {
+                statusEl.textContent = 'That date is not available in the climatology calendar.';
+                renderSummaryCards('querySummaryGrid', []);
+                document.getElementById('queryTableBody').innerHTML = '';
+                return;
+            }
+
+            const selectedIdxs = circularRange(startIdx, endIdx, days.length);
+            const selectedDays = selectedIdxs.map(idx => days[idx]);
+            const startLabel = monthDayLabel(start.month, start.day);
+            const endLabel = monthDayLabel(end.month, end.day);
+            const sameDay = start.month === end.month && start.day === end.day;
+
+            statusEl.textContent = sameDay
+                ? `${currentClimatology.display_name} climatology for ${startLabel}.`
+                : `${currentClimatology.display_name} climatology for ${startLabel}–${endLabel} (${selectedDays.length} days, wrapping year-end if needed).`;
+
+            renderSummaryCards('querySummaryGrid', [
+                {
+                    label: sameDay ? 'Pool water' : 'Avg pool water',
+                    value: fmt(average(selectedDays.map(d => d.pool_temp_F && d.pool_temp_F.p50)), '°F', 1),
+                    detail: `Span envelope ${fmt(minValue(selectedDays.map(d => d.pool_temp_F && d.pool_temp_F.p10)), '°F', 0)}–${fmt(maxValue(selectedDays.map(d => d.pool_temp_F && d.pool_temp_F.p90)), '°F', 0)}`,
+                },
+                {
+                    label: sameDay ? 'Air high / low' : 'Avg air high / low',
+                    value: `${fmt(average(selectedDays.map(d => d.air_temp_max_F && d.air_temp_max_F.p50)), '°F', 0)} / ${fmt(average(selectedDays.map(d => d.air_temp_min_F && d.air_temp_min_F.p50)), '°F', 0)}`,
+                    detail: `Median daytime mean ${fmt(average(selectedDays.map(d => d.air_temp_F && d.air_temp_F.p50)), '°F', 0)}`,
+                },
+                {
+                    label: sameDay ? 'Wind' : 'Avg wind',
+                    value: fmt(average(selectedDays.map(d => d.wind_speed_mph && d.wind_speed_mph.p50)), ' mph', 1),
+                    detail: `Most common direction ${dominantValue(selectedDays.map(d => d.wind_dir_dominant)) || '—'}`,
+                },
+                {
+                    label: sameDay ? 'Sunshine' : 'Avg sunshine',
+                    value: fmt(average(selectedDays.map(d => d.sunshine_hours && d.sunshine_hours.p50)), ' hrs', 1),
+                    detail: `Span range ${fmt(minValue(selectedDays.map(d => d.sunshine_hours && d.sunshine_hours.p10)), ' hrs', 1)}–${fmt(maxValue(selectedDays.map(d => d.sunshine_hours && d.sunshine_hours.p90)), ' hrs', 1)}`,
+                },
+                {
+                    label: sameDay ? 'Lightning potential' : 'Avg lightning potential',
+                    value: fmt(average(selectedDays.map(d => d.lightning_potential_pct)), '%', 0),
+                    detail: 'Percent of baseline days with thunderstorm-favorable instability',
+                },
+            ]);
+
+            document.getElementById('queryTableBody').innerHTML = selectedDays.map(rec => `
+                <tr>
+                    <td>${monthDayLabel(rec.month, rec.day)}</td>
+                    <td>${fmt(rec.pool_temp_F && rec.pool_temp_F.p50, '°F', 1)} <span class="summary-detail">(${fmt(rec.pool_temp_F && rec.pool_temp_F.p10, '°F', 0)}–${fmt(rec.pool_temp_F && rec.pool_temp_F.p90, '°F', 0)})</span></td>
+                    <td>${fmt(rec.air_temp_max_F && rec.air_temp_max_F.p50, '°F', 0)} / ${fmt(rec.air_temp_min_F && rec.air_temp_min_F.p50, '°F', 0)}</td>
+                    <td>${fmt(rec.wind_speed_mph && rec.wind_speed_mph.p50, ' mph', 1)} <span class="summary-detail">(${rec.wind_dir_dominant || '—'})</span></td>
+                    <td>${fmt(rec.sunshine_hours && rec.sunshine_hours.p50, ' hrs', 1)}</td>
+                    <td>${fmt(rec.lightning_potential_pct, '%', 0)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function destroyCharts() {
+            climateChartInstances.forEach(c => c.destroy());
+            climateChartInstances = [];
+        }
+
+        function makeBandChart(canvasId, labels, lowSeries, midSeries, highSeries, todayIdx, yLabel, color) {
+            const ctx = document.getElementById(canvasId);
+            const config = {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: '10th percentile',
+                            data: lowSeries,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            fill: false,
+                        },
+                        {
+                            label: '90th percentile',
+                            data: highSeries,
+                            borderWidth: 0,
+                            pointRadius: 0,
+                            fill: '-1',
+                            backgroundColor: color.bandFill,
+                        },
+                        {
+                            label: 'Median (typical)',
+                            data: midSeries,
+                            borderColor: color.line,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#aeb8c1' } },
+                        tooltip: { mode: 'index', intersect: false },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#aeb8c1', autoSkip: true, maxTicksLimit: 12 },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        },
+                        y: {
+                            title: { display: true, text: yLabel, color: '#aeb8c1' },
+                            ticks: { color: '#aeb8c1' },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        },
+                    },
+                },
+            };
+            if (todayIdx != null && midSeries[todayIdx] != null) {
+                config.data.datasets.push({
+                    label: "Today's normal",
+                    data: labels.map((_, i) => (i === todayIdx ? midSeries[i] : null)),
+                    borderColor: '#f5c96a',
+                    backgroundColor: '#f5c96a',
+                    pointRadius: 6,
+                    pointStyle: 'star',
+                    showLine: false,
+                });
+            }
+            const chart = new Chart(ctx, config);
+            climateChartInstances.push(chart);
+            return chart;
+        }
+
+        function makePercentChart(canvasId, labels, series, todayIdx, color) {
+            const ctx = document.getElementById(canvasId);
+            const config = {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: '% of years with thunderstorm-favorable instability',
+                            data: series,
+                            borderColor: color.line,
+                            backgroundColor: color.bandFill,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.25,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#aeb8c1' } } },
+                    scales: {
+                        x: {
+                            ticks: { color: '#aeb8c1', autoSkip: true, maxTicksLimit: 12 },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: '% of days', color: '#aeb8c1' },
+                            ticks: { color: '#aeb8c1' },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                        },
+                    },
+                },
+            };
+            if (todayIdx != null && series[todayIdx] != null) {
+                config.data.datasets.push({
+                    label: "Today's normal",
+                    data: labels.map((_, i) => (i === todayIdx ? series[i] : null)),
+                    borderColor: '#f5c96a',
+                    backgroundColor: '#f5c96a',
+                    pointRadius: 6,
+                    pointStyle: 'star',
+                    showLine: false,
+                });
+            }
+            const chart = new Chart(ctx, config);
+            climateChartInstances.push(chart);
+            return chart;
+        }
+
+        function fmt(v, unit, digits = 0) {
+            return (v == null) ? '—' : `${v.toFixed(digits)}${unit}`;
+        }
+
+        async function loadClimatology(poolKey) {
+            destroyCharts();
+            currentClimatology = null;
+            document.getElementById('climateError').style.display = 'none';
+            document.getElementById('climateCharts').style.display = 'none';
+            document.getElementById('todaySummaryPanel').style.display = 'none';
+            document.getElementById('dateQueryPanel').style.display = 'none';
+
+            const safeName = poolKey.replace(/ /g, '_');
+            let climatology;
+            try {
+                const resp = await fetch(`data/climatology_${safeName}.json`, { cache: 'no-store' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                climatology = await resp.json();
+            } catch (e) {
+                console.warn('Could not load climatology for', poolKey, e);
+                document.getElementById('climateError').style.display = 'block';
+                document.getElementById('climateMeta').textContent = '';
+                document.getElementById('todaySummaryGrid').innerHTML = '';
+                document.getElementById('querySummaryGrid').innerHTML = '';
+                document.getElementById('queryTableBody').innerHTML = '';
+                document.getElementById('climateSourceNote').textContent = '';
+                return;
+            }
+
+            currentClimatology = climatology;
+            const days = climatology.days;
+            const calendarDays = days.map(d => [d.month, d.day]);
+            const labels = days.map(d => {
+                const dt = new Date(2000, d.month - 1, d.day);
+                return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            const todayIdx = dayOfYearIndex(new Date(), calendarDays);
+
+            document.getElementById('climateMeta').textContent =
+                `${climatology.display_name} · baseline ${climatology.baseline_start_year}–${climatology.baseline_end_year}` +
+                (climatology.lightning_baseline_start_year
+                    ? ` (lightning proxy: ${climatology.lightning_baseline_start_year}–${climatology.baseline_end_year})`
+                    : '') +
+                ` · ±${climatology.smoothing_window_days}-day smoothing window`;
+            document.getElementById('climateSourceNote').textContent = climatology.source || '';
+            document.getElementById('dateQueryPanel').style.display = 'block';
+
+            // Charts must be created after the container is visible, otherwise
+            // Chart.js measures a zero-width canvas and renders a squished chart.
+            document.getElementById('climateCharts').style.display = 'block';
+
+            const pick = (key, stat) => days.map(d => (d[key] ? d[key][stat] : null));
+
+            makeBandChart(
+                'poolTempClimateChart', labels,
+                pick('pool_temp_F', 'p10'), pick('pool_temp_F', 'p50'), pick('pool_temp_F', 'p90'),
+                todayIdx, 'Pool Temp (°F)',
+                { line: '#7be0d6', bandFill: 'rgba(123,224,214,0.18)' }
+            );
+            makeBandChart(
+                'airTempClimateChart', labels,
+                pick('air_temp_min_F', 'p10'), pick('air_temp_F', 'p50'), pick('air_temp_max_F', 'p90'),
+                todayIdx, 'Air Temp (°F)',
+                { line: '#f5c96a', bandFill: 'rgba(245,201,106,0.18)' }
+            );
+            makeBandChart(
+                'windClimateChart', labels,
+                pick('wind_speed_mph', 'p10'), pick('wind_speed_mph', 'p50'), pick('wind_gust_mph', 'p90'),
+                todayIdx, 'Wind Speed (mph)',
+                { line: '#9fd3ff', bandFill: 'rgba(159,211,255,0.18)' }
+            );
+            makeBandChart(
+                'sunshineClimateChart', labels,
+                pick('sunshine_hours', 'p10'), pick('sunshine_hours', 'p50'), pick('sunshine_hours', 'p90'),
+                todayIdx, 'Sunshine (hours/day)',
+                { line: '#ffd166', bandFill: 'rgba(255,209,102,0.18)' }
+            );
+            makePercentChart(
+                'lightningClimateChart', labels,
+                days.map(d => d.lightning_potential_pct),
+                todayIdx,
+                { line: '#ef8a8a', bandFill: 'rgba(239,138,138,0.22)' }
+            );
+
+            const todayRec = todayIdx != null ? days[todayIdx] : null;
+            if (todayRec) {
+                renderTodaySummary(climatology, todayRec);
+                document.getElementById('poolTempToday').textContent =
+                    `Today's normal: ${fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p50, '°F', 1)} ` +
+                    `(typical range ${fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p10, '°F', 0)}–${fmt(todayRec.pool_temp_F && todayRec.pool_temp_F.p90, '°F', 0)})`;
+                document.getElementById('airTempToday').textContent =
+                    `Today's normal high/low: ${fmt(todayRec.air_temp_max_F && todayRec.air_temp_max_F.p50, '°F', 0)} / ` +
+                    `${fmt(todayRec.air_temp_min_F && todayRec.air_temp_min_F.p50, '°F', 0)}`;
+                document.getElementById('windToday').textContent =
+                    `Today's normal wind: ${fmt(todayRec.wind_speed_mph && todayRec.wind_speed_mph.p50, ' mph', 1)} ` +
+                    `(dominant direction: ${todayRec.wind_dir_dominant || '—'})`;
+                document.getElementById('sunshineToday').textContent =
+                    `Today's normal sunshine: ${fmt(todayRec.sunshine_hours && todayRec.sunshine_hours.p50, ' hrs', 1)}`;
+                document.getElementById('lightningToday').textContent =
+                    `Today's normal lightning potential: ${fmt(todayRec.lightning_potential_pct, '%', 0)} of years`;
+
+                if (!document.getElementById('climateStartDate').value || !document.getElementById('climateEndDate').value) {
+                    const todayValue = dateInputValue(todayRec.month, todayRec.day);
+                    document.getElementById('climateStartDate').value = todayValue;
+                    document.getElementById('climateEndDate').value = todayValue;
+                }
+                executeDateQuery();
+            }
+        }
+
+        function bindClimateControls() {
+            document.getElementById('climateApplyDates').addEventListener('click', executeDateQuery);
+            document.getElementById('climateUseToday').addEventListener('click', function () {
+                if (!currentClimatology) return;
+                const today = new Date();
+                const value = dateInputValue(today.getMonth() + 1, today.getDate());
+                document.getElementById('climateStartDate').value = value;
+                document.getElementById('climateEndDate').value = value;
+                executeDateQuery();
+            });
+            document.getElementById('climateReadMoreToggle').addEventListener('click', function () {
+                const content = document.getElementById('climateReadMore');
+                const expanded = this.getAttribute('aria-expanded') === 'true';
+                this.setAttribute('aria-expanded', String(!expanded));
+                this.textContent = expanded ? 'Read more about this climatology' : 'Hide climatology details';
+                content.hidden = expanded;
+            });
+        }
+
+        async function initPoolTabs() {
+            bindClimateControls();
+            try {
+                const response = await fetch('data/pools_manifest.json');
+                poolManifest = await response.json();
+            } catch (e) {
+                console.warn('Could not load pools_manifest.json', e);
+                poolManifest = {};
+            }
+
+            const tabBar = document.getElementById('pool-tab-bar');
+            tabBar.innerHTML = '';
+
+            const poolKeys = Object.keys(poolManifest);
+            poolKeys.forEach(function (key, index) {
+                const pool = poolManifest[key];
+                const btn = document.createElement('button');
+                btn.className = 'tab' + (index === 0 ? ' active' : '');
+                btn.dataset.pool = key;
+                btn.textContent = pool.display_name || key;
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    loadClimatology(this.dataset.pool);
+                });
+                tabBar.appendChild(btn);
+            });
+
+            if (poolKeys.length > 0) {
+                loadClimatology(poolKeys[0]);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initPoolTabs);
+    </script>
+</body>
+</html>

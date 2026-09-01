@@ -1,0 +1,9 @@
+# Rebuild pool climatology data (data/climatology_<Pool>.json) at 03:00 UTC
+# on the 1st of every month. Climate normals barely shift day to day, so this
+# runs far less often than the hourly forecast refresh in ec2-auto-deploy.cron.
+#
+# Install with: crontab -e   (append the line below), or:
+#   crontab -l > /tmp/current.cron
+#   cat cronjobs/climatology-monthly.cron >> /tmp/current.cron
+#   crontab /tmp/current.cron
+0 3 1 * * cd /var/www/html && /usr/bin/python3 scripts/build_climatology.py >> /var/log/wavepool-climatology.log 2>&1

@@ -399,8 +399,8 @@
         .radar-section h3 { font-size: 20px; }
     }
 
-    /* Wind particle flow field */
-    .wind-field-section {
+    /* Site conditions map */
+    .conditions-map-section {
         background: linear-gradient(180deg, rgba(61,68,76,0.94), rgba(45,52,59,0.98));
         border: 1px solid rgba(255,255,255,0.05);
         border-radius: 20px;
@@ -409,22 +409,19 @@
         max-width: 1100px;
         margin: 28px auto 0;
     }
-    .wind-field-section h3 { margin: 4px 0 16px; font-size: 24px; color: #fff; }
-    .wind-field-container { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); height: 380px; }
-    #windMap { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; border-radius: 12px; }
-    #windFieldCanvas { position: absolute; top: 0; left: 0; display: block; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; z-index: 1; }
-    .wind-field-info {
-        position: absolute; top: 12px; left: 12px;
-        background: rgba(0,0,0,0.55); padding: 8px 12px; border-radius: 8px;
+    .conditions-map-section h3 { margin: 4px 0 16px; font-size: 24px; color: #fff; }
+    .conditions-map-container { position: relative; border-radius: 12px; overflow: hidden; background: rgba(0,0,0,0.3); height: 380px; }
+    #conditionsMap { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; border-radius: 12px; }
+    .conditions-map-info {
+        position: absolute; top: 12px; right: 12px; z-index: 500;
+        background: rgba(0,0,0,0.6); padding: 10px 14px; border-radius: 8px;
         font-size: 13px; color: #fff; line-height: 1.6; pointer-events: none;
+        text-align: right;
     }
-    .wind-field-controls { padding: 10px 0 0; }
-    .wind-field-controls input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
-    .wind-time-label { text-align: center; font-size: 13px; color: var(--muted); margin-top: 5px; min-height: 18px; }
     @media (max-width: 768px) {
-        .wind-field-container { height: 260px; }
-        .wind-field-section { padding: 18px; border-radius: 18px; }
-        .wind-field-section h3 { font-size: 20px; }
+        .conditions-map-container { height: 260px; }
+        .conditions-map-section { padding: 18px; border-radius: 18px; }
+        .conditions-map-section h3 { font-size: 20px; }
     }
 
     /* Detail modal */
@@ -500,9 +497,8 @@
     </style> 
     <script>
     let tempChartInstance = null;
-    let windField = null;
+    let siteConditionsMap = null;
     let radarMap = null;
-    const ecmwfCache = new Map();   // poolName → parsed ECMWF JSON data
     let currentVisibleRows = [];
     let currentWeatherMap = null;
     let poolManifest = null;
@@ -663,363 +659,95 @@
         }
     }
 
-    async function loadEcmwfWind(poolName) {
-        if (ecmwfCache.has(poolName)) return ecmwfCache.get(poolName);
-        const resp = await fetch(`data/forecasts/ecmwf_wind_${poolName}.json`, { cache: 'no-store' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        ecmwfCache.set(poolName, data);
-        return data;
+    function bestRatingForDay(weather) {
+        if (!weather) return null;
+        const labels = {
+            rights_barrel_rating: 'Rights Barrel',
+            rights_air_rating:    'Rights Air',
+            lefts_barrel_rating:  'Lefts Barrel',
+            lefts_air_rating:     'Lefts Air',
+        };
+        const rank = { 'Epic': 3, 'Good': 2 };
+        let best = null;
+        let bestRank = -1;
+        Object.keys(labels).forEach(key => {
+            const normalized = normalizeRating(weather[key]);
+            if (!normalized) return;
+            const r = rank[normalized] || 1;
+            if (r > bestRank) { bestRank = r; best = { rating: normalized, label: labels[key] }; }
+        });
+        return best;
     }
 
-    class WindParticleField {
-        constructor(canvas, slider, infoEl, labelEl) {
-            this.canvas  = canvas;
-            this.ctx     = canvas.getContext('2d');
-            this.slider  = slider;
-            this.infoEl  = infoEl;
-            this.labelEl = labelEl;
-
-            this.data       = null;
-            this.stepIndex  = 0;
-            this.particles  = [];
-            this.NUM_PARTICLES = 90;
-            this.W = 0; this.H = 0;
-
-            this.animFrameId      = null;
-            this.autoPlayTimer    = null;
-            this.autoRefreshTimer = null;
-            this.isUserInteracting = false;
-            this._interactTimeout  = null;
-            this.poolName = null;
-
-            this._bindSlider();
-            window.addEventListener('resize', () => this._onResize());
+    class SiteConditionsMap {
+        constructor(mapDivId, infoElId) {
+            this.mapDiv = document.getElementById(mapDivId);
+            this.infoEl = document.getElementById(infoElId);
+            this.map    = null;
+            this.marker = null;
         }
 
-        // -------------------------------------------------------
-        // Map layer (context, no radar)
-        // -------------------------------------------------------
         _initMap(lat, lon) {
-            if (this.map) {
-                this.map.setView([lat, lon], 7);
-                return;
-            }
-            this.map = L.map('windMap', {
+            this.map = L.map(this.mapDiv, {
                 center: [lat, lon],
-                zoom: 7,
-                zoomControl: false,
+                zoom: 15,
+                zoomControl: true,
                 attributionControl: true,
-                dragging: false,
-                scrollWheelZoom: false,
+                scrollWheelZoom: true,
             });
             L.tileLayer(
-                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-                    subdomains: 'abcd',
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
                     maxZoom: 19,
                 }
             ).addTo(this.map);
         }
 
-        // -------------------------------------------------------
-        // Canvas sizing
-        // -------------------------------------------------------
-        _setupCanvas() {
-            const rect = this.canvas.getBoundingClientRect();
-            const dpr  = window.devicePixelRatio || 1;
-            this.W = rect.width  || 800;
-            this.H = rect.height || 380;
-            this.canvas.width  = this.W * dpr;
-            this.canvas.height = this.H * dpr;
-            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        }
+        update(lat, lon, displayName, todayRow, weatherMap) {
+            if (!this.map) {
+                this._initMap(lat, lon);
+            } else {
+                this.map.setView([lat, lon], 15);
+            }
 
-        _onResize() {
-            if (!this.data) return;
-            this._setupCanvas();
-            this._resetParticles();
-            if (this.map) this.map.invalidateSize();
-        }
+            const weather = (todayRow && weatherMap) ? weatherMap[todayRow.date] : null;
+            const poolTemp = todayRow ? parseFloat(todayRow.temp) : NaN;
+            const windSpeedMph = weather && !isNaN(weather.wind_speed) ? weather.wind_speed : null;
+            const windSpeedKt = windSpeedMph !== null ? windSpeedMph * 0.868976 : null;
+            const windDirDeg = weather && !isNaN(weather.wind_dir) ? weather.wind_dir : null;
+            const airTemp = weather && !isNaN(weather.air_temp) ? weather.air_temp : null;
+            const rating = bestRatingForDay(weather);
+            const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+            const compassLabel = windDirDeg !== null ? dirs[Math.round(windDirDeg / 22.5) % 16] : '';
+            const arrowRotation = windDirDeg !== null ? (windDirDeg + 180) % 360 : 0;
 
-        _bindSlider() {
-            if (!this.slider) return;
-            this.slider.addEventListener('input', (e) => {
-                this.isUserInteracting = true;
-                this._setStep(parseInt(e.target.value, 10));
-                clearTimeout(this._interactTimeout);
-                this._interactTimeout = setTimeout(() => {
-                    this.isUserInteracting = false;
-                }, 6000);
-            });
-        }
+            const popupHtml = `
+                <div style="font-family:Inter,sans-serif; min-width:170px;">
+                    <strong>${displayName}</strong><br>
+                    ${!isNaN(poolTemp) ? `Water: ${poolTemp.toFixed(1)}&deg;F<br>` : ''}
+                    ${airTemp !== null ? `Air: ${airTemp.toFixed(1)}&deg;F<br>` : ''}
+                    ${windSpeedKt !== null ? `Wind: ${windSpeedKt.toFixed(1)} kt ${compassLabel}<br>` : ''}
+                    ${rating ? `Rating: ${getRatingEmoji(rating.rating)} ${rating.rating} (${rating.label})` : ''}
+                </div>`;
 
-        async load(poolName) {
-            this.poolName = poolName;
-            this.data = null;
-            this._stopAnimation();
-            this._setupCanvas();
-            this._showLoading();
-            try {
-                const data = await loadEcmwfWind(poolName);
-                this.data = data;
-                this.stepIndex = 0;
-                if (this.slider) {
-                    this.slider.max   = data.steps.length - 1;
-                    this.slider.value = 0;
+            if (!this.marker) {
+                this.marker = L.marker([lat, lon]).addTo(this.map);
+            } else {
+                this.marker.setLatLng([lat, lon]);
+            }
+            this.marker.bindPopup(popupHtml).openPopup();
+
+            if (this.infoEl) {
+                if (isNaN(poolTemp) && windSpeedKt === null) {
+                    this.infoEl.innerHTML = `<div style="color:#ccc;">Conditions not yet available</div>`;
+                } else {
+                    this.infoEl.innerHTML =
+                        `<div style="font-weight:700;color:var(--accent);font-size:15px;">${!isNaN(poolTemp) ? poolTemp.toFixed(1) + '&deg;F water' : ''}</div>` +
+                        `<div style="color:#ccc;font-size:12px;">${windSpeedKt !== null ? `<span style="display:inline-block; transform:rotate(${arrowRotation}deg);">&uarr;</span> ${windSpeedKt.toFixed(1)} kt ${compassLabel}` : ''}</div>` +
+                        `<div style="color:#888;font-size:11px;margin-top:3px;">${rating ? getRatingEmoji(rating.rating) + ' ' + rating.rating + ' (' + rating.label + ')' : ''}</div>`;
                 }
-                this._resetParticles();
-                this._updateLabel();
-                this._startAnimation();
-                this._startAutoPlay();
-                if (!this.autoRefreshTimer) this._startAutoRefresh();
-            } catch (err) {
-                this._showError('Wind data unavailable');
-                console.warn('WindParticleField load error:', err);
             }
-        }
-
-        _applyNewData(data) {
-            this.data = data;
-            if (this.slider) {
-                this.slider.max = data.steps.length - 1;
-                if (this.stepIndex >= data.steps.length) this.stepIndex = 0;
-            }
-            this._updateLabel();
-        }
-
-        _resetParticles() {
-            this.particles = Array.from({ length: this.NUM_PARTICLES }, () => {
-                const maxAge = 60 + Math.floor(Math.random() * 70);
-                return {
-                    x: Math.random() * this.W,
-                    y: Math.random() * this.H,
-                    px: 0, py: 0,
-                    age: Math.floor(Math.random() * maxAge),
-                    maxAge,
-                };
-            });
-            this.particles.forEach(p => { p.px = p.x; p.py = p.y; });
-        }
-
-        _setStep(index) {
-            if (!this.data) return;
-            this.stepIndex = Math.max(0, Math.min(index, this.data.steps.length - 1));
-            if (this.slider) this.slider.value = this.stepIndex;
-            this._updateLabel();
-        }
-
-        _getWind() {
-            if (!this.data || !this.data.steps[this.stepIndex]) {
-                return { speed_kt: 0, dir_deg: 0, gusts_kt: 0 };
-            }
-            return this.data.steps[this.stepIndex];
-        }
-
-        _windVelocity(speed_kt, dir_deg) {
-            const rad   = dir_deg * Math.PI / 180;
-            const scale = speed_kt * 0.10;
-            return { vx: -Math.sin(rad) * scale, vy: Math.cos(rad) * scale };
-        }
-
-        _particleColor(speed_kt) {
-            if (speed_kt <  5) return 'rgba(136,204,255,0.70)';
-            if (speed_kt < 15) return 'rgba(123,224,214,0.80)';
-            if (speed_kt < 25) return 'rgba(245,201,106,0.88)';
-            if (speed_kt < 35) return 'rgba(255,154, 86,0.92)';
-            return                    'rgba(255,107, 87,0.98)';
-        }
-
-        _tick() {
-            const wind       = this._getWind();
-            const { vx, vy } = this._windVelocity(wind.speed_kt, wind.dir_deg);
-            this.particles.forEach(p => {
-                p.px = p.x; p.py = p.y;
-                p.x += vx;  p.y += vy;
-                p.age++;
-                if (p.x <  0)      { p.x += this.W; p.px = p.x; }
-                if (p.x >  this.W) { p.x -= this.W; p.px = p.x; }
-                if (p.y <  0)      { p.y += this.H; p.py = p.y; }
-                if (p.y >  this.H) { p.y -= this.H; p.py = p.y; }
-                if (p.age >= p.maxAge) {
-                    p.x = Math.random() * this.W; p.y = Math.random() * this.H;
-                    p.px = p.x; p.py = p.y;
-                    p.age = 0;
-                    p.maxAge = 60 + Math.floor(Math.random() * 70);
-                }
-            });
-        }
-
-        _draw() {
-            const ctx  = this.ctx;
-            const wind = this._getWind();
-
-            // Persistent fade creates motion trails
-            ctx.fillStyle = 'rgba(31,37,44,0.20)';
-            ctx.fillRect(0, 0, this.W, this.H);
-
-            const color = this._particleColor(wind.speed_kt);
-            ctx.strokeStyle = color;
-            ctx.lineWidth   = 1.5;
-            ctx.lineCap     = 'round';
-            this.particles.forEach(p => {
-                const t = p.age / p.maxAge;
-                ctx.globalAlpha = Math.min(1, t * 4) * 0.85;
-                ctx.beginPath();
-                ctx.moveTo(p.px, p.py);
-                ctx.lineTo(p.x,  p.y);
-                ctx.stroke();
-            });
-            ctx.globalAlpha = 1;
-
-            this._drawCompass(wind.dir_deg, wind.speed_kt);
-            this._updateInfoOverlay(wind);
-        }
-
-        _drawCompass(dir_deg, speed_kt) {
-            const ctx = this.ctx;
-            const cx  = this.W - 52;
-            const cy  = 52;
-            const r   = 32;
-
-            ctx.fillStyle = 'rgba(0,0,0,0.50)';
-            ctx.beginPath();
-            ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-            ctx.lineWidth   = 1;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.stroke();
-
-            [0, 90, 180, 270].forEach(deg => {
-                const a = (deg - 90) * Math.PI / 180;
-                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-                ctx.beginPath();
-                ctx.moveTo(cx + Math.cos(a) * (r - 5), cy + Math.sin(a) * (r - 5));
-                ctx.lineTo(cx + Math.cos(a) * r,       cy + Math.sin(a) * r);
-                ctx.stroke();
-            });
-
-            ctx.font = '9px Inter,sans-serif';
-            ctx.textAlign = 'center';
-            [['N', 0, -(r+11)], ['S', 0, r+13], ['E', r+13, 3], ['W', -(r+13), 3]].forEach(([lbl, dx, dy]) => {
-                ctx.fillStyle = lbl === 'N' ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.60)';
-                ctx.fillText(lbl, cx + dx, cy + dy);
-            });
-
-            const fromRad = (dir_deg + 90) * Math.PI / 180;
-            const tipX = cx + Math.cos(fromRad) * r * 0.75;
-            const tipY = cy + Math.sin(fromRad) * r * 0.75;
-            const arrowColor = this._particleColor(speed_kt).replace(/[\d.]+\)$/, '1)');
-            ctx.strokeStyle = arrowColor;
-            ctx.lineWidth   = 2;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(tipX, tipY);
-            ctx.stroke();
-            const hLen = 7;
-            const hAngle = Math.atan2(tipY - cy, tipX - cx);
-            ctx.beginPath();
-            ctx.moveTo(tipX, tipY);
-            ctx.lineTo(tipX - hLen * Math.cos(hAngle - Math.PI / 6), tipY - hLen * Math.sin(hAngle - Math.PI / 6));
-            ctx.moveTo(tipX, tipY);
-            ctx.lineTo(tipX - hLen * Math.cos(hAngle + Math.PI / 6), tipY - hLen * Math.sin(hAngle + Math.PI / 6));
-            ctx.stroke();
-        }
-
-        _updateInfoOverlay(wind) {
-            if (!this.infoEl) return;
-            const DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-            const compass = DIRS[Math.round(wind.dir_deg / 22.5) % 16];
-            const step    = this.data && this.data.steps[this.stepIndex];
-            const timeStr = step ? (() => {
-                const dt = new Date(step.time + 'Z');
-                return dt.toLocaleString('en-US', {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false
-                }) + ' UTC';
-            })() : '';
-            this.infoEl.innerHTML =
-                `<div style="font-weight:700;color:var(--accent);font-size:15px;">${wind.speed_kt.toFixed(1)} kt</div>` +
-                `<div style="color:#ccc;font-size:12px;">${compass} · gusts ${wind.gusts_kt.toFixed(0)} kt</div>` +
-                `<div style="color:#888;font-size:11px;margin-top:3px;">${timeStr}</div>`;
-        }
-
-        _updateLabel() {
-            if (!this.data || !this.labelEl) return;
-            const step = this.data.steps[this.stepIndex];
-            if (!step) return;
-            const dt = new Date(step.time + 'Z');
-            this.labelEl.textContent = dt.toLocaleString('en-US', {
-                weekday: 'short', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false
-            }) + ' UTC';
-        }
-
-        _startAnimation() {
-            if (this.animFrameId) return;
-            const loop = () => {
-                this._tick();
-                this._draw();
-                this.animFrameId = requestAnimationFrame(loop);
-            };
-            this.animFrameId = requestAnimationFrame(loop);
-        }
-
-        _stopAnimation() {
-            if (this.animFrameId) {
-                cancelAnimationFrame(this.animFrameId);
-                this.animFrameId = null;
-            }
-        }
-
-        _startAutoPlay() {
-            this._stopAutoPlay();
-            this.autoPlayTimer = setInterval(() => {
-                if (!this.data || this.isUserInteracting) return;
-                this._setStep((this.stepIndex + 1) % this.data.steps.length);
-            }, 2200);
-        }
-
-        _stopAutoPlay() {
-            if (this.autoPlayTimer) { clearInterval(this.autoPlayTimer); this.autoPlayTimer = null; }
-        }
-
-        _startAutoRefresh() {
-            this.autoRefreshTimer = setInterval(async () => {
-                if (!this.poolName) return;
-                ecmwfCache.delete(this.poolName);
-                try {
-                    const fresh = await loadEcmwfWind(this.poolName);
-                    this._applyNewData(fresh);
-                } catch (e) {
-                    console.warn('ECMWF auto-refresh failed:', e);
-                }
-            }, 30 * 60 * 1000);
-        }
-
-        _showLoading() {
-            const ctx = this.ctx;
-            ctx.clearRect(0, 0, this.W, this.H);
-            if (this.infoEl)  this.infoEl.innerHTML = '';
-            if (this.labelEl) this.labelEl.textContent = '';
-        }
-
-        _showError(msg) {
-            const ctx = this.ctx;
-            ctx.clearRect(0, 0, this.W, this.H);
-            ctx.fillStyle = 'rgba(0,0,0,0.55)';
-            ctx.fillRect(0, 0, this.W, this.H);
-            ctx.fillStyle = 'rgba(255,107,87,0.85)';
-            ctx.font = '13px Inter,sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(msg, this.W / 2, this.H / 2 - 8);
-            ctx.fillStyle = 'rgba(174,184,193,0.5)';
-            ctx.font = '11px Inter,sans-serif';
-            ctx.fillText('ECMWF data not yet available', this.W / 2, this.H / 2 + 10);
         }
     }
 
@@ -1215,6 +943,8 @@
             displayName = poolManifest[manifestKey].display_name;
         }
         document.getElementById('poolTitle').textContent = `Predicted Water Temperature for ${displayName}`;
+        currentVisibleRows = [];
+        currentWeatherMap = null;
 
         for (let i = 1; i <= forecastDaysToShow; i++) {
             const column = document.getElementById(`day${i}`);
@@ -1504,16 +1234,18 @@
             console.error(error);
         }
 
-        // Non-blocking: load ECMWF wind visualization and radar for this pool
+        // Non-blocking: update site conditions map and radar for this pool
         const poolKey = poolName.replace(/_/g, ' ');
         const coords  = poolManifest && poolManifest[poolKey];
         const lat = coords ? coords.lat : 37.0;
         const lon = coords ? coords.lon : -97.0;
 
-        if (windField) {
-            windField.load(poolName).catch(err =>
-                console.warn('ECMWF wind field unavailable for', poolName, err)
-            );
+        if (siteConditionsMap) {
+            try {
+                siteConditionsMap.update(lat, lon, displayName, currentVisibleRows[0], currentWeatherMap);
+            } catch (err) {
+                console.warn('Site conditions map update failed for', poolName, err);
+            }
         }
         if (radarMap) {
             radarMap.load(lat, lon).catch(err =>
@@ -1557,15 +1289,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         initPoolTabs();
 
-        // Init wind particle field
-        const wfCanvas = document.getElementById('windFieldCanvas');
-        if (wfCanvas) {
-            windField = new WindParticleField(
-                wfCanvas,
-                document.getElementById('windTimeSlider'),
-                document.getElementById('windFieldInfo'),
-                document.getElementById('windTimeLabel')
-            );
+        // Init site conditions map
+        if (document.getElementById('conditionsMap')) {
+            siteConditionsMap = new SiteConditionsMap('conditionsMap', 'conditionsMapInfo');
         }
 
         // Init radar map
@@ -1752,6 +1478,7 @@
         <a href="news.html">Wave Pool News</a>
         <a href="about_contact.html">About/Contact</a>
         <a href="dashboard.html">Dashboard</a>
+        <a href="climate.html">Climate</a>
         <a href="feedback.html">Feedback</a>
     </div>
 
@@ -1804,18 +1531,13 @@
             <div id="radarMap"></div>
         </section>
 
-        <!-- ECMWF Wind Particle Flow Field -->
-        <section class="wind-field-section">
-            <div class="section-eyebrow">ECMWF 7-day wind forecast · 3-hourly</div>
-            <h3>Wind Flow Field</h3>
-            <div class="wind-field-container">
-                <div id="windMap"></div>
-                <canvas id="windFieldCanvas"></canvas>
-                <div id="windFieldInfo" class="wind-field-info"></div>
-            </div>
-            <div class="wind-field-controls">
-                <input type="range" id="windTimeSlider" min="0" max="55" value="0" step="1">
-                <div id="windTimeLabel" class="wind-time-label"></div>
+        <!-- Site Conditions Map -->
+        <section class="conditions-map-section">
+            <div class="section-eyebrow">Today's forecast at the site</div>
+            <h3>Site Conditions Map</h3>
+            <div class="conditions-map-container">
+                <div id="conditionsMap"></div>
+                <div id="conditionsMapInfo" class="conditions-map-info"></div>
             </div>
         </section>
 
