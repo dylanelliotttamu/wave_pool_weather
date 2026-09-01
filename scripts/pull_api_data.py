@@ -486,45 +486,6 @@ def fetch_solar_radiation_open_meteo(lat, lon, date_list):
         return {}
 
 # ---------------------------------------------------------------------------
-# ECMWF wind forecast retrieval  (Open-Meteo, no API key required)
-# ---------------------------------------------------------------------------
-def fetch_ecmwf_wind_open_meteo(lat, lon):
-    """Retrieve 3-hourly ECMWF wind forecast via Open-Meteo (no API key)."""
-    url = (
-        f"https://api.open-meteo.com/v1/ecmwf"
-        f"?latitude={lat}&longitude={lon}"
-        f"&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m"
-        f"&wind_speed_unit=kn"
-        f"&forecast_days=7"
-        f"&timezone=UTC"
-    )
-    try:
-        resp   = fetch_json_from_url(url, use_cache=False)
-        times  = resp['hourly']['time']
-        speeds = resp['hourly']['wind_speed_10m']
-        dirs   = resp['hourly']['wind_direction_10m']
-        gusts  = resp['hourly']['wind_gusts_10m']
-        steps = []
-        for t, s, d, g in zip(times, speeds, dirs, gusts):
-            if s is None or d is None:
-                continue
-            steps.append({
-                'time':     t,
-                'speed_kt': round(float(s), 1),
-                'dir_deg':  round(float(d), 1),
-                'gusts_kt': round(float(g) if g is not None else s, 1),
-            })
-        from datetime import timezone as _tz
-        return {
-            'generated': datetime.now(_tz.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'location':  '',
-            'steps':     steps,
-        }
-    except Exception as exc:
-        print(f"  Warning: could not fetch ECMWF wind from Open-Meteo: {exc}")
-        return None
-
-# ---------------------------------------------------------------------------
 # NWS thunder probability retrieval  (no API key required)
 # ---------------------------------------------------------------------------
 def fetch_thunder_probability_nws(lat, lon, date_list):
@@ -1267,25 +1228,6 @@ if WRITE_FILES:
     print(f"Pools manifest written → {os.path.normpath(manifest_path)}")
 else:
     print("\nTEST MODE: skipped all file exports (comparison txt + forecast txt).")
-
-# ---------------------------------------------------------------------------
-# ECMWF wind forecast JSON (one compact file per location)
-# ---------------------------------------------------------------------------
-if WRITE_FILES:
-    for name, coords in locations.items():
-        ecmwf = fetch_ecmwf_wind_open_meteo(coords['lat'], coords['lon'])
-        if ecmwf is None:
-            print(f"  Skipping ECMWF wind export for {name} (fetch failed)")
-            continue
-        ecmwf['location'] = name
-        ecmwf_path = os.path.join(
-            FORECASTS_DIR, f'ecmwf_wind_{name.replace(" ", "_")}.json'
-        )
-        with open(ecmwf_path, 'w') as f:
-            json.dump(ecmwf, f, separators=(',', ':'))
-        print(f"  Wrote ECMWF wind JSON → {ecmwf_path}")
-else:
-    print("TEST MODE: skipped ECMWF wind JSON exports.")
 
 # ---------------------------------------------------------------------------
 # Generate dashboard.html with real data
