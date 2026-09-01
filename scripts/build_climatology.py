@@ -33,7 +33,6 @@ forecast cron that runs pull_api_data.py.
 import json
 import os
 import statistics
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -41,10 +40,11 @@ from datetime import date, timedelta
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
 
-from pool_physics import (  # noqa: E402
+# pool_physics is installed editable (see pyproject.toml [tool.hatch.build.
+# targets.wheel] packages = ["src/pool_physics"]) via `uv sync`, so a plain
+# import works without any sys.path manipulation.
+from pool_physics import (
     celsius_to_fahrenheit,
     kmh_to_ms,
     bottom_u_value_Wm2K,

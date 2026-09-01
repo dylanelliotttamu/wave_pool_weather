@@ -8,7 +8,6 @@ from pathlib import Path
 import time
 import sqlite3
 import os
-import sys
 
 print("Imported libraries successfully.")
 
@@ -36,12 +35,10 @@ locations = {
 
 # ---------------------------------------------------------------------------
 # Physical constants + thermal-model helpers — shared with
-# scripts/build_climatology.py via scripts/pool_physics.py
+# scripts/build_climatology.py via the pool_physics package (src/pool_physics).
+# Installed editable via `uv sync` / `pip install -e .`, so a plain import
+# works without any sys.path manipulation.
 # ---------------------------------------------------------------------------
-_scripts_dir = str(Path(__file__).resolve().parent)
-if _scripts_dir not in sys.path:
-    sys.path.insert(0, _scripts_dir)
-
 from pool_physics import (
     SIGMA_SB, EPSILON_WATER, ALBEDO_WATER, RHO_WATER, CP_WATER, L_VAP,
     K_CONCRETE, L_CONCRETE_M, MIN_POOL_TEMP_C, MAX_POOL_TEMP_C,
