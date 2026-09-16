@@ -298,16 +298,28 @@
         color: var(--muted);
         font-size: 14px;
     }
+    /*
+     * The rating matrix keeps its table shape (label column + one column per
+     * day) at every viewport width. Instead of reflowing into a different
+     * layout on small screens, the grid scales its column widths, gaps and
+     * font sizes down and, if it still can't fit, becomes horizontally
+     * scrollable inside .ratings-scroll so rows/columns stay aligned.
+     */
+    .ratings-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-top: 18px;
+    }
     .ratings-grid {
         display: grid;
-        grid-template-columns: 170px repeat(var(--day-cols, 7), minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 18px;
+        grid-template-columns: clamp(96px, 22vw, 170px) repeat(var(--day-cols, 7), minmax(48px, 1fr));
+        gap: clamp(4px, 1.2vw, 10px);
         align-items: center;
+        min-width: 480px;
     }
     .ratings-grid .header-cell {
         color: var(--muted);
-        font-size: 12px;
+        font-size: clamp(10px, 1.6vw, 12px);
         text-transform: uppercase;
         letter-spacing: 1px;
         text-align: center;
@@ -320,24 +332,26 @@
     }
     .rating-row-label strong {
         color: #fff;
-        font-size: 14px;
+        font-size: clamp(11px, 2vw, 14px);
     }
     .rating-row-label span {
         color: var(--muted);
-        font-size: 12px;
+        font-size: clamp(9px, 1.6vw, 12px);
     }
     .rating-chip {
-        min-height: 54px;
+        min-height: clamp(36px, 7vw, 54px);
         border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 13px;
+        font-size: clamp(9px, 1.8vw, 13px);
         font-weight: 700;
         letter-spacing: 0.2px;
         border: 1px solid transparent;
         cursor: pointer;
         transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+        padding: 0 4px;
+        text-align: center;
     }
     .rating-chip:hover {
         transform: scale(1.07);
@@ -348,17 +362,6 @@
         background: rgba(255,255,255,0.04);
         color: var(--muted);
         border-color: rgba(255,255,255,0.05);
-    }
-    @media (max-width: 1024px) {
-        .ratings-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-        }
-        .ratings-grid .header-cell:first-child,
-        .rating-row-label {
-            grid-column: 1 / -1;
-            padding-right: 0;
-        }
     }
 
     @media (max-width: 768px) {
@@ -372,9 +375,6 @@
         }
         .ratings-board h3 {
             font-size: 24px;
-        }
-        .ratings-grid {
-            grid-template-columns: 1fr;
         }
         .day-column {
             max-width: none;
@@ -1521,7 +1521,9 @@
             <div class="section-eyebrow">Wave-specific calls</div>
             <h3>Wind rating matrix</h3>
             <p>Rights and lefts stay grouped beneath the forecast cards so the daily temperature scan comes first and the wave-specific read follows it.</p>
-            <div id="ratingsGrid" class="ratings-grid"></div>
+            <div class="ratings-scroll">
+                <div id="ratingsGrid" class="ratings-grid"></div>
+            </div>
         </section>
 
         <!-- Radar Reflectivity Map -->
