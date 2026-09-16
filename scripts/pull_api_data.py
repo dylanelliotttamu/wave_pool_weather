@@ -990,6 +990,11 @@ for name, coords in locations.items():
     T_pool_air_C = T_pool_init_C   # tracks simple air-only baseline
     T_pool_old_C = T_pool_init_C   # tracks original model (no ground flux)
     T_pool_new_C = T_pool_init_C   # tracks new physics model (with ground flux)
+    # Comparison-only trackers for the alternate evaporation bias-correction
+    # modes (not written to the DB; production still uses ACTIVE_BIAS_CORRECTION).
+    T_pool_evap_mult_C  = T_pool_init_C
+    T_pool_wind_floor_C = T_pool_init_C
+    T_pool_penman_C     = T_pool_init_C
     comparison_rows = []           # for the per-location comparison file
 
     for i, d in enumerate(data['date_list']):
@@ -1042,6 +1047,26 @@ for name, coords in locations.items():
             dt_days=1.0
         )
 
+        # --- bias correction comparison runs (comparison file only, not DB) ---
+        T_pool_evap_mult_C, _ = pool_thermal_balance_step(
+            T_pool_evap_mult_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='evap_multiplier', ce_multiplier=CE_MULTIPLIER,
+        )
+        T_pool_wind_floor_C, _ = pool_thermal_balance_step(
+            T_pool_wind_floor_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='wind_floor', evap_wind_floor_ms=EVAP_WIND_FLOOR_MS,
+        )
+        T_pool_penman_C, _ = pool_thermal_balance_step(
+            T_pool_penman_C, T_air_C, RH_pct, wind_ms, solar_MJm2,
+            depth_m=depth_m, ground_temp_C=ground_temp_C,
+            bottom_u_Wm2K=bottom_u_Wm2K, include_ground=True, dt_days=1.0,
+            bias_correction='penman',
+        )
+
         # --- sub-daily estimates: 9 AM and 3 PM ---
         # 9 AM: step from start-of-day pool temp for 9 hours using morning conditions
         T_morning_C, _ = pool_thermal_balance_step(
@@ -1076,6 +1101,9 @@ for name, coords in locations.items():
         new_F         = celsius_to_fahrenheit(T_pool_new_C)
         morning_F     = celsius_to_fahrenheit(T_morning_C)
         afternoon_F   = celsius_to_fahrenheit(T_afternoon_C)
+        evap_mult_F   = celsius_to_fahrenheit(T_pool_evap_mult_C)
+        wind_floor_F  = celsius_to_fahrenheit(T_pool_wind_floor_C)
+        penman_F      = celsius_to_fahrenheit(T_pool_penman_C)
         delta_new_old = new_F - old_F
         delta_old_air = old_F - air_F
         delta_new_air = new_F - air_F
@@ -1084,6 +1112,9 @@ for name, coords in locations.items():
             round(air_F, 2),
             round(old_F, 2),
             round(new_F, 2),
+            round(evap_mult_F, 2),
+            round(wind_floor_F, 2),
+            round(penman_F, 2),
             round(delta_new_old, 2),
             round(delta_old_air, 2),
             round(delta_new_air, 2),
@@ -1095,6 +1126,7 @@ for name, coords in locations.items():
               f"Δ(new-old)={delta_new_old:+.2f}°F "
               f"Δ(old-air)={delta_old_air:+.2f}°F "
               f"Δ(new-air)={delta_new_air:+.2f}°F "
+              f"evap_mult={evap_mult_F:.1f}°F wind_floor={wind_floor_F:.1f}°F penman={penman_F:.1f}°F | "
               f"Q_solar={fluxes['Q_solar_Wm2']:.0f} "
               f"Q_lw={fluxes['Q_lw_net_Wm2']:.0f} "
               f"Q_conv={fluxes['Q_conv_Wm2']:.0f} "
@@ -1108,18 +1140,17 @@ for name, coords in locations.items():
             f'model_comparison_{name.replace(" ", "_")}.txt'
         )
         with open(cmp_filename, 'w') as f:
-            f.write('date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+            f.write('date,T_air_only_F,T_old_F,T_new_F,T_evap_mult_F,T_wind_floor_F,T_penman_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
             for row in comparison_rows:
-                f.write(
-                    f"{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
-                )
+                f.write(','.join(str(v) for v in row) + '\n')
         print(f"  Comparison written → {cmp_filename}")
     else:
         print(f"  TEST MODE summary for {name} (first 3 rows):")
         for row in comparison_rows[:3]:
             print(
                 f"    {row[0]} air={row[1]} old={row[2]} new={row[3]} "
-                f"d_new_old={row[4]} d_old_air={row[5]} d_new_air={row[6]} Qg={row[7]}"
+                f"evap_mult={row[4]} wind_floor={row[5]} penman={row[6]} "
+                f"d_new_old={row[7]} d_old_air={row[8]} d_new_air={row[9]} Qg={row[10]}"
             )
 
     # Accumulate for the cross-location summary (keyed by location name)
@@ -1133,12 +1164,10 @@ conn.commit()
 if WRITE_FILES:
     summary_path = os.path.join(FORECASTS_DIR, 'model_comparison_summary.txt')
     with open(summary_path, 'w') as f:
-        f.write('location,date,T_air_only_F,T_old_F,T_new_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
+        f.write('location,date,T_air_only_F,T_old_F,T_new_F,T_evap_mult_F,T_wind_floor_F,T_penman_F,delta_new_minus_old_F,delta_old_minus_air_F,delta_new_minus_air_F,Q_ground_Wm2\n')
         for loc_name, rows in all_comparison_rows.items():
             for row in rows:
-                f.write(
-                    f"{loc_name},{row[0]},{row[1]},{row[2]},{row[3]},{row[4]},{row[5]},{row[6]},{row[7]}\n"
-                )
+                f.write(f"{loc_name}," + ','.join(str(v) for v in row) + '\n')
     print(f"\nCross-location summary written → {summary_path}")
 
     # -----------------------------------------------------------------------
